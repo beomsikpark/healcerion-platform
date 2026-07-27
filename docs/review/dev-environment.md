@@ -42,15 +42,77 @@ echo '{"queryKey":"all","limit":100}' | ssh -p 2222 git@phab.healcerion.com cond
 | Space | 31건 전부 `spacePHID: null` | §2.3 참조 — **Space 미사용의 증거가 아니다** |
 | callsign | 22건 있음 / 9건 없음 | 혼재하므로 클론은 `/diffusion/<id>/` 형태로 통일 |
 
-### 2.3 읽히지 않는 것 — B1 에 대한 단서
+### 2.3 읽히지 않는 것 — 직접 시험으로 확정
 
-보이는 31건이 **전부** `view: users` + `spacePHID: null` 이다. 여기서 나오는 결론은 하나뿐이다.
+추측을 남기지 않기 위해 **callsign 으로 직접 클론을 시도**했다. 결과가 두 종류로 갈린다.
 
-**`Moana`·`sonon-cloud` 가 안 보이는 이유는 우리 계정이 개별적으로 배제된 것이 아니라, 그 저장소들만 다른 설정을 갖기 때문이다** — `view` 정책이 `users` 가 아니거나, Space 안에 있거나.
+```
+$ git clone ssh://git@phab.healcerion.com:2222/diffusion/M/          # Moana
+phabricator-ssh-exec: [You Shall Not Pass: Restricted Repository] (Can View)
+You do not have permission to view this object.
+// Members of a particular project can take this action.
+(You can not see this object, so the name of this project is restricted.)
 
-> **논리 주의**: `spacePHID: null` 31/31 은 "힐세리온이 Space 를 쓰지 않는다"의 증거가 **아니다**. 우리가 볼 수 있는 것이 곧 default space 의 저장소이므로, Space 안의 저장소는 애초에 이 목록에 나타나지 않는다. 관측 결과는 Space 가설과 완전히 양립한다.
+$ git clone ssh://git@phab.healcerion.com:2222/diffusion/ZZQXNOTAREPO/   # 대조군
+phabricator-ssh-exec: No repository "ZZQXNOTAREPO" exists!
+```
 
-→ 권한 요청 시 "계정에 권한을 달라" 가 아니라 **"해당 저장소의 view 정책을 `users` 로 맞추거나 Space 접근권을 달라"** 로 구체화할 수 있다.
+**대조군이 다른 메시지를 낸다** → 앞의 응답은 "존재 여부를 숨기는 일반 응답"이 아니라 **"존재하지만 제한됨"** 이다.
+
+| callsign | 저장소 | 결과 |
+|---|---|---|
+| `M` | Moana | **존재 · 제한됨** |
+| `CL` | sonon-cloud | **존재 · 제한됨** |
+| `BF` | belle-fw | **존재 · 제한됨** |
+| `HFW` | rHFW | **존재 · 제한됨** |
+| `ZZQXNOTAREPO` | (대조군) | 존재하지 않음 |
+
+**확정된 것 셋.**
+
+1. **차단 원인은 프로젝트 멤버십 기반 view 정책이다.** Space 도 아니고 계정 배제도 아니다. 앞서 `spacePHID: null` 31/31 로 Space 를 의심했던 것은 빗나갔다
+2. **`rHFW` 가 실재한다.** `cf-doppler-neon` 설명에만 등장하던 "존재 추정" 이 **존재 확정**으로 바뀐다
+3. **`belle-fw` 는 두 개다.** 우리에게 보이는 `R66`(callsign 없음, `inactive`)과, CTO 화면의 `rBF`(callsign `BF`, active, 66 commits, 제한됨)는 **서로 다른 저장소**다. `R66` 은 껍데기이고 실물은 `rBF` 다 → "R66 을 활성화해 달라"는 요청은 과녁이 틀렸다
+
+### 2.4 우리 계정
+
+| 항목 | 값 |
+|---|---|
+| userName | `develop` |
+| realName | `temporary` |
+| email | `dev@healcerion.com` |
+| roles | `verified` · `approved` · `activated` |
+
+개인 계정이 아니라 **공용 임시 계정**이다. 어느 프로젝트에도 속하지 않은 것으로 보이며, 이것이 §2.3 제한의 직접 원인이다.
+
+프로젝트 목록 자체는 전부 열람된다 — `[LAB] Moana`(236) · `[LAB] SONON Cloud`(408) · `[LAB] belle`(273) · `[LAB] members`(410) 등. 다만 **어느 프로젝트가 각 저장소를 잠그는지는 Phabricator 가 의도적으로 숨긴다**("the name of this project is restricted"). 이것만은 힐세리온 확인이 필요하다.
+
+### 2.5 `[GMP]` 프로젝트 체계가 실재한다
+
+`project.search` 결과에 제품 수명주기가 **GMP**(의료기기 제조품질관리기준) 체계로 조직돼 있다.
+
+`[GMP] 1. 500 시리즈` → `1.1.1 500L 기획` · `1.1.2 500L 개발` · `1.1.3 500L 생산` · `1.1.4 500L 서비스` · `[GMP] 2. 300시리즈` · **`[GMP] 3. Sonon X`** → `3.1 기획` · `3.2 개발`
+
+두 가지 함의가 있다.
+
+- **판단 대기 3번(의료기기 규제)은 가정이 아니다.** 기획-개발-생산-서비스가 GMP 단계로 관리되고 있으며, Phriction 의 `소프트웨어_밸리데이션_작성/`·`ra/`·`qm/` 문서와 맞물린다. 리팩토링은 **설계이력·밸리데이션 재수행 비용**을 동반한다
+- **`Sonon X` 가 제품 라인명으로 확인된다.** `sonex` 저장소와의 대응은 여전히 **추정**이지만(코드 대조 미완), 제품 쪽에 `[GMP] 3. Sonon X` 라는 독립 트랙이 존재한다는 사실은 확정이다
+
+### 2.6 conduit over SSH 의 제약 — 파라미터가 무시된다
+
+SSH 경유 conduit 은 **stdin 의 JSON 파라미터를 전혀 적용하지 않는다.** 검증:
+
+| 시험 | 기대 | 실제 |
+|---|---|---|
+| `{"limit":1}` | 1건 | **100건** |
+| `{"constraints":{"THIS_KEY_IS_BOGUS":[...]}}` | 오류 | **오류 없이 100건** |
+
+존재하지 않는 constraint 키에도 오류가 없다 → 파라미터가 파싱되지 않고 버려진다.
+
+**따라서 어떤 조회든 항상 "기본 정렬 첫 100건"만 얻는다.** 이 문서와 [repo-activity.md](repo-activity.md) 의 Maniphest·Phriction 수치는 전부 **첫 100건 표본**이다. 페이지 이동(`after` 커서)도 파라미터이므로 불가능하다.
+
+- `diffusion.repository.search` 31건은 **영향 없음** — 100건 미만이라 한 페이지에 다 들어왔고 `after: null` 이다
+- `harbormaster.build.search` 0건도 **영향 없음**
+- Maniphest(다음 커서 8777)·Phriction(1284)은 **표본만 본 것**이다. 전수 조사하려면 웹 UI 로그인 또는 API 토큰 방식이 필요하다
 
 ### 2.4 `dateModified` 를 활동성 지표로 쓰지 말 것
 

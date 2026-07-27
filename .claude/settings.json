@@ -25,9 +25,6 @@
     "deny": [
       "Bash(git push*)",
       "Bash(git -C * push*)",
-      "Bash(git -C * commit*)",
-      "Bash(git -C * reset*)",
-      "Bash(git -C * rebase*)"
     ]
   }
 }

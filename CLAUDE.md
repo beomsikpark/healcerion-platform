@@ -170,10 +170,14 @@ echo '{"queryKey":"all","limit":100}' | ssh -p 2222 git@phab.healcerion.com cond
 
 ## 미해결 블로커
 
-1. **`Moana`(5,705 commits, 배포중 Qt 앱)·`sonon-cloud`(394) 가 계정에 안 보임** — PPT 스크린샷에는 있으나 conduit 조회 31건에 없음. **리팩토링 검토의 핵심 대상**이라 열람 권한이 필요하다. 보이는 31건이 전부 `view: users` 이므로 요청은 "해당 저장소의 view 정책 또는 Space 접근권" 으로 구체화한다 — 근거 = [docs/review/dev-environment.md](docs/review/dev-environment.md) §2.3
-2. **`belle-fw`·`belle-bsp` 가 inactive** — PPT 가 지목한 3축 중 하나인데 SSH 클론 불가. 활성화 요청 필요
-3. **`rHFW` 존재 추정** — `cf-doppler-neon` 설명이 통합 대상으로 언급하나 목록에 없음
-4. **개발 프로세스 축 미확인** — 코드 리뷰·이슈·CI·릴리스 규약. "기존 vs 리팩토링 장단점"의 절반이 여기 달렸다. 조회 방법 = [docs/review/dev-environment.md](docs/review/dev-environment.md) §5 (1~3 은 우리 쪽 조회만으로 해소 가능)
+> 아래는 **우리 쪽에서 할 수 있는 확인을 모두 끝낸 뒤 남은 것**이다. 직접 시험 결과 = [docs/review/dev-environment.md](docs/review/dev-environment.md) §2.3~2.6
+
+1. **`Moana`·`sonon-cloud`·`belle-fw`·`rHFW` 4건이 프로젝트 멤버십으로 잠겨 있다** — callsign 직접 클론으로 **존재는 확정**했고(대조군과 응답이 다름), 차단 원인이 **프로젝트 멤버십 기반 view 정책**임도 확정했다. 우리 계정은 공용 임시 계정 `develop`(dev@healcerion.com) 이다.
+   **남은 것은 하나뿐** — 어느 프로젝트의 멤버가 되어야 하는지. Phabricator 가 그 프로젝트 이름을 의도적으로 숨긴다. 후보: `[LAB] Moana`·`[LAB] SONON Cloud`·`[LAB] belle`·`[LAB] members`
+2. **~~`belle-fw`·`belle-bsp` inactive → 활성화 요청~~ — 과녁이 틀렸다.** 우리에게 보이는 `R66`(callsign 없음, inactive)과 실물 `rBF`(active, 66 commits)는 **다른 저장소**다. 1번으로 흡수된다. `belle-bsp` 는 실물 callsign 미확인
+3. **~~`rHFW` 존재 추정~~ → 존재 확정.** 1번으로 흡수
+4. **conduit 이 파라미터를 무시한다** — 어떤 조회든 첫 100건만 얻는다(§2.6). Maniphest(8777)·Phriction(1284) 전수 조사는 **웹 UI 로그인 또는 API 토큰**이 필요하다
+5. **Differential(코드리뷰) 앱 접근 차단** — 사용 여부 자체를 확인할 수 없다
 5. **판단 대기 항목** — sonex 전환과의 중복 관계, "cctv-platform 유사 형태"의 정의 범위, 의료기기 규제(IEC 62304 / ISO 14971) 제약, 반입 승인. 상세 = `tmp/handoff-hlab-2487.md`
    (범위 경계 중 **신호처리 R&D 제외는 결정됨**, `fpga/` 는 유지)
 
