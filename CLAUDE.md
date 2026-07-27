@@ -12,7 +12,7 @@
 > **IMPORTANT**: `mobile/`·`desktop/`·`web/`·`server/`·`device/`·`fpga/` 아래는 전부 **힐세리온(외부사) 소유 소스의 read-only 미러**다.
 >
 > - **편집·커밋·push 절대 금지.** 검토(read) 목적으로만 클론했다. cctv 의 `device/fw-orig` 와 동일한 위상.
-> - 상태 확인: `./scripts/git-status.sh` — 미러에 DIRTY 가 뜨면 실수로 편집한 것이므로 되돌린다.
+> - 상태 확인: `make git-status` — 하단 `Mirrors:` 줄에 편집된 미러가 뜨면 `make git-sync-orig ARGS=--clean` 으로 되돌린다.
 > - 각 미러 안의 `CLAUDE.md`·`docs/` 는 **힐세리온이 작성한 파일**이다. 그들의 개발 관행을 읽는 자료이지 우리가 고칠 대상이 아니다.
 > - **우리 산출물은 루트 git(`healcerion-platform`)의 `docs/`·`scripts/` 에만 쓴다.**
 
@@ -71,11 +71,15 @@ cctv 의 `device/fw-orig` 와 같은 위상이되 펌웨어에 한정되지 않�
 
 | 대상 | 타겟 | 동작 |
 |---|---|---|
-| 공통 | `make git-status` | 루트 + 미러 13건 상태. **미러에 DIRTY = 실수로 편집한 것** |
+| **루트** | `make git-status` | **working 저장소만** 표로 표시. 미러는 요약 한 줄이고 편집된 것만 이름이 뜬다 |
 | **루트** | `make git-pull` | origin 에서 **ff-only** pull. 미커밋 변경이 있으면 **거부** |
 | **루트** | `make git-push` | origin 으로 push (원격 = `beomsikpark/healcerion-platform`) |
 | **미러** | `make git-clone` | 누락분 클론 (재실행 안전, 기존은 SKIP) |
 | **미러** | `make git-sync-orig` | origin 으로 **강제 동기화**(`reset --hard`). `ARGS=--dry-run` · `--clean` · 경로 부분문자열 |
+
+`git-status` 가 미러를 행으로 나열하지 않는 것은 cctv 를 따른 것이다 — cctv `git-status.sh` 는 명시적 REPOS 배열에 개발 대상만 담고 `device/fw-orig/*` 는 한 건도 넣지 않는다. read-only 미러는 어차피 강제 동기화로 버려지므로 "상태"가 의미를 갖지 않는다. 다만 오편집 감지는 남길 가치가 있어 요약 한 줄로 접었고, **편집된 미러가 있을 때만** 이름을 드러낸다.
+
+> 미러 복구는 반드시 **`ARGS=--clean`** 을 붙인다. `--clean` 없는 동기화는 추적 파일만 되돌리므로 실수로 만든 untracked 파일이 살아남아 계속 EDITED 로 잡힌다(실측 확인).
 
 > `make git-push-all`·`git-commit` 은 존재하되 **거부**한다 — cctv 에서 손에 익은 명령이 미러까지 밀어버리는 것을 막는다. `make build`·`test`·`clean` 도 거부한다(우리는 빌드하지 않는다).
 

@@ -16,30 +16,33 @@ JOBS="${JOBS:-3}"
 
 # repo-id : local path
 #
-# EVERY mirror goes under <container>/orig/ — nothing has been refactored yet, so all of
-# this is the refactoring INPUT. Container top level stays empty until our output exists.
+# Mirrors sit directly under their container, like cctv's device/ipc-app or
+# desktop/cms-app. cctv reserves a *-orig subfolder (device/fw-orig) for legacy
+# sources that a new in-house rewrite has replaced; we have produced no such
+# rewrite yet, so nothing belongs there and the extra level would carry no
+# information. Introduce <container>/orig/ at the moment our own output lands.
 REPOS=(
     # --- mobile: Flutter client app + its SDK/ADK
     #     (app also builds windows/macos/linux — see CLAUDE.md) ---
-    "76:mobile/orig/sonex-app"            # sonex-APP        : flutter 로 구현된 sonex app
-    "74:mobile/orig/sonex-framework"      # sonex-framework  : sonex 앱의 SDK, ADK
+    "76:mobile/sonex-app"            # sonex-APP        : flutter 로 구현된 sonex app
+    "74:mobile/sonex-framework"      # sonex-framework  : sonex 앱의 SDK, ADK
     # --- web ---
-    "73:web/orig/sonex-admin-web"         # sonex-admin-web  : SoNex cloud admin web site
+    "73:web/sonex-admin-web"         # sonex-admin-web  : SoNex cloud admin web site
     # --- server ---
-    "65:server/orig/russia-server"        # russia-server    : REST API test server (Russia ambulance)
-    "26:server/orig/dicomcontroller"      # dicomcontroller  : (설명 없음)
+    "65:server/russia-server"        # russia-server    : REST API test server (Russia ambulance)
+    "26:server/dicomcontroller"      # dicomcontroller  : (설명 없음)
     # --- device: 장비 펌웨어·MCU·yocto ---
-    "70:device/orig/belle-msp"            # belle-msp        : MSP430 MCU 펌웨어
-    "60:device/orig/elsa-fw"              # elsa-fw          : (설명 없음)
-    "75:device/orig/500c-sn-fw"           # 500C_SN_FW       : 500C Firmware ([LAB] CHARM)
-    "34:device/orig/elsa-yocto-bsp"       # elsa-yocto-bsp   : Elsa Project BSP
-    "36:device/orig/meta-elsa"            # meta-elsa        : meta-elsa yocto recipes
-    "66:device/orig/belle-fw"             # belle-fw         : elsa project firmware repo   [INACTIVE]
-    "67:device/orig/belle-bsp"            # belle-bsp        : elsa project firmware BSP    [INACTIVE]
+    "70:device/belle-msp"            # belle-msp        : MSP430 MCU 펌웨어
+    "60:device/elsa-fw"              # elsa-fw          : (설명 없음)
+    "75:device/500c-sn-fw"           # 500C_SN_FW       : 500C Firmware ([LAB] CHARM)
+    "34:device/elsa-yocto-bsp"       # elsa-yocto-bsp   : Elsa Project BSP
+    "36:device/meta-elsa"            # meta-elsa        : meta-elsa yocto recipes
+    "66:device/belle-fw"             # belle-fw         : elsa project firmware repo   [INACTIVE]
+    "67:device/belle-bsp"            # belle-bsp        : elsa project firmware BSP    [INACTIVE]
     # --- fpga: cctv 에 대응 축 없음 (healcerion 고유) ---
-    "68:fpga/orig/fuji-oem-us-fpga"       # FUJI_OEM_US_FPGA : FUJI OEM 64Ch ultrasound equipment
-    "58:fpga/orig/ginny-renewal"          # fpga ginny renewal : 300 series ginny FPGA renewal
-    "40:fpga/orig/ginny-table"            # ginny-table      : Ginny FPGA Table
+    "68:fpga/fuji-oem-us-fpga"       # FUJI_OEM_US_FPGA : FUJI OEM 64Ch ultrasound equipment
+    "58:fpga/ginny-renewal"          # fpga ginny renewal : 300 series ginny FPGA renewal
+    "40:fpga/ginny-table"            # ginny-table      : Ginny FPGA Table
 )
 
 # 범위 제외 — upstream 포크 (힐세리온 자작 코드 아님. 우리는 빌드하지 않으므로 불필요):
@@ -60,9 +63,9 @@ REPOS=(
 #
 # 미가시(계정 권한 필요) — PPT 스크린샷에는 있으나 conduit 조회 결과에 없음.
 # 아래 3건이 확보되면 이 배열에 추가한다:
-#   rM   Moana (5,705 commits, 배포중 Qt 앱)  -> mobile/orig/moana
-#   rCL  sonon-cloud (394 commits)            -> server/orig/sonon-cloud
-#   rHFW (cf-doppler-neon 설명이 통합 대상으로 언급 — 존재 추정) -> desktop/orig/rhfw
+#   rM   Moana (5,705 commits, 배포중 Qt 앱)  -> mobile/moana
+#   rCL  sonon-cloud (394 commits)            -> server/sonon-cloud
+#   rHFW (cf-doppler-neon 설명이 통합 대상으로 언급 — 존재 추정) -> desktop/rhfw
 
 clone_one() {
     local id="${1%%:*}" path="${1#*:}"

@@ -1,42 +1,91 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
-# 하위 git repository 상태 확인 스크립트 (read-only 미러 — 변경이 있으면 안 된다)
+# Working repository status.
+#
+# Mirrors deliberately do NOT get a row here. cctv's git-status.sh lists only the
+# repos it actually develops in and leaves device/fw-orig out entirely, because a
+# read-only mirror has no meaningful "status" — whatever it holds is discarded by
+# a force sync. Every sub-repo in this workspace is such a mirror, so the working
+# set is the root repo alone.
+#
+# Accidental mirror edits are still worth catching, so they are folded into a
+# single summary line and only DIRTY ones are named. Full mirror detail:
+#   make git-sync-orig ARGS=--dry-run
 #
 # Usage: ./scripts/git-status.sh
 #
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
-echo -e "${CYAN}=== healcerion-platform (root — 우리 문서) ===${NC}"
-git -C "$ROOT_DIR" status --short --branch | head -20
-echo
+# Repos we develop in. Add refactoring output here as it appears.
+REPOS=(
+    "."
+)
 
-echo -e "${CYAN}=== Phabricator 미러 (변경 = 이상 신호) ===${NC}"
-while IFS= read -r gitdir; do
-    repo="$(dirname "$gitdir")"
-    rel="${repo#$ROOT_DIR/}"
-    [ "$rel" = "$ROOT_DIR" ] && continue
-    branch="$(git -C "$repo" rev-parse --abbrev-ref HEAD 2>/dev/null)"
-    dirty="$(git -C "$repo" status --porcelain 2>/dev/null | wc -l)"
-    ahead="$(git -C "$repo" rev-list --count "@{u}..HEAD" 2>/dev/null || echo 0)"
-    last="$(git -C "$repo" log -1 --format=%ci 2>/dev/null | cut -d' ' -f1)"
-    if [ "$dirty" -eq 0 ] && [ "$ahead" -eq 0 ]; then
-        printf "${GREEN}  clean${NC}  %-36s %-28s last=%s\n" "$rel" "$branch" "$last"
-    else
-        printf "${RED}  DIRTY${NC}  %-36s %-28s last=%s  (changed=%s ahead=%s)\n" \
-            "$rel" "$branch" "$last" "$dirty" "$ahead"
+clean=0; dirty=0; ahead_count=0; missing=0
+
+printf '%-24s %-14s %-8s %-7s %s\n' "REPO" "BRANCH" "STATUS" "AHEAD" "DETAILS"
+printf '%s\n' "--------------------------------------------------------------------------"
+
+for repo in "${REPOS[@]}"; do
+    [ "$repo" = "." ] && name="healcerion-platform" || name="$(basename "$repo")"
+
+    if [ ! -e "$ROOT_DIR/$repo/.git" ]; then
+        printf "${RED}%-24s %-14s %-8s${NC}\n" "$name" "-" "MISSING"
+        missing=$((missing+1)); continue
     fi
-# depth 3 = <container>/<repo>/.git   (e.g. mobile/sonex-app/.git)
-# depth 4 = <container>/<group>/<repo>/.git (device/bsp/*, device/orig/*, mobile/orig/*)
-# maxdepth 4 also keeps vendored checkouts nested deeper inside a mirror out of the list.
-done < <(find "$ROOT_DIR" -mindepth 3 -maxdepth 4 -name .git -type d | sort)
+
+    d="$ROOT_DIR/$repo"
+    branch="$(git -C "$d" branch --show-current 2>/dev/null)"
+    porcelain="$(git -C "$d" status --porcelain 2>/dev/null)"
+    ahead="$(git -C "$d" rev-list --count "origin/$branch..HEAD" 2>/dev/null || echo 0)"
+    behind="$(git -C "$d" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)"
+
+    if [ -n "$porcelain" ]; then
+        staged=$(grep -c '^[MADRC]' <<<"$porcelain")
+        unstaged=$(grep -c '^.[MDRC]' <<<"$porcelain")
+        untracked=$(grep -c '^??' <<<"$porcelain")
+        details=""
+        [ "$staged"    -gt 0 ] && details+="staged:$staged "
+        [ "$unstaged"  -gt 0 ] && details+="modified:$unstaged "
+        [ "$untracked" -gt 0 ] && details+="untracked:$untracked "
+        printf "${YELLOW}%-24s${NC} %-14s ${RED}%-8s${NC} " "$name" "$branch" "DIRTY"
+        if   [ "$ahead"  -gt 0 ]; then printf "${CYAN}+%-6s${NC} " "$ahead"; ahead_count=$((ahead_count+1))
+        elif [ "$behind" -gt 0 ]; then printf "${RED}-%-6s${NC} " "$behind"
+        else printf '%-7s ' "-"; fi
+        printf '%s\n' "$details"
+        dirty=$((dirty+1))
+    elif [ "$ahead" -gt 0 ]; then
+        printf "${CYAN}%-24s${NC} %-14s ${GREEN}%-8s${NC} ${CYAN}+%-6s${NC}\n" "$name" "$branch" "CLEAN" "$ahead"
+        ahead_count=$((ahead_count+1))
+    else
+        printf "${GREEN}%-24s${NC} %-14s ${GREEN}%-8s${NC} %-7s\n" "$name" "$branch" "CLEAN" "-"
+        clean=$((clean+1))
+    fi
+done
 
 echo
-echo -e "${YELLOW}미러에 DIRTY 가 뜨면 편집한 것이다 — 되돌릴 것 (push 절대 금지).${NC}"
+echo "--- Summary ---"
+echo -e "Clean: ${GREEN}${clean}${NC}, Dirty: ${YELLOW}${dirty}${NC}, Ahead: ${CYAN}${ahead_count}${NC}, Missing: ${RED}${missing}${NC}"
+
+# Mirrors: one line when healthy, named only when someone edited them.
+mirror_total=0; mirror_dirty=()
+while IFS= read -r gitdir; do
+    r="${gitdir%/.git}"
+    mirror_total=$((mirror_total+1))
+    [ -n "$(git -C "$r" status --porcelain 2>/dev/null)" ] && mirror_dirty+=("${r#"$ROOT_DIR"/}")
+done < <(find "$ROOT_DIR" -mindepth 2 -maxdepth 4 -name .git -type d -not -path "$ROOT_DIR/.git")
+
+if [ ${#mirror_dirty[@]} -eq 0 ]; then
+    echo -e "Mirrors: ${GREEN}${mirror_total} clean${NC} (read-only — detail: make git-sync-orig ARGS=--dry-run)"
+else
+    echo -e "Mirrors: ${mirror_total} total, ${RED}${#mirror_dirty[@]} EDITED${NC} — mirrors must never be edited:"
+    printf "  ${RED}%s${NC}\n" "${mirror_dirty[@]}"
+    # --clean is required: plain sync only resets tracked files, so a stray
+    # untracked file would survive and keep showing up as EDITED here.
+    echo "  discard with: make git-sync-orig ARGS=--clean"
+fi
