@@ -101,7 +101,9 @@ Phabricator 저장소 31개 = **클론 대상 15** + 범위 제외 10(R&D 5 · �
 
 **범위 제외 — upstream 포크(2)**: 37 elsa-linux(`git.freescale.com/imx/linux-2.6-imx`) · 35 elsa-u-boot(`github.com/Freescale/u-boot-fslc`). **힐세리온이 쓴 코드가 아니고 우리는 빌드하지 않는다.** 커널·부트로더 버전은 저장소 설명만으로 확정되므로 수 GB 클론의 이득이 없다. (cctv 는 이것들을 클론하지만 cctv 는 *빌드하는* 환경이라 위상이 다르다.)
 
-**범위 제외 — 신호처리 R&D(5)**: 77 NextSRI · 78 NextDoppler · 39 cf-doppler-neon(rHFW 통합 예정) · 49 US_Matlab_Simulator · 57 Frances-GUI-Simulator. 알고리즘 트랙이라 리팩토링 성격이 앱/FW 와 다르다 — 클론하지 않는다.
+**범위 제외 — 신호처리 R&D(5)**: 77 NextSRI · 78 NextDoppler · 39 cf-doppler-neon · 49 US_Matlab_Simulator · 57 Frances-GUI-Simulator.
+
+> **⚠ 이 제외 판단은 재검토가 필요하다.** "알고리즘 트랙이라 앱/FW 와 성격이 다르다"는 이유로 뺐으나, `sonex-framework/sdk/ai_models/speckle_noise_reduction/` 에 **HNS AI 필터가 학습 모델(.pth)부터 배포 아티팩트(ONNX·CoreML)까지 통째로 들어가 있다.** `NextSRI` 설명("NLM 필터 대체 / AI 적용 HNS")과 정확히 대응하며, 목적은 상용 라이브러리 **CVIE(Context Vision) 대체**다(`cvie_replacement_plan.md`). 즉 **신호처리 R&D 는 제품 SDK 의 일부**다 — 상세 = [docs/review/sonex-architecture.md](docs/review/sonex-architecture.md) §7.
 
 **범위 제외 — 사내 개발 인프라(3)**: 63 DevOps · 64 phabricator · 32 phabricator-to-slack. 제품 SW 가 아니다 — 상세 = [docs/review/dev-environment.md](docs/review/dev-environment.md) §4.
 
