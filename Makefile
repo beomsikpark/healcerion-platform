@@ -42,6 +42,8 @@ git-status:
 git-pull:
 	@[ -n "$$(git remote)" ] || { echo "no remote configured on root"; exit 1; }
 	@[ -z "$$(git status --porcelain)" ] || { echo "root has uncommitted changes — commit or stash first"; exit 1; }
+	@git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1 \
+		|| { echo "no upstream for '$$(git branch --show-current)' — run 'make git-push' first"; exit 1; }
 	git pull --ff-only
 
 ## git-push: Push the ROOT repo to origin (mirrors can never be pushed)
