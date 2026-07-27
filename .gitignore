@@ -1,0 +1,18 @@
+# Phabricator 미러 (scripts/clone-repos.sh 로 관리 — read-only, 루트 git 비추적)
+/mobile/
+/desktop/
+/web/
+/server/
+/device/
+/fpga/
+
+# 임시 작업공간 (정식 문서 아님)
+/tmp/
+
+# Claude Code 개인 설정
+.claude/settings.local.json
+.claude/worktrees/
+
+# Python 바이트코드
+__pycache__/
+*.pyc

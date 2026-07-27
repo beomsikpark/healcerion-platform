@@ -1,0 +1,121 @@
+# 저장소 활동성 — 실측
+
+> **근거**: 클론된 미러 13건의 `git log` 직접 조회 · Phabricator conduit `maniphest.search`·`phriction.document.search` (2026-07-27)
+> **표기**: 아래 수치는 전부 **실측(검증됨)**. 해석은 §3 이후에 분리해 두었고 추정은 그렇게 표시했다.
+
+## 1. 실측 데이터
+
+기준일 2026-07-27. `1Y`·`3Y` = 해당 기간 내 커밋 수, `FILES` = `git ls-files` 기준 추적 파일 수.
+
+| 저장소 | commits | 1Y | 3Y | FILES | 저자 | 최초 | 최종 |
+|---|---:|---:|---:|---:|---:|---|---|
+| `mobile/orig/sonex-framework` | 521 | **325** | **496** | 4,368 | 6 | 2023-05-22 | **2026-07-23** |
+| `mobile/orig/sonex-app` | 247 | **217** | **247** | 1,340 | 4 | 2024-04-12 | **2026-06-18** |
+| `fpga/orig/ginny-table` | 86 | 0 | 0 | 143 | 3 | 2016-08-11 | 2017-04-12 |
+| `fpga/orig/ginny-renewal` | 71 | 0 | 0 | 241 | 3 | 2020-03-16 | 2021-01-21 |
+| `device/orig/elsa-yocto-bsp` | 60 | 0 | 0 | **3** | 8 | 2013-03-07 | 2016-08-17 |
+| `fpga/orig/fuji-oem-us-fpga` | 20 | 0 | 0 | 141 | 2 | 2021-09-01 | 2022-01-04 |
+| `server/orig/dicomcontroller` | 14 | 0 | 0 | 38 | 1 | 2015-09-16 | 2017-12-11 |
+| `device/orig/meta-elsa` | 7 | 0 | 0 | 8 | 1 | 2016-06-20 | 2016-07-11 |
+| `device/orig/belle-msp` | 6 | 0 | 0 | 294 | 1 | 2022-04-22 | 2022-05-09 |
+| `device/orig/500c-sn-fw` | 3 | 0 | 0 | 465 | 1 | 2023-06-29 | 2023-07-03 |
+| `server/orig/russia-server` | 3 | 0 | 0 | **1** | 2 | 2021-01-15 | 2023-03-31 |
+| `device/orig/elsa-fw` | 2 | 0 | 0 | 472 | 1 | 2020-09-01 | 2020-10-06 |
+| `web/orig/sonex-admin-web` | **1** | 0 | 0 | 1,562 | 1 | 2023-01-19 | 2023-01-19 |
+
+미확보 5건은 이 표에 없다 — `belle-fw`·`belle-bsp`(B2 inactive) · `Moana`·`sonon-cloud`·`rHFW`(B1/B3).
+
+## 2. 두 가지 사실
+
+### 2.1 최근 3년간 커밋이 있는 저장소는 13건 중 2건뿐
+
+`sonex-framework`·`sonex-app` 을 제외한 **11건은 3년 이상 커밋이 없다.** 가장 오래된 것은 10년(`elsa-yocto-bsp` 2016) 이다.
+
+Phabricator 는 이 11건을 전부 `active` 로 표시한다. **저장소 상태 필드는 활동성 지표가 아니다** — [dev-environment.md](dev-environment.md) §2.4 에 기록한 `dateModified` 함정과 같은 종류의 오류원이다.
+
+### 2.2 코드는 큰데 이력이 없는 저장소가 있다
+
+| 저장소 | FILES | commits |
+|---|---:|---:|
+| `sonex-admin-web` | 1,562 | **1** |
+| `elsa-fw` | 472 | **2** |
+| `500c-sn-fw` | 465 | **3** |
+
+단일 임포트에 가깝다. **개발 이력이 이 저장소 안에 없다.**
+
+반대 극단도 있다 — `elsa-yocto-bsp` 는 파일 3개에 커밋 60개, `russia-server` 는 파일 1개(`simple/russia-server.py`)다. 이름과 달리 실제 BSP·서버 코드가 들어 있지 않다.
+
+### 2.3 `elsa-yocto-bsp` 는 BSP 가 아니라 repo manifest 다
+
+파일 3개는 `ChangeLog`·`README`·**`default.xml`** 이다. `default.xml` 은 `repo` 도구용 매니페스트로 10개 프로젝트를 조합한다.
+
+| 출처 | 프로젝트 |
+|---|---|
+| upstream **9개** | `poky` · `meta-fsl-arm` · `meta-openembedded` · `fsl-community-bsp-base` · `meta-fsl-arm-extra` · `meta-fsl-demos` · `meta-browser` · **`meta-qt5`** · `meta-fsl-bsp-release` |
+| 힐세리온 자작 **1개** | `ME/meta-elsa` |
+
+**elsa BSP 스택에서 힐세리온이 쓴 코드는 `meta-elsa` 하나뿐이다** — 파일 8개, 커밋 7개, 2016-07-11 이후 정지. 나머지는 전부 upstream 조합이다. 앞서 `elsa-linux`·`elsa-u-boot` 를 upstream 포크로 판단해 클론 대상에서 제외한 결정([CLAUDE.md](../../CLAUDE.md) §저장소 목록)이 이 매니페스트로 뒷받침된다.
+
+매니페스트에서 추가로 읽히는 것 셋.
+
+- **Yocto `jethro_4.1.15-1.0.0_ga`** — jethro 는 Yocto 2.0(2015년) 계열이다. elsa/belle 라인의 빌드 스택이 **10년 전 버전**에 고정돼 있다
+- **`meta-qt5` 포함** — 이 장비 UI 가 Qt5 기반이라는 뜻이며, `Moana`(Qt) 와 같은 계열일 가능성을 시사한다(**추정** — Moana 코드 미확보)
+- **원격 호스트가 `ssh://git@phabricator.healcerion.com/diffusion`** — 현재 호스트 `phab.healcerion.com` 과 다르다. Phabricator 인스턴스가 한 번 이전됐고 **이 매니페스트는 그 이후 갱신되지 않았다.** 즉 지금 `repo sync` 를 그대로 돌리면 실패한다
+
+## 3. 제품은 활발히 운영 중이다
+
+Maniphest 조회 결과, 저장소 휴면과 정반대의 그림이 나온다.
+
+- 최신 태스크 **T9224 (2026-07-20)** — 조회 시점 일주일 전
+- 2025~2026 태스크 대부분이 `[CS]` 접두어의 **실제 고객 지원 건**
+- 제품 `300L`·`500L`·`300C` 가 전 세계에 출하 중 — 일본(Tokopia·Aison) · 말레이시아(Vigour Medical) · 싱가포르/인도네시아(Elogio) · 브라질(Sheara) · 이란 · 영국(Orca Medical) · 미국(Healcerion USA) · 캄보디아(CTS) · 국내 다수 병원
+
+즉 **제품은 살아 있는데 그 제품의 코드 저장소는 멈춰 있다.**
+
+### 3.1 CS 이슈가 지목하는 소프트웨어
+
+| 반복 주제 | 태스크 예 |
+|---|---|
+| **SONON X 앱** | T9153 `SONON X App. lag issue` · T9097 `SONON X 앱 기동 불가` · T9008 `SONON X app ID/PW 입력 불가` |
+| **PACS/DICOM** | T9045 `PACS 및 소프트웨어` · T8807 `Data 삭제 이슈 (PACS)` · T8850 `환자 정보 변경시 pacs 전송 오류` |
+| **측정·모드 버그** | T8777 `PW 모드에서 RI 값이 1로 고정` · T8824 `PW모드에서 PRF 변경 시 B모드가 정지` |
+| **Windows 앱** | T8927 `Sonex App for Windows` (2025-08-13, Resolved) |
+
+두 가지가 앞선 조사와 맞물린다.
+
+- **PACS/DICOM 이 실제 운영 기능이다** → `dicomcontroller` 를 범위에 남긴 판단의 근거가 된다(커밋은 2017 에 멈췄지만 기능은 현역)
+- **`Sonex App for Windows` 태스크가 실재한다** → `sonex-app` 이 `windows`·`macos`·`linux` 타깃을 갖는다는 실측([CLAUDE.md](../../CLAUDE.md) §확인된 검토 사실)과 일치한다. 데스크톱 지원은 부수 산물이 아니라 요구사항이었다
+
+> **추정(미검증)**: 제품명 `SONON X` 와 저장소 `sonex` 의 이름이 대응할 가능성이 높다. 다만 근거는 이름 유사성뿐이며 코드 대조를 하지 않았다. 확정하려면 `sonex-app` 의 앱 표시명·번들 ID 를 확인해야 한다.
+
+## 4. 해석과 반증 검토
+
+핵심 긴장: **출하·운영은 활발한데 저장소 13건 중 11건이 휴면이다.**
+
+가능한 설명은 셋이고, 셋 다 현재 데이터로 배제되지 않는다.
+
+| # | 설명 | 이 설명을 지지하는 것 | 반증/한계 |
+|---|---|---|---|
+| A | 활동이 **우리가 못 보는 저장소**에 있다 | `Moana` 5,705 commits — 미러 13건 합계(1,041)의 5배. `belle-fw`(B2)·`rHFW`(B3) 도 미확보 | 커밋 수는 PPT 스크린샷 기준의 **주장**이며 직접 조회로 확인 못 함 |
+| B | 개발이 **Phabricator 밖**에서 이뤄지고 결과만 덤프된다 | §2.2 의 대형·무이력 저장소 3건. Harbormaster(CI) 기록 0건 | 덤프 흔적만으로 외부 개발을 단정할 수 없다 |
+| C | 해당 제품이 **정말로 유지보수 종료** 상태다 | elsa/belle 라인은 2016~2022 에서 멈춤 | 300L·500L 은 지금도 CS 가 발생하는 **현역 제품**이다. 펌웨어가 정지한 채 출하만 계속될 수는 있으나 확인 필요 |
+
+**주의 — 휴면 ≠ 무의미.** 출하가 끝난 FPGA 테이블이나 확정된 BSP 가 안 바뀌는 것은 정상일 수 있다. 이 절은 "리팩토링 대상으로서의 우선순위" 판단 자료이지 코드 가치 평가가 아니다.
+
+## 5. HLAB-2487 에 대한 함의
+
+Linear 원문은 "기존의 **전체 SW** (FW, 앱 등등)" 를 대상으로 한다. 그런데 실측상 **현재 활발히 개발되는 코드는 sonex 라인 하나**다.
+
+이는 판단 대기 1번(sonex 전환과의 중복 관계)에 직접 걸린다. 리팩토링 대상이 사실상 sonex 하나라면, 본 검토는 "전체 SW 재구조화" 가 아니라 **"이미 진행 중인 sonex 전환의 평가"** 에 가까워진다.
+
+다만 **위 세 설명 중 A 가 맞다면 이 결론은 뒤집힌다.** `Moana`·`belle-fw`·`rHFW` 3건이 활동의 본체일 수 있고, 그렇다면 대상 규모가 전혀 달라진다.
+
+→ **B1·B2·B3 해소가 결론의 방향을 좌우한다.** 현 단계에서 "리팩토링 대상은 sonex 뿐" 이라고 결론 내리면 안 된다.
+
+## 6. 다음 조사
+
+1. **Phriction 의 `moana/` 문서 6건 열람** — 저장소는 B1 로 막혀 있으나 **위키 문서는 접근된다.** Moana 의 규모·구조를 코드 없이 파악할 유일한 경로
+2. **`charm/` 13건 · `elsa/` 3건 · `sonex/` 1건 · `fjus_odm/` 5건** — 제품별 기술 문서
+3. **`소프트웨어_밸리데이션_작성` 6건 · `ra/` · `qm/`** — 판단 대기 3번(IEC 62304 / ISO 14971 규제 제약)의 직접 증거. CCTV 에 없던 최대 변수인데 문서가 실재한다
+4. `sonex-app` 앱 표시명·번들 ID 확인 → §3.1 의 `SONON X` = `sonex` 추정 확정
+5. `elsa-fw`(472 files / 2 commits) 내용 확인 → 설명 B(외부 개발 후 덤프) 검증

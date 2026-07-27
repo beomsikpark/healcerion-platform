@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make *)",
+      "Bash(./scripts/clone-repos.sh*)",
+      "Bash(./scripts/git-status.sh*)",
+      "Bash(./scripts/pull-mirrors.sh*)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * show*)",
+      "Bash(git -C * branch*)",
+      "Bash(git -C * rev-list*)",
+      "Bash(git -C * rev-parse*)",
+      "Bash(git -C * ls-files*)",
+      "Bash(git -C * fetch*)",
+      "Bash(git clone ssh://git@phab.healcerion.com:2222/*)",
+      "Bash(ssh -p 2222 git@phab.healcerion.com conduit *)",
+      "Bash(mmdc *)",
+      "Bash(flutter analyze*)",
+      "Bash(flutter pub *)",
+      "Bash(dart analyze*)",
+      "Monitor"
+    ],
+    "deny": [
+      "Bash(git push*)",
+      "Bash(git -C * push*)",
+      "Bash(git -C * commit*)",
+      "Bash(git -C * reset*)",
+      "Bash(git -C * rebase*)"
+    ]
+  }
+}
