@@ -5,7 +5,7 @@
 
 ## 1. 문서가 있는 저장소는 2건뿐
 
-미러 13건 중 `CLAUDE.md`·`docs/`·`README` 를 가진 것은 `sonex-app`(37개) 과 `sonex-framework`(45개) 뿐이고 **나머지 11건은 셋 다 없다**. [repo-activity.md](repo-activity.md) 의 커밋 활동 편중이 문서에서도 동일하게 나타난다.
+미러 13건 중 `CLAUDE.md`·`docs/`·`README` 를 가진 것은 `sonex-app`(37개) 과 `sonex-framework`(45개) 뿐이고 **나머지 11건은 셋 다 없다**. [repo-activity.md](../repo-activity.md) 의 커밋 활동 편중이 문서에서도 동일하게 나타난다.
 
 ## 2. Moana → ADK 마이그레이션은 진행 중인 공식 프로젝트다
 
@@ -149,11 +149,11 @@ app 과 framework 가 `v0.53.x`·`v0.54.0`·`v0.56.0`·`v3.0.x-Beta` 를 **맞�
 
 커밋 `9ac1bfd4`, 직전이 `54de47fa Merge branch 'dev/adk_v0.51.0'` 이다. 브랜치 병합 중 충돌을 잘못 해소한 채 커밋됐다.
 
-**전 저장소 13건을 전수 검사한 결과 이 1건뿐이다** — 만연한 문제로 과장하면 안 된다. 다만 코드 리뷰나 CI 검증이 있었다면 걸러졌을 종류이며, [dev-environment.md](dev-environment.md) §3.1 의 **Harbormaster 빌드 기록 0건(CI 부재)** 과 정합한다.
+**전 저장소 13건을 전수 검사한 결과 이 1건뿐이다** — 만연한 문제로 과장하면 안 된다. 다만 코드 리뷰나 CI 검증이 있었다면 걸러졌을 종류이며, [dev-environment.md](../dev-environment.md) §3.1 의 **Harbormaster 빌드 기록 0건(CI 부재)** 과 정합한다.
 
 ## 9. 브랜치 — 앞선 판단 정정
 
-[dev-environment.md](dev-environment.md) §2.2 에 "브랜치: `master` 단일(검증됨)" 이라 적었으나 **틀렸다.** conduit 의 `defaultBranch: master` 는 *기본* 브랜치를 뜻할 뿐인데 *유일* 로 읽었다. 실제 원격 브랜치:
+[dev-environment.md](../dev-environment.md) §2.2 에 "브랜치: `master` 단일(검증됨)" 이라 적었으나 **틀렸다.** conduit 의 `defaultBranch: master` 는 *기본* 브랜치를 뜻할 뿐인데 *유일* 로 읽었다. 실제 원격 브랜치:
 
 | 저장소 | 원격 브랜치 |
 |---|---|

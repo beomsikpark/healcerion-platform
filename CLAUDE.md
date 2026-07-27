@@ -52,7 +52,7 @@
 
 **컨테이너 최상위가 비어 있는 것이 현재의 정상 상태다.** 리팩토링 착수 전이므로 우리 산출물이 아직 없다.
 
-| 컨테이너 | `legacy/` 내용 (2026-07-27 권한 확대 반영, 33건) |
+| 컨테이너 | `legacy/` 내용 (33건) |
 |---|---|
 | `mobile/legacy/` | `sonex-app` · `sonex-framework` · `moana` · `ginny-string-table-converter` |
 | `web/legacy/` | `sonex-admin-web` |
@@ -61,15 +61,13 @@
 | `device/legacy/` | `ginny-fw`(300계) · `elsa-fw` · `belle-fw`·`belle-bsp`·`belle-kernel`·`belle-u-boot`·`belle-fsbl`·`belle-pmu`(500계 = belle) · `500c-sn-fw` · `belle-msp` · `elsa-yocto-bsp` · `meta-elsa` |
 | `fpga/legacy/` | `ginny-fpga` · `ginny-renewal` · `ginny-table` · `elsa-dump-fpga` · `elsa-fpga` · `charm-fpga` · `fuji-oem-us-fpga` · `ash-fpga` · `bf-delay-calculation` |
 
-> **`desktop/` 의 근거가 바뀌었다.** 이전에는 `rHFW` 를 데스크톱 호스트 SW 로 추정해 예약해 둔 자리였으나, **`rHFW` 의 실제 이름은 `ginny-fw` = 300 시리즈 장비 펌웨어**였다(`device/` 소속). 현재 `desktop/` 의 유일한 근거는 `cuattro-sdk`("Cuattro 용 window SDK C# 포팅")다 — cctv 는 `desktop/cms-app`(앱)인데 여기는 SDK 뿐이라는 **비대칭 자체가 검토 결과물**이라 축을 유지한다.
+> **`desktop/` 의 근거는 `cuattro-sdk` 하나다** — "Cuattro 용 window SDK C# 포팅"(네이티브 DLL + WinForms 앱). cctv 는 `desktop/cms-app`(앱)인데 여기는 SDK 뿐이라는 **비대칭 자체가 검토 결과물**이라 축을 유지한다. `cuattro-sdk` 는 `moana/framework/SononClient` 의 포크다(파일 17개 중 15개 동명).
 
 > **하지 말 것**: 구/신 관계(예: `belle-fw` → `elsa-fw`, `Moana` → `sonex`)를 **폴더 구조로 표현하지 않는다.** 그것은 분석의 *결론*이지 전제가 아니며, 현재 전부 미검증 주장이다. 관계는 `docs/review/` 문서에 근거와 함께 기록한다.
 
-> **IMPORTANT (이름 확정 — 재논의 금지)**: 폴더명은 **`legacy`** 다. 2026-07-27 사용자 지시로 확정했다.
+> **IMPORTANT (이름 확정 — 재논의 금지)**: 폴더명은 **`legacy`** 다. 여기서 legacy 는 최신/구식이 아니라 **우리가 만들지 않은, 리팩토링의 입력물**이라는 뜻이다.
 >
-> 이전에 `orig` 를 쓴 적이 있고 그때 근거는 "`sonex-framework` 가 미러 중 최신 커밋(2026-07-23)이라 legacy 가 사실과 안 맞는다" 였다. **그 판단은 폐기됐다.** 여기서 legacy 는 최신/구식이 아니라 **우리가 만들지 않은, 리팩토링의 입력물**이라는 뜻이다.
->
-> **이 항목을 세션 판단으로 다시 바꾸지 않는다.** 실제로 그런 일이 한 번 있었다 — 한 세션이 "산출물이 없으니 이 계층은 정보를 담지 않는다"고 판단해 계층을 통째로 없앴고(커밋 `1988c9a`), 다음 세션이 그 이탈을 새 기준으로 받아들여 문제가 커졌다. **디스크와 이 문서가 어긋나면 이 문서가 맞다. 고치지 말고 멈춰서 물어본다.**
+> **이 항목을 세션 판단으로 다시 바꾸지 않는다. 디스크와 이 문서가 어긋나면 이 문서가 맞다 — 고치지 말고 멈춰서 물어본다.**
 
 ## 표준 CLI
 
@@ -97,9 +95,7 @@
 
 ### 저장소 목록
 
-> **2026-07-27 권한 확대**: 힐세리온이 계정 권한을 열어 **conduit 가시 저장소가 33 → 56건**이 됐다. 이전 기록(31건)은 무효다. 차단돼 있던 `Moana`·`sonon-cloud`·`belle-fw`·`belle-bsp`·`rHFW` 가 전부 열렸고, **존재조차 몰랐던 저장소 20여 건**이 드러났다. 미해결 블로커 1~3번은 이것으로 해소된다.
-
-> **IMPORTANT (측정 규칙)**: **활동성은 반드시 `--all`(전 브랜치) 기준으로 측정한다.** 이 조직은 **master 에서 작업하지 않는다.** master 만 보면 9개 저장소가 죽은 것으로 오독된다 — 예: `belle-fw` master 4커밋/2021-09 vs 전체 66커밋/**2026-07-01**, `moana` master 4,433/2022-02 vs 전체 **5,705**/**2026-07-27**. 실제 작업 브랜치는 `production-fw-ver2.0`·`service_QT693`·`FW_1_1_8_0`·`feature-apply_*` 같은 이름을 갖는다.
+> **IMPORTANT (측정 규칙)**: **활동성은 반드시 `--all`(전 브랜치) 기준으로 측정한다.** 이 조직은 **master 에서 작업하지 않는다.** master 만 보면 9개 저장소가 멈춘 것으로 보인다 — 예: `belle-fw` master 4커밋/2021-09 vs 전체 66커밋/**2026-07-01**, `moana` master 4,433/2022-02 vs 전체 **5,705**/**2026-07-27**. 실제 작업 브랜치는 `production-fw-ver2.0`·`service_QT693`·`FW_1_1_8_0`·`feature-apply_*` 같은 이름을 갖는다.
 > ```bash
 > git -C <repo> rev-list --count --all
 > git -C <repo> for-each-ref --sort=-committerdate --format='%(committerdate:short) %(refname:short)' refs/remotes | head -1
@@ -232,16 +228,32 @@ echo '{"queryKey":"all","limit":100}' | ssh -p 2222 git@phab.healcerion.com cond
 
 ## 확인된 검토 사실
 
-코드로 확인한 것만 적는다. 저장소 설명·PPT 는 주장이며 여기 넣지 않는다.
+코드로 확인한 것만 적는다. 저장소 설명·PPT 는 주장이며 여기 넣지 않는다. 상세는 [docs/review/](docs/review/) 참조.
 
-- **`sonex-app` 은 단일 Flutter 코드베이스로 6개 플랫폼을 타깃한다** — `android`·`ios`·`linux`·`macos`·`web`·`windows` 디렉토리가 모두 존재하고, `installer/`·`webview2/`·`webview2_sdk/`·`run_macos_release.sh`·`run_release_with_logs.bat`·`setup_xcode_project.rb` 등 데스크톱 배포 자산을 갖는다.
-  → cctv 는 `mobile/mobile-app`(Flutter)·`desktop/cms-app`(C++/Qt6)·`web/web-app`(Flutter)가 **별개 저장소**다. 즉 **컨테이너 축이 1:1로 안 맞는 첫 실증 사례**이며, cctv 형태로 가려면 이 단일 코드베이스를 쪼개거나 cctv 에 없는 축을 인정해야 한다. "cctv-platform 유사 형태"의 정의 범위(판단 대기 2번)가 여기서 실제로 갈린다.
+- **호스트 앱이 2계열 병행이다** — `moana`(Qt/QML, 타깃 6개, 모델 10종, 최종 2026-07-27)와 `sonex`(Flutter, 타깃 **4개** — `linux`·`web` 은 `flutter create` 스텁, 모델 5종). **Moana 쪽이 더 넓고 더 성숙하다.** "Moana → sonex 전환" 이 아니라 병행 유지로 보는 것이 코드에 부합하며, 판단 대기 1번이 여기서 갈린다
+- **장비 펌웨어 세대는 `ginny-fw`(1,661커밋) → `elsa-fw`(74) → `belle-fw`(66, 현행 생산)** 이고, 세대 전환마다 새 저장소로 임포트돼 **git 이력이 두 번 끊겼다**
+- **변종 선택이 퇴화했다** — `ginny-fw` 는 u-boot 환경변수로 런타임에 5개 모델을 고르는 **단일 유니버설 이미지**였는데, `belle-fw` 는 `-D_USING_500L_DEV_` 등 **컴파일 타임 분기**로 되돌아갔다
+- **인증·국가·고객사·하드웨어 리비전을 브랜치로 영구 분기한다** — 앱·펌웨어 공통. `ginny-fw` 는 브랜치 29개 중 6개만 병합됐다. 이 방식의 비용이 실제로 발생했다(`moana` 의 CE/US 빌드 뒤바뀜 출하 사고)
+- **HC 프로토콜(TCP 1234/1235, 14바이트 `'H','C'` 헤더)이 7개 코드베이스에 복제돼 있고 정본 선언이 둘로 갈렸다** — `PACKET_HEADER_S`(`500c-sn-fw`)와 `COMMON_PACKET_HEADER`(`moana`)가 `recv_id` 타입부터 다르다. **통합 효과가 가장 큰 표면**
+- **`belle-fw` 의 메인 바이너리 `sonon` 은 PetaLinux rootfs 에 없다** — 부팅 시 UBI 오버레이(mtd4/5)를 live rootfs 위로 복사한다. 빌드가 PetaLinux · ad-hoc 셸 · 저장소 밖 Vivado/커널모듈 **3개로 갈라져 절대경로로 이어져 있다**
+- **`fpga/` 는 독립 축이 아니다** — `elsa-fw/configs/300l` 이 `ginny-table` 과 31파일 MD5 동일이고, 비트스트림 IDCODE 가 전부 `0x03631093`(Artix-7 XC7A100T)이다. FPGA 계보는 MD5 동일 파일 수로 확정했다(`elsa-fpga`→`fuji` 48건 등)
+- **CI 가 31건 전부 0건이고, 실제 자동 테스트는 3건뿐**이다(`sonon-cloud`·`sonex-app`·FPGA 골든 모델). 의료기기 규제 검토(판단 대기 5번)의 핵심 공백
 
 ## 파일 탐색 범위
 
 > **IMPORTANT**: 파일 탐색/검색은 이 워크스페이스 아래에서만 수행한다. cctv 등 다른 워크스페이스는 명시적 요청 시에만 참조한다.
 
 C++ 코드 탐색은 **LSP(clangd) 우선**(Grep 은 동명 함수·주석 오탐). 단 미러에는 `compile_commands.json` 이 없을 수 있어 LSP 가 안 뜨면 Grep 으로 내려온다 — 이때 "환경 부재" 로 단정하지 않는다.
+
+> **IMPORTANT (도구 함정)**: 이 환경의 `grep` 은 **ugrep** 이고 **`.gitignore` 를 존중한다.** 루트 `.gitignore` 에 컨테이너 6개(`/mobile/`·`/desktop/`·`/web/`·`/server/`·`/device/`·`/fpga/`)가 들어 있으므로 **워크스페이스 루트에서 재귀 grep 하면 미러가 한 건도 검색되지 않는다.** 결과가 `0건` 으로 나와도 그것은 "없다" 가 아니라 **"아무것도 안 봤다"** 이다.
+>
+> **미러를 검색할 때는 반드시 저장소 경로를 명시한다.**
+> ```bash
+> grep -rn '<패턴>' device/legacy/500c-sn-fw          # 좋음
+> grep -rn '<패턴>' .                                  # 미러가 전부 빠진다
+> git -C <repo> grep -n '<패턴>' <ref>                 # 브랜치 지정 시 이쪽
+> ```
+> 인코딩도 주의한다 — ISO-8859 파일은 `grep -a` 없이는 매칭되지 않는다.
 
 ## 작업 방식
 

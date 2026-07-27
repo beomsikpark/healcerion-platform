@@ -81,7 +81,7 @@ Android ABI 가 **`arm64-v8a` 단일**이다(`abiFilters 'arm64-v8a'`, `APP_ABI=
 | **linux** | **stock stub** | `linux/my_application.cc` 가 `flutter create` 템플릿 그대로. 네이티브 SDK 코드 없음 |
 | **web** | **stock stub** | `manifest.json` 의 description 이 `"A new Flutter project."`, 테마색이 Flutter 기본 `#0175C2` |
 
-> **CLAUDE.md "확인된 검토 사실" 정정 필요**: "단일 Flutter 코드베이스로 6개 플랫폼을 타깃한다" 는 디렉토리 존재 기준이었다. **코드 기준으로는 4개**이고, `linux`·`web` 은 생성 시 만들어진 빈 껍데기다. cctv 축 매핑 논의(`web/` 대응 여부)가 이 사실 위에서 다시 이뤄져야 한다.
+> 디렉토리는 6개지만 **코드 기준으로는 4개**다. `linux`·`web` 은 `flutter create` 가 만든 빈 껍데기이므로, cctv 축 매핑 논의(`web/` 대응 여부)는 4개 기준으로 해야 한다.
 
 ## 5. 앱 ↔ SDK 경계가 플랫폼마다 다르다
 

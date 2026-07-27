@@ -1,148 +1,125 @@
 # 저장소 활동성 — 실측
 
-> **⚠ 이 문서의 §1~§2 는 미러 13건 기준이며 표본이 바뀌었다.** 2026-07-27 권한 확대로 클론본이 **31건**이 됐고, 새로 들어온 저장소 중 최근까지 활발한 것이 여럿이라 **§2.1 의 결론은 무효**다(§0 참조). 인벤토리의 SOT 는 이제 CLAUDE.md §저장소 목록이다.
->
-> **근거**: 클론된 미러의 `git log` 직접 조회 · Phabricator conduit `maniphest.search`·`phriction.document.search` (2026-07-27)
-> **표기**: 아래 수치는 전부 **실측(검증됨)**. 해석은 §3 이후에 분리해 두었고 추정은 그렇게 표시했다.
-
-## 0. 개정 — 표본이 13건에서 31건으로 바뀌었다
-
-권한 확대 후 실측한 **현재 활발한 저장소**다.
-
-> **측정 규칙**: 아래는 **`--all`(전 브랜치)** 기준이다. **이 조직은 master 에서 작업하지 않는다** — master 만 보면 9개 저장소가 죽은 것으로 오독된다. 이것이 초판 오류의 두 번째 원인이다(첫 번째는 접근 차단).
-
-| 저장소 | 커밋(전체) | master 최종 | **전 브랜치 최종** | 작업 브랜치 |
-|---|---:|---|---|---|
-| `mobile/legacy/moana` | **5,705** | 2022-02-17 | **2026-07-27** | `service_QT693` |
-| `mobile/legacy/sonex-framework` | 524 | 2026-07-23 | 2026-07-23 | master |
-| `mobile/legacy/sonex-app` | 249 | 2026-06-18 | **2026-07-15** | `feature-apply_v1.23.4` |
-| `device/legacy/belle-fw` | 66 | 2021-09-06 | **2026-07-01** | `production-fw-ver2.0` |
-| `server/legacy/sonon-cloud` | 394 | 2026-06-02 | 2026-06-02 | master |
-| `device/legacy/500c-sn-fw` | 71 | 2023-07-03 | **2026-04-24** | `FW_1_1_8_0` |
-
-즉 **최근 1년 내 활동이 6건**이다. 초판이 "sonex 2건만 살아 있다" 고 본 것은 **접근 차단 + master 기준 측정**이라는 두 겹의 표본 편향이었다.
-
-**특히 `moana` 는 죽지 않았다** — master 는 2022-02 에 멈춰 있으나 `service_QT693` 브랜치에서 **오늘(2026-07-27)까지** 개발 중이다. 최근 커밋이 `버전 M2.03.26 (빌드 127) 상향` · `PACS 업로드 이미지가 사선으로 밀리던 문제 수정` 으로, 유지보수가 아니라 **현역 제품 개발**이다. "Moana → sonex 로 대체 중" 이라는 구도는 재검토가 필요하다.
-
-**개발 이력의 본체도 새로 드러났다** — `device/legacy/ginny-fw` 는 **커밋 1,109개**(2015-04 ~ 2020-04), 저자 6명, 태그 34개, 브랜치 29개다. `mobile/legacy/moana` 는 **커밋 5,705개**(전 브랜치 기준, 2018-06 ~ **2026-07-27**), 저자 17명, **9.4GB** 로 미러 중 최대다 — master 는 2022-02 에 멈춰 있으나 `service_QT693` 브랜치에서 오늘까지 개발 중이다.
-
-→ §2.2 의 "코드는 큰데 이력이 없는 저장소가 있다" 는 여전히 유효하되 **원인 해석이 바뀐다** — `elsa-fw`(2커밋)·`belle-fw`(4커밋 master)는 이력이 없는 게 아니라 **이력이 `ginny-fw` 에 있다.** 세대 계보 = [legacy-gaps.md §3](legacy-gaps.md).
+> **근거**: 클론된 미러 31건의 `git` 직접 조회 · Phabricator conduit(2026-07-27).
+> **측정 기준**: 커밋 수는 **`--all`(전 브랜치)**, 최종일은 **전 브랜치 최신 커밋일**이다. 이 조직은 master 에서 작업하지 않으므로 master 기준 수치는 의미가 없다.
 
 ## 1. 실측 데이터
 
-기준일 2026-07-27. `1Y`·`3Y` = 해당 기간 내 커밋 수, `FILES` = `git ls-files` 기준 추적 파일 수.
+| 저장소 | commits | master 최종 | **전 브랜치 최종** | 작업 브랜치 | 저자 |
+|---|---:|---|---|---|---:|
+| `mobile/legacy/moana` | **5,705** | 2022-02-17 | **2026-07-27** | `service_QT693` | 17 |
+| `mobile/legacy/sonex-framework` | 524 | 2026-07-23 | **2026-07-23** | master | 8 |
+| `mobile/legacy/sonex-app` | 249 | 2026-06-18 | **2026-07-15** | `feature-apply_v1.23.4` | 5 |
+| `device/legacy/belle-fw` | 66 | 2021-09-06 | **2026-07-01** | `production-fw-ver2.0` | 1 |
+| `server/legacy/sonon-cloud` | 394 | 2026-06-02 | **2026-06-02** | master | 9 |
+| `device/legacy/500c-sn-fw` | 71 | 2023-07-03 | **2026-04-24** | `FW_1_1_8_0` | 2 |
+| `server/legacy/sonex-cloud-backend` | 16 | 2025-05-09 | 2025-05-09 | master | 2 |
+| `device/legacy/ginny-fw` | **1,661** | 2020-04-17 | 2021-07-15 | `ginny-renewal` | 6 |
+| `device/legacy/belle-bsp` | 18 | 2021-12-07 | 2022-05-27 | `production-fw` | 1 |
+| `device/legacy/belle-u-boot` | 9 | 2022-04-22 | 2022-04-22 | master | 1 |
+| `device/legacy/belle-msp` | 6 | 2022-05-09 | 2022-05-09 | master | 1 |
+| `device/legacy/belle-kernel` | 5 | 2021-10-06 | 2021-10-06 | master | 2 |
+| `device/legacy/elsa-fw` | 74 | 2020-10-06 | 2021-08-20 | `elsa-es-v3` | 1 |
+| `fpga/legacy/elsa-fpga` | 107 | 2020-12-24 | 2022-02-03 | `feature/ES2` | 3 |
+| `fpga/legacy/ginny-fpga` | 194 | 2017-07-03 | 2019-07-30 | `300L_310C` | 4 |
+| `fpga/legacy/ginny-table` | 96 | 2017-04-12 | 2017-04-12 | master | 4 |
+| `fpga/legacy/ginny-renewal` | 87 | 2021-01-21 | 2021-01-21 | master | 3 |
+| `fpga/legacy/ash-fpga` | 61 | 2017-08-24 | 2017-08-24 | master | 3 |
+| `fpga/legacy/elsa-dump-fpga` | 41 | 2019-02-21 | 2019-02-21 | master | 3 |
+| `fpga/legacy/fuji-oem-us-fpga` | 20 | 2022-01-04 | 2022-01-04 | master | 2 |
+| `fpga/legacy/charm-fpga` | 12 | 2022-12-12 | 2022-12-12 | master | 2 |
+| `fpga/legacy/bf-delay-calculation` | 2 | 2018-03-08 | 2018-03-08 | master | 2 |
+| `desktop/legacy/cuattro-sdk` | 58 | 2018-12-17 | 2018-12-17 | master | 1 |
+| `device/legacy/elsa-yocto-bsp` | 60 | 2016-08-17 | 2016-08-17 | master | 8 |
+| `server/legacy/dicomcontroller` | 14 | 2017-12-11 | 2017-12-11 | master | 1 |
+| `mobile/legacy/ginny-string-table-converter` | 10 | 2017-07-10 | 2017-07-10 | master | 1 |
+| `device/legacy/meta-elsa` | 7 | 2016-07-11 | 2016-07-11 | master | 1 |
+| `server/legacy/russia-server` | 3 | 2023-03-31 | 2023-03-31 | master | 2 |
+| `web/legacy/sonex-admin-web` | 1 | 2023-01-19 | 2023-01-19 | master | 1 |
 
-| 저장소 | commits | 1Y | 3Y | FILES | 저자 | 최초 | 최종 |
-|---|---:|---:|---:|---:|---:|---|---|
-| `mobile/legacy/sonex-framework` | 521 | **325** | **496** | 4,368 | 6 | 2023-05-22 | **2026-07-23** |
-| `mobile/legacy/sonex-app` | 247 | **217** | **247** | 1,340 | 4 | 2024-04-12 | **2026-06-18** |
-| `fpga/legacy/ginny-table` | 86 | 0 | 0 | 143 | 3 | 2016-08-11 | 2017-04-12 |
-| `fpga/legacy/ginny-renewal` | 71 | 0 | 0 | 241 | 3 | 2020-03-16 | 2021-01-21 |
-| `device/legacy/elsa-yocto-bsp` | 60 | 0 | 0 | **3** | 8 | 2013-03-07 | 2016-08-17 |
-| `fpga/legacy/fuji-oem-us-fpga` | 20 | 0 | 0 | 141 | 2 | 2021-09-01 | 2022-01-04 |
-| `server/legacy/dicomcontroller` | 14 | 0 | 0 | 38 | 1 | 2015-09-16 | 2017-12-11 |
-| `device/legacy/meta-elsa` | 7 | 0 | 0 | 8 | 1 | 2016-06-20 | 2016-07-11 |
-| `device/legacy/belle-msp` | 6 | 0 | 0 | 294 | 1 | 2022-04-22 | 2022-05-09 |
-| `device/legacy/500c-sn-fw` | 3 | 0 | 0 | 465 | 1 | 2023-06-29 | 2023-07-03 |
-| `server/legacy/russia-server` | 3 | 0 | 0 | **1** | 2 | 2021-01-15 | 2023-03-31 |
-| `device/legacy/elsa-fw` | 2 | 0 | 0 | 472 | 1 | 2020-09-01 | 2020-10-06 |
-| `web/legacy/sonex-admin-web` | **1** | 0 | 0 | 1,562 | 1 | 2023-01-19 | 2023-01-19 |
+`device/legacy/belle-fsbl`·`belle-pmu` 는 **빈 저장소**다(원격에 ref·오브젝트 0건).
 
-미확보 5건은 이 표에 없다 — `belle-fw`·`belle-bsp`(B2 inactive) · `Moana`·`sonon-cloud`·`rHFW`(B1/B3).
+## 2. 최근 1년 내 활동은 6건
 
-## 2. 두 가지 사실
+`moana` · `sonex-framework` · `sonex-app` · `belle-fw` · `sonon-cloud` · `500c-sn-fw`.
 
-### 2.1 ~~최근 3년간 커밋이 있는 저장소는 13건 중 2건뿐~~ — **무효 (§0)**
+제품 축으로 보면 **앱 2계열(Moana·sonex) · 장비 펌웨어 2계열(belle·500C) · 클라우드 1계열**이 동시에 살아 있다. 어느 하나가 다른 하나를 대체하는 구도가 아니다.
 
-> 표본 13건 기준의 결론이었고, 권한 확대 후 `sonon-cloud`(2026-06)·`belle-fw`(2026-07)가 추가되면서 성립하지 않는다. 아래 원문은 당시 13건 안에서는 사실이므로 기록으로 남긴다.
+## 3. master 는 제품이 아니다
 
-`sonex-framework`·`sonex-app` 을 제외한 **11건은 3년 이상 커밋이 없다.** 가장 오래된 것은 10년(`elsa-yocto-bsp` 2016) 이다.
+**8개 저장소에서 master 가 실제 개발선보다 뒤처져 있다.** 격차가 가장 큰 것은 `belle-fw`(4년 10개월)·`moana`(4년 5개월)·`500c-sn-fw`(2년 9개월)다.
 
-Phabricator 는 이 11건을 전부 `active` 로 표시한다. **저장소 상태 필드는 활동성 지표가 아니다** — [dev-environment.md](dev-environment.md) §2.4 에 기록한 `dateModified` 함정과 같은 종류의 오류원이다.
+`ginny-fw` 는 브랜치 29개 중 **6개(21%)만 master 로 병합**됐고, master 최종 커밋(2020-04-17) 이후에도 `ginny-renewal` 브랜치가 2021-07 까지 단독으로 이어졌다. 이 브랜치는 2019-04-24 에 분기해 **한 번도 병합되지 않았다.**
 
-### 2.2 코드는 큰데 이력이 없는 저장소가 있다
+→ **"master 기준 리팩토링" 은 최근 수년치 수정을 조용히 버린다.** 착수 전에 각 저장소의 실제 head 를 확정해야 한다(§1 의 "작업 브랜치" 열).
 
-| 저장소 | FILES | commits |
-|---|---:|---:|
-| `sonex-admin-web` | 1,562 | **1** |
-| `elsa-fw` | 472 | **2** |
-| `500c-sn-fw` | 465 | **3** |
+## 4. 브랜치가 변종 관리 수단이다
 
-단일 임포트에 가깝다. **개발 이력이 이 저장소 안에 없다.**
+인증·국가·고객사·하드웨어 리비전을 브랜치로 영구 분기하는 것이 앱·펌웨어 공통 관행이다.
 
-반대 극단도 있다 — `elsa-yocto-bsp` 는 파일 3개에 커밋 60개, `russia-server` 는 파일 1개(`simple/russia-server.py`)다. 이름과 달리 실제 BSP·서버 코드가 들어 있지 않다.
+| 저장소 | 예 |
+|---|---|
+| `moana` | `310C_China_Certification` · `500L_Cetification` · `Japan_Vet` · `300C_Rusia_Enable_Mmode` · `oem_sphera` · `20201106_Tokopia_SononPet` · `20200121_Laonz_Customizing` · `20191029_아이손_Customizing` |
+| `ginny-fw` | `CN_CERT` · `certi` · `china` · `ASH` · `factory` · `aging`/`aging2` · `p11-1` · `ginny-renewal` |
+| `belle-fw` | `production-fw` · `production-fw-ver2.0` · `fuji` · `500_integrated` · `T1968-cf-power-integrate` |
+| `500c-sn-fw` | `FW_1_1_3_0` ~ `FW_1_1_8_0`(릴리스 라인) · `M0.00.05`(폐기) |
 
-### 2.3 `elsa-yocto-bsp` 는 BSP 가 아니라 repo manifest 다
+**비용이 실제로 발생했다** — `moana` 최근 커밋에 `HC_RELEASE_TARGET` 미설정 시 qmake 가 hard-error 를 내도록 강제한 것이 있고, 사유는 **M2.03.24 에서 CE/US 빌드가 뒤바뀌어 출하된 사고**다.
 
-파일 3개는 `ChangeLog`·`README`·**`default.xml`** 이다. `default.xml` 은 `repo` 도구용 매니페스트로 10개 프로젝트를 조합한다.
+## 5. 세대 전환마다 이력이 끊긴다
+
+| 저장소 | commits | 성격 |
+|---|---:|---|
+| `ginny-fw` | 1,661 | 300 시리즈. 태그 34개, 브랜치 29개 — **펌웨어 개발 이력의 본체** |
+| `elsa-fw` | 74 | ginny 에서 파생. 공통 커밋 조상 없음 |
+| `belle-fw` | 66 | `"first time (migration elsa-fw repo)"` 커밋으로 시작. **현행 생산 라인** |
+
+`ginny-fw` → `elsa-fw` → `belle-fw` 로 두 번 "새 저장소에 임포트" 가 일어났고 그때마다 이력이 끊겼다. 코드는 이어지는데(경로 공유 175~473개) git 이력은 이어지지 않는다. **회귀 원인 추적이 세대를 넘어가지 않는다.**
+
+## 6. 저자 편중
+
+| 저장소 | 편중 |
+|---|---|
+| `ginny-fw` | `lyle` 1,225커밋(74%, 2015~2017) → `jacob` 174커밋(2017~2021). **순차 단독 소유** |
+| `belle-fw`·`belle-bsp`·`belle-kernel`·`belle-u-boot`·`elsa-fw`·`500c-sn-fw`·`belle-msp` | 전부 `jacob` 단독 |
+| `moana` | 17명 — 유일하게 팀 규모 |
+| `sonon-cloud` | 9명 (`sungyong` 281) |
+
+**장비 펌웨어 전 계열이 사실상 1인 소유**다. 앱·클라우드만 복수 저자다.
+
+## 7. 제품은 활발히 운영 중이다
+
+Maniphest 조회 기준.
+
+- 최신 태스크 **T9224 (2026-07-20)**
+- 2025~2026 태스크 대부분이 `[CS]` 접두어의 실제 고객 지원 건
+- `300L`·`500L`·`300C` 가 전 세계 출하 중 — 일본(Tokopia·Aison) · 말레이시아(Vigour Medical) · 싱가포르/인도네시아(Elogio) · 브라질(Sheara) · 이란 · 영국(Orca Medical) · 미국(Healcerion USA) · 캄보디아(CTS) · 국내 다수
+
+CS 이슈가 지목하는 소프트웨어는 **SONON X 앱**(T9153 lag · T9097 기동 불가 · T9008 ID/PW 입력 불가) · **PACS/DICOM**(T9045 · T8807 · T8850) · **측정·모드 버그**(T8777 PW RI 고정 · T8824 PRF 변경 시 B모드 정지) · **Windows 앱**(T8927)이다.
+
+`moana` 의 최근 커밋(측정 회귀 · PACS 업로드 밀림 · FPS 널뜀)이 이 CS 주제와 정확히 겹친다.
+
+## 8. `elsa-yocto-bsp` 는 BSP 가 아니라 repo manifest 다
+
+파일 3개(`ChangeLog`·`README`·`default.xml`)뿐이고 `default.xml` 은 `repo` 도구 매니페스트로 10개 프로젝트를 조합한다.
 
 | 출처 | 프로젝트 |
 |---|---|
-| upstream **9개** | `poky` · `meta-fsl-arm` · `meta-openembedded` · `fsl-community-bsp-base` · `meta-fsl-arm-extra` · `meta-fsl-demos` · `meta-browser` · **`meta-qt5`** · `meta-fsl-bsp-release` |
-| 힐세리온 자작 **1개** | `ME/meta-elsa` |
+| upstream 9개 | `poky` · `meta-fsl-arm` · `meta-openembedded` · `fsl-community-bsp-base` · `meta-fsl-arm-extra` · `meta-fsl-demos` · `meta-browser` · `meta-qt5` · `meta-fsl-bsp-release` |
+| 힐세리온 자작 1개 | `ME/meta-elsa` |
 
-**elsa BSP 스택에서 힐세리온이 쓴 코드는 `meta-elsa` 하나뿐이다** — 파일 8개, 커밋 7개, 2016-07-11 이후 정지. 나머지는 전부 upstream 조합이다. 앞서 `elsa-linux`·`elsa-u-boot` 를 upstream 포크로 판단해 클론 대상에서 제외한 결정([CLAUDE.md](../../CLAUDE.md) §저장소 목록)이 이 매니페스트로 뒷받침된다.
+읽히는 것 셋:
 
-매니페스트에서 추가로 읽히는 것 셋.
+- **Yocto `jethro_4.1.15-1.0.0_ga`** — Yocto 2.0(2015) 계열. i.MX6 세대 빌드 스택이 10년 전 버전에 고정돼 있다
+- **`meta-qt5` 포함** — 이 세대 장비 UI 가 Qt5 기반이다
+- **원격 호스트가 `phabricator.healcerion.com`** — 현재 호스트 `phab.healcerion.com` 과 다르다. 인스턴스 이전 후 갱신되지 않았으므로 지금 `repo sync` 를 돌리면 실패한다
 
-- **Yocto `jethro_4.1.15-1.0.0_ga`** — jethro 는 Yocto 2.0(2015년) 계열이다. elsa/belle 라인의 빌드 스택이 **10년 전 버전**에 고정돼 있다
-- **`meta-qt5` 포함** — 이 장비 UI 가 Qt5 기반이라는 뜻이며, `Moana`(Qt) 와 같은 계열일 가능성을 시사한다(**추정** — Moana 코드 미확보)
-- **원격 호스트가 `ssh://git@phabricator.healcerion.com/diffusion`** — 현재 호스트 `phab.healcerion.com` 과 다르다. Phabricator 인스턴스가 한 번 이전됐고 **이 매니페스트는 그 이후 갱신되지 않았다.** 즉 지금 `repo sync` 를 그대로 돌리면 실패한다
+## 9. HLAB-2487 함의
 
-## 3. 제품은 활발히 운영 중이다
-
-Maniphest 조회 결과, 저장소 휴면과 정반대의 그림이 나온다.
-
-- 최신 태스크 **T9224 (2026-07-20)** — 조회 시점 일주일 전
-- 2025~2026 태스크 대부분이 `[CS]` 접두어의 **실제 고객 지원 건**
-- 제품 `300L`·`500L`·`300C` 가 전 세계에 출하 중 — 일본(Tokopia·Aison) · 말레이시아(Vigour Medical) · 싱가포르/인도네시아(Elogio) · 브라질(Sheara) · 이란 · 영국(Orca Medical) · 미국(Healcerion USA) · 캄보디아(CTS) · 국내 다수 병원
-
-즉 **제품은 살아 있는데 그 제품의 코드 저장소는 멈춰 있다.**
-
-### 3.1 CS 이슈가 지목하는 소프트웨어
-
-| 반복 주제 | 태스크 예 |
+| 관측 | 함의 |
 |---|---|
-| **SONON X 앱** | T9153 `SONON X App. lag issue` · T9097 `SONON X 앱 기동 불가` · T9008 `SONON X app ID/PW 입력 불가` |
-| **PACS/DICOM** | T9045 `PACS 및 소프트웨어` · T8807 `Data 삭제 이슈 (PACS)` · T8850 `환자 정보 변경시 pacs 전송 오류` |
-| **측정·모드 버그** | T8777 `PW 모드에서 RI 값이 1로 고정` · T8824 `PW모드에서 PRF 변경 시 B모드가 정지` |
-| **Windows 앱** | T8927 `Sonex App for Windows` (2025-08-13, Resolved) |
-
-두 가지가 앞선 조사와 맞물린다.
-
-- **PACS/DICOM 이 실제 운영 기능이다** → `dicomcontroller` 를 범위에 남긴 판단의 근거가 된다(커밋은 2017 에 멈췄지만 기능은 현역)
-- **`Sonex App for Windows` 태스크가 실재한다** → `sonex-app` 이 `windows`·`macos`·`linux` 타깃을 갖는다는 실측([CLAUDE.md](../../CLAUDE.md) §확인된 검토 사실)과 일치한다. 데스크톱 지원은 부수 산물이 아니라 요구사항이었다
-
-> **추정(미검증)**: 제품명 `SONON X` 와 저장소 `sonex` 의 이름이 대응할 가능성이 높다. 다만 근거는 이름 유사성뿐이며 코드 대조를 하지 않았다. 확정하려면 `sonex-app` 의 앱 표시명·번들 ID 를 확인해야 한다.
-
-## 4. 해석과 반증 검토
-
-핵심 긴장: **출하·운영은 활발한데 저장소 13건 중 11건이 휴면이다.**
-
-가능한 설명은 셋이고, 셋 다 현재 데이터로 배제되지 않는다.
-
-| # | 설명 | 이 설명을 지지하는 것 | 반증/한계 |
-|---|---|---|---|
-| A | 활동이 **우리가 못 보는 저장소**에 있다 | `Moana` 5,705 commits — 미러 13건 합계(1,041)의 5배. `belle-fw`(B2)·`rHFW`(B3) 도 미확보 | 커밋 수는 PPT 스크린샷 기준의 **주장**이며 직접 조회로 확인 못 함 |
-| B | 개발이 **Phabricator 밖**에서 이뤄지고 결과만 덤프된다 | §2.2 의 대형·무이력 저장소 3건. Harbormaster(CI) 기록 0건 | 덤프 흔적만으로 외부 개발을 단정할 수 없다 |
-| C | 해당 제품이 **정말로 유지보수 종료** 상태다 | elsa/belle 라인은 2016~2022 에서 멈춤 | 300L·500L 은 지금도 CS 가 발생하는 **현역 제품**이다. 펌웨어가 정지한 채 출하만 계속될 수는 있으나 확인 필요 |
-
-**주의 — 휴면 ≠ 무의미.** 출하가 끝난 FPGA 테이블이나 확정된 BSP 가 안 바뀌는 것은 정상일 수 있다. 이 절은 "리팩토링 대상으로서의 우선순위" 판단 자료이지 코드 가치 평가가 아니다.
-
-## 5. HLAB-2487 에 대한 함의
-
-Linear 원문은 "기존의 **전체 SW** (FW, 앱 등등)" 를 대상으로 한다. 그런데 실측상 **현재 활발히 개발되는 코드는 sonex 라인 하나**다.
-
-이는 판단 대기 1번(sonex 전환과의 중복 관계)에 직접 걸린다. 리팩토링 대상이 사실상 sonex 하나라면, 본 검토는 "전체 SW 재구조화" 가 아니라 **"이미 진행 중인 sonex 전환의 평가"** 에 가까워진다.
-
-다만 **위 세 설명 중 A 가 맞다면 이 결론은 뒤집힌다.** `Moana`·`belle-fw`·`rHFW` 3건이 활동의 본체일 수 있고, 그렇다면 대상 규모가 전혀 달라진다.
-
-→ **B1·B2·B3 해소가 결론의 방향을 좌우한다.** 현 단계에서 "리팩토링 대상은 sonex 뿐" 이라고 결론 내리면 안 된다.
-
-## 6. 다음 조사
-
-1. **Phriction 의 `moana/` 문서 6건 열람** — 저장소는 B1 로 막혀 있으나 **위키 문서는 접근된다.** Moana 의 규모·구조를 코드 없이 파악할 유일한 경로
-2. **`charm/` 13건 · `elsa/` 3건 · `sonex/` 1건 · `fjus_odm/` 5건** — 제품별 기술 문서
-3. **`소프트웨어_밸리데이션_작성` 6건 · `ra/` · `qm/`** — 판단 대기 3번(IEC 62304 / ISO 14971 규제 제약)의 직접 증거. CCTV 에 없던 최대 변수인데 문서가 실재한다
-4. `sonex-app` 앱 표시명·번들 ID 확인 → §3.1 의 `SONON X` = `sonex` 추정 확정
-5. `elsa-fw`(472 files / 2 commits) 내용 확인 → 설명 B(외부 개발 후 덤프) 검증
+| 최근 활동 6건이 5개 제품 축에 흩어져 있다 | 리팩토링 대상이 sonex 하나가 아니다. 앱 2계열·펌웨어 2계열·클라우드가 동시에 살아 있다 |
+| master 가 8개 저장소에서 뒤처짐 | 착수 전 **각 저장소의 실제 head 확정**이 선행돼야 한다 |
+| 브랜치 기반 변종 관리(§4) | cctv 형태로 갈 때 가장 크게 바뀌어야 할 관행. 이미 출하 사고가 발생했다 |
+| 세대 전환마다 이력 단절(§5) | 회귀 추적이 세대를 넘어가지 않는다 |
+| 장비 펌웨어 전 계열 1인 소유(§6) | 버스 팩터. 지식 이전 비용이 여기 집중된다 |
