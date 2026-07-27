@@ -16,33 +16,48 @@ JOBS="${JOBS:-3}"
 
 # repo-id : local path
 #
-# Mirrors sit directly under their container, like cctv's device/ipc-app or
-# desktop/cms-app. cctv reserves a *-orig subfolder (device/fw-orig) for legacy
-# sources that a new in-house rewrite has replaced; we have produced no such
-# rewrite yet, so nothing belongs there and the extra level would carry no
-# information. Introduce <container>/orig/ at the moment our own output lands.
+# All mirrors live under <container>/legacy/ — Healcerion-owned, read-only.
+# Never edited or committed by us. The container top level is reserved for our
+# own output. See CLAUDE.md.
 REPOS=(
-    # --- mobile: Flutter client app + its SDK/ADK
-    #     (app also builds windows/macos/linux — see CLAUDE.md) ---
-    "76:mobile/sonex-app"            # sonex-APP        : flutter 로 구현된 sonex app
-    "74:mobile/sonex-framework"      # sonex-framework  : sonex 앱의 SDK, ADK
+    # --- mobile: Flutter client app + its SDK/ADK, and the Qt predecessor ---
+    "76:mobile/legacy/sonex-app"          # rSAPP : flutter 로 구현된 sonex app
+    "74:mobile/legacy/sonex-framework"    # rSFW  : sonex 앱의 SDK, ADK
+    "47:mobile/legacy/moana"              # rM    : Moana project (Qt 원본, 배포중)
+    "42:mobile/legacy/ginny-string-table-converter"  # rGST : XLSX -> app string (Android/iOS)
     # --- web ---
-    "73:web/sonex-admin-web"         # sonex-admin-web  : SoNex cloud admin web site
+    "73:web/legacy/sonex-admin-web"       # rSAW  : SoNex cloud admin web site
     # --- server ---
-    "65:server/russia-server"        # russia-server    : REST API test server (Russia ambulance)
-    "26:server/dicomcontroller"      # dicomcontroller  : (설명 없음)
-    # --- device: 장비 펌웨어·MCU·yocto ---
-    "70:device/belle-msp"            # belle-msp        : MSP430 MCU 펌웨어
-    "60:device/elsa-fw"              # elsa-fw          : (설명 없음)
-    "75:device/500c-sn-fw"           # 500C_SN_FW       : 500C Firmware ([LAB] CHARM)
-    "34:device/elsa-yocto-bsp"       # elsa-yocto-bsp   : Elsa Project BSP
-    "36:device/meta-elsa"            # meta-elsa        : meta-elsa yocto recipes
-    "66:device/belle-fw"             # belle-fw         : elsa project firmware repo   [INACTIVE]
-    "67:device/belle-bsp"            # belle-bsp        : elsa project firmware BSP    [INACTIVE]
+    "71:server/legacy/sonex-cloud-backend" # rSCBE : SoNex cloud web application server + database server
+    "62:server/legacy/sonon-cloud"        # rCL   : sonon web admin site
+    "65:server/legacy/russia-server"      # rRUS  : REST API test server (Russia ambulance)
+    "26:server/legacy/dicomcontroller"    # rHDC  : (설명 없음)
+    # --- desktop: 호스트 SW. cctv 는 앱(cms-app), 여기는 SDK 뿐 ---
+    "45:desktop/legacy/cuattro-sdk"       # rCS   : Cuattro 용 window SDK C# 포팅
+    # --- device: 장비 펌웨어·MCU·커널·부트로더·BSP ---
+    #     belle = 500 시리즈(ZynqMP) · ginny = 300 시리즈. elsa-fw 는 두 세대 혼재.
+    "60:device/legacy/elsa-fw"            # rFW   : (설명 없음)
+    "17:device/legacy/ginny-fw"           # rHFW  : 300 시리즈 펌웨어. desktop 호스트 SW 가 아니다
+    "50:device/legacy/belle-fw"           # rBF   : Belle Firmware
+    "53:device/legacy/belle-bsp"          # rBB   : Belle BSP
+    "51:device/legacy/belle-kernel"       # rBK   : Belle Kernel        (현행 타깃 빌드 계통)
+    "52:device/legacy/belle-u-boot"       # rBU   : Belle U-Boot        (현행 타깃 빌드 계통)
+    "54:device/legacy/belle-fsbl"         # rBFS  : Belle FSBL          (ZynqMP BOOT.BIN 구성)
+    "55:device/legacy/belle-pmu"          # rBP   : Belle PMU           (ZynqMP PMU 펌웨어)
+    "75:device/legacy/500c-sn-fw"         # r75   : 500C Firmware ([LAB] CHARM)
+    "70:device/legacy/belle-msp"          # r70   : MSP430 MCU 펌웨어
+    "34:device/legacy/elsa-yocto-bsp"     # rEY   : Elsa Project BSP
+    "36:device/legacy/meta-elsa"          # rME   : meta-elsa yocto recipes
     # --- fpga: cctv 에 대응 축 없음 (healcerion 고유) ---
-    "68:fpga/fuji-oem-us-fpga"       # FUJI_OEM_US_FPGA : FUJI OEM 64Ch ultrasound equipment
-    "58:fpga/ginny-renewal"          # fpga ginny renewal : 300 series ginny FPGA renewal
-    "40:fpga/ginny-table"            # ginny-table      : Ginny FPGA Table
+    "68:fpga/legacy/fuji-oem-us-fpga"     # rFF   : FUJI OEM 64Ch ultrasound equipment
+    "58:fpga/legacy/ginny-renewal"        # rFGR  : 300 series ginny FPGA renewal
+    "40:fpga/legacy/ginny-table"          # rGT   : Ginny FPGA Table (배포 아티팩트, HDL 없음)
+    "56:fpga/legacy/elsa-fpga"            # rEF   : ginny -> fuji 계보의 중간
+    "72:fpga/legacy/charm-fpga"           # rCF   : charm project 500C 를 위한 FPGA
+    "18:fpga/legacy/ginny-fpga"           # rGF   : (설명 없음)
+    "48:fpga/legacy/elsa-dump-fpga"       # rEDF  : elsa-fpga 최초 커밋이 지목한 ELSA DUMP project
+    "41:fpga/legacy/ash-fpga"             # rAF   : Ash FPGA
+    "43:fpga/legacy/bf-delay-calculation" # rBDC  : Beamforming Delay Calculation (테이블 생성기)
 )
 
 # 범위 제외 — upstream 포크 (힐세리온 자작 코드 아님. 우리는 빌드하지 않으므로 불필요):
@@ -63,9 +78,9 @@ REPOS=(
 #
 # 미가시(계정 권한 필요) — PPT 스크린샷에는 있으나 conduit 조회 결과에 없음.
 # 아래 3건이 확보되면 이 배열에 추가한다:
-#   rM   Moana (5,705 commits, 배포중 Qt 앱)  -> mobile/moana
-#   rCL  sonon-cloud (394 commits)            -> server/sonon-cloud
-#   rHFW (cf-doppler-neon 설명이 통합 대상으로 언급 — 존재 추정) -> desktop/rhfw
+#   rM   Moana (5,705 commits, 배포중 Qt 앱)  -> mobile/legacy/moana
+#   rCL  sonon-cloud (394 commits)            -> server/legacy/sonon-cloud
+#   rHFW (cf-doppler-neon 설명이 통합 대상으로 언급 — 존재 추정) -> desktop/legacy/rhfw
 
 clone_one() {
     local id="${1%%:*}" path="${1#*:}"

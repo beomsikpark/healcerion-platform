@@ -9,7 +9,7 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help \
-        git-status git-clone git-pull git-push git-sync-orig \
+        git-status git-clone git-pull git-push git-sync-legacy \
         git-push-all git-commit \
         build test clean
 
@@ -31,8 +31,7 @@ help:
 # 루트만 우리 것이고 나머지는 전부 미러다. 그래서 pull/push 의미가 정반대다.
 #   루트  : ff-only pull + push  (작업물을 절대 잃으면 안 된다)
 #   미러  : reset --hard 강제 동기화 (로컬 상태는 언제나 버린다)
-# 한 타겟에 섞으면 루트 작업물을 날릴 수 있어 cctv 처럼 분리한다
-# (cctv: git-pull-all vs git-sync-fw-orig).
+# 한 타겟에 섞으면 루트 작업물을 날릴 수 있어 타겟을 분리한다.
 
 ## git-status: Show git status across root + all mirrors (DIRTY mirror = accidental edit)
 git-status:
@@ -57,8 +56,8 @@ git-push:
 git-clone:
 	scripts/clone-repos.sh
 
-## git-sync-orig: Force-sync all mirrors to origin [ARGS=--dry-run|--clean|<path>]
-git-sync-orig:
+## git-sync-legacy: Force-sync all mirrors to origin [ARGS=--dry-run|--clean|<path>]
+git-sync-legacy:
 	scripts/pull-mirrors.sh $(ARGS)
 
 # ─── 거부 ──────────────────────────────────────────────────────
@@ -70,7 +69,7 @@ git-push-all git-commit:
 	@echo "  Sub-repos are READ-ONLY mirrors of Healcerion source; they are never pushed."
 	@echo "  For the root repo use: make git-push"
 	@echo "  Check for accidental mirror edits: make git-status"
-	@echo "  Discard them with:                 make git-sync-orig"
+	@echo "  Discard them with:                 make git-sync-legacy"
 	@echo ""
 	@exit 1
 

@@ -2,15 +2,14 @@
 #
 # Working repository status.
 #
-# Mirrors deliberately do NOT get a row here. cctv's git-status.sh lists only the
-# repos it actually develops in and leaves device/fw-orig out entirely, because a
-# read-only mirror has no meaningful "status" — whatever it holds is discarded by
-# a force sync. Every sub-repo in this workspace is such a mirror, so the working
-# set is the root repo alone.
+# Mirrors deliberately do NOT get a row here: a read-only mirror has no
+# meaningful "status" — whatever it holds is discarded by a force sync. Every
+# sub-repo in this workspace is such a mirror, so the working set is the root
+# repo alone.
 #
 # Accidental mirror edits are still worth catching, so they are folded into a
 # single summary line and only DIRTY ones are named. Full mirror detail:
-#   make git-sync-orig ARGS=--dry-run
+#   make git-sync-legacy ARGS=--dry-run
 #
 # Usage: ./scripts/git-status.sh
 #
@@ -81,11 +80,11 @@ while IFS= read -r gitdir; do
 done < <(find "$ROOT_DIR" -mindepth 2 -maxdepth 4 -name .git -type d -not -path "$ROOT_DIR/.git")
 
 if [ ${#mirror_dirty[@]} -eq 0 ]; then
-    echo -e "Mirrors: ${GREEN}${mirror_total} clean${NC} (read-only — detail: make git-sync-orig ARGS=--dry-run)"
+    echo -e "Mirrors: ${GREEN}${mirror_total} clean${NC} (read-only — detail: make git-sync-legacy ARGS=--dry-run)"
 else
     echo -e "Mirrors: ${mirror_total} total, ${RED}${#mirror_dirty[@]} EDITED${NC} — mirrors must never be edited:"
     printf "  ${RED}%s${NC}\n" "${mirror_dirty[@]}"
     # --clean is required: plain sync only resets tracked files, so a stray
     # untracked file would survive and keep showing up as EDITED here.
-    echo "  discard with: make git-sync-orig ARGS=--clean"
+    echo "  discard with: make git-sync-legacy ARGS=--clean"
 fi

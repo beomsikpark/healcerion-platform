@@ -43,8 +43,8 @@ for arg in "$@"; do
     esac
 done
 
-# <container>/orig/<repo>/.git — depth 4 under ROOT_DIR
-mapfile -t REPOS < <(find "$ROOT_DIR" -mindepth 3 -maxdepth 4 -name .git -type d \
+# <container>/legacy/<repo>/.git — depth 4 under ROOT_DIR
+mapfile -t REPOS < <(find "$ROOT_DIR" -mindepth 4 -maxdepth 4 -name .git -type d \
                      | sed 's|/\.git$||' | sort)
 
 if [ ${#FILTERS[@]} -gt 0 ]; then

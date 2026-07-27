@@ -11,8 +11,8 @@
 
 > **IMPORTANT**: `mobile/`·`desktop/`·`web/`·`server/`·`device/`·`fpga/` 아래는 전부 **힐세리온(외부사) 소유 소스의 read-only 미러**다.
 >
-> - **편집·커밋·push 절대 금지.** 검토(read) 목적으로만 클론했다. cctv 의 `device/fw-orig` 와 동일한 위상.
-> - 상태 확인: `make git-status` — 하단 `Mirrors:` 줄에 편집된 미러가 뜨면 `make git-sync-orig ARGS=--clean` 으로 되돌린다.
+> - **편집·커밋·push 절대 금지.** 검토(read) 목적으로만 클론했다.
+> - 상태 확인: `make git-status` — 하단 `Mirrors:` 줄에 편집된 미러가 뜨면 `make git-sync-legacy ARGS=--clean` 으로 되돌린다.
 > - 각 미러 안의 `CLAUDE.md`·`docs/` 는 **힐세리온이 작성한 파일**이다. 그들의 개발 관행을 읽는 자료이지 우리가 고칠 대상이 아니다.
 > - **우리 산출물은 루트 git(`healcerion-platform`)의 `docs/`·`scripts/` 에만 쓴다.**
 
@@ -40,34 +40,42 @@
 | `device/` | 장비 펌웨어·MCU·yocto | `device/ipc-app`·`xvr-app` |
 | `fpga/` | FPGA (**cctv 대응 없음**) | — |
 
-각 컨테이너의 실제 코드는 전부 그 아래 `orig/` 에 있다 — 아래 절 참조.
+각 컨테이너의 실제 코드는 전부 그 아래 `legacy/` 에 있다 — 아래 절 참조.
 
 `sonex-framework` 는 저장소 설명이 "sonex **앱의** SDK, ADK" 로 앱 전용이라 `mobile/` 안에 둔다. cctv 의 `shared/flutter/aivue_client`(web-app·mobile-app **양쪽**이 공유)와 달리 소비처가 하나뿐이므로 `shared/` 축을 만들지 않는다.
 
-### 원본 소스 배치 — `<컨테이너>/orig/`
+### 원본 소스 배치 — `<컨테이너>/legacy/`
 
-> **IMPORTANT**: **현재 미러 전부가 `orig/` 아래 있다.** 리팩토링을 아직 하나도 하지 않았으므로 지금 있는 모든 코드는 리팩토링의 **입력물(원본)** 이다. 컨테이너 최상위는 **우리 산출물이 생길 때까지 비워 둔다.**
+> **IMPORTANT**: **현재 미러 전부가 `legacy/` 아래 있다.** 리팩토링을 아직 하나도 하지 않았으므로 지금 있는 모든 코드는 리팩토링의 **입력물(원본)** 이다. 컨테이너 최상위는 **우리 산출물이 생길 때까지 비워 둔다.**
 
-cctv 의 `device/fw-orig` 와 같은 위상이되 펌웨어에 한정되지 않으므로 `orig/` 로 통일한다. 다만 **cctv 는 리팩토링이 끝난 상태**라 `fw-orig` 옆에 산출물(`ipc-app`·`xvr-app`)이 있고, healcerion 은 **착수 전**이라 산출물 쪽이 비어 있다. 이 비대칭이 정상이다.
+`legacy/` 는 컨테이너 6개 전부에 동일하게 둔다. 이 계층이 표시하는 것은 구/신 관계가 아니라 **소유권**이다 — `legacy/` 아래는 전부 힐세리온 소유의 read-only 입력물이고, 우리가 만든 것은 하나도 없다. 그래서 경로를 찍거나 grep 하거나 문서에 인용할 때마다 그 사실이 함께 따라온다.
 
-| 컨테이너 | `orig/` 내용 |
+**컨테이너 최상위가 비어 있는 것이 현재의 정상 상태다.** 리팩토링 착수 전이므로 우리 산출물이 아직 없다.
+
+| 컨테이너 | `legacy/` 내용 (2026-07-27 권한 확대 반영, 33건) |
 |---|---|
-| `mobile/orig/` | `sonex-app` · `sonex-framework` · `moana`(**미확보** — B1) |
-| `web/orig/` | `sonex-admin-web` |
-| `server/orig/` | `russia-server` · `dicomcontroller` · `sonon-cloud`(**미확보** — B1) |
-| `device/orig/` | `belle-msp` · `elsa-fw` · `500c-sn-fw` · `elsa-yocto-bsp` · `meta-elsa` · `belle-fw`·`belle-bsp`(**미확보** — B2) |
-| `fpga/orig/` | `fuji-oem-us-fpga` · `ginny-renewal` · `ginny-table` |
-| `desktop/orig/` | `rHFW`(**미확인** — B3) |
+| `mobile/legacy/` | `sonex-app` · `sonex-framework` · `moana` · `ginny-string-table-converter` |
+| `web/legacy/` | `sonex-admin-web` |
+| `server/legacy/` | `sonex-cloud-backend` · `sonon-cloud` · `russia-server` · `dicomcontroller` |
+| `desktop/legacy/` | `cuattro-sdk` |
+| `device/legacy/` | `ginny-fw`(300계) · `elsa-fw` · `belle-fw`·`belle-bsp`·`belle-kernel`·`belle-u-boot`·`belle-fsbl`·`belle-pmu`(500계 = belle) · `500c-sn-fw` · `belle-msp` · `elsa-yocto-bsp` · `meta-elsa` |
+| `fpga/legacy/` | `ginny-fpga` · `ginny-renewal` · `ginny-table` · `elsa-dump-fpga` · `elsa-fpga` · `charm-fpga` · `fuji-oem-us-fpga` · `ash-fpga` · `bf-delay-calculation` |
+
+> **`desktop/` 의 근거가 바뀌었다.** 이전에는 `rHFW` 를 데스크톱 호스트 SW 로 추정해 예약해 둔 자리였으나, **`rHFW` 의 실제 이름은 `ginny-fw` = 300 시리즈 장비 펌웨어**였다(`device/` 소속). 현재 `desktop/` 의 유일한 근거는 `cuattro-sdk`("Cuattro 용 window SDK C# 포팅")다 — cctv 는 `desktop/cms-app`(앱)인데 여기는 SDK 뿐이라는 **비대칭 자체가 검토 결과물**이라 축을 유지한다.
 
 > **하지 말 것**: 구/신 관계(예: `belle-fw` → `elsa-fw`, `Moana` → `sonex`)를 **폴더 구조로 표현하지 않는다.** 그것은 분석의 *결론*이지 전제가 아니며, 현재 전부 미검증 주장이다. 관계는 `docs/review/` 문서에 근거와 함께 기록한다.
 
-**이름이 `orig` 인 이유(확정)**: cctv 의 `fw-orig` 는 firmware 전용이라 앱·FPGA·서버가 섞인 여기엔 안 맞는다. `legacy` 는 사실과 다르다 — `sonex-framework` 는 최종 커밋 2026-07-23 으로 미러 중 가장 최신이다. `orig` = 리팩토링 **입력물**.
+> **IMPORTANT (이름 확정 — 재논의 금지)**: 폴더명은 **`legacy`** 다. 2026-07-27 사용자 지시로 확정했다.
+>
+> 이전에 `orig` 를 쓴 적이 있고 그때 근거는 "`sonex-framework` 가 미러 중 최신 커밋(2026-07-23)이라 legacy 가 사실과 안 맞는다" 였다. **그 판단은 폐기됐다.** 여기서 legacy 는 최신/구식이 아니라 **우리가 만들지 않은, 리팩토링의 입력물**이라는 뜻이다.
+>
+> **이 항목을 세션 판단으로 다시 바꾸지 않는다.** 실제로 그런 일이 한 번 있었다 — 한 세션이 "산출물이 없으니 이 계층은 정보를 담지 않는다"고 판단해 계층을 통째로 없앴고(커밋 `1988c9a`), 다음 세션이 그 이탈을 새 기준으로 받아들여 문제가 커졌다. **디스크와 이 문서가 어긋나면 이 문서가 맞다. 고치지 말고 멈춰서 물어본다.**
 
 ## 표준 CLI
 
 `make help` 가 진입점이다. **현 단계에서는 git 계열만 제공한다** — 이 워크스페이스는 검토용이라 빌드·배포 타겟이 없다.
 
-> **IMPORTANT**: 루트와 미러는 **pull/push 의 의미가 정반대**라 타겟을 반드시 분리한다. 루트는 우리 작업물이라 절대 잃으면 안 되고(ff-only), 미러는 로컬 상태를 언제나 버린다(`reset --hard`). 한 타겟에 섞으면 루트 작업물이 날아간다. cctv 의 `git-pull-all` ↔ `git-sync-fw-orig` 분리와 같은 이유다.
+> **IMPORTANT**: 루트와 미러는 **pull/push 의 의미가 정반대**라 타겟을 반드시 분리한다. 루트는 우리 작업물이라 절대 잃으면 안 되고(ff-only), 미러는 로컬 상태를 언제나 버린다(`reset --hard`). 한 타겟에 섞으면 루트 작업물이 날아간다.
 
 | 대상 | 타겟 | 동작 |
 |---|---|---|
@@ -75,9 +83,9 @@ cctv 의 `device/fw-orig` 와 같은 위상이되 펌웨어에 한정되지 않�
 | **루트** | `make git-pull` | origin 에서 **ff-only** pull. 미커밋 변경이 있으면 **거부** |
 | **루트** | `make git-push` | origin 으로 push (원격 = `beomsikpark/healcerion-platform`) |
 | **미러** | `make git-clone` | 누락분 클론 (재실행 안전, 기존은 SKIP) |
-| **미러** | `make git-sync-orig` | origin 으로 **강제 동기화**(`reset --hard`). `ARGS=--dry-run` · `--clean` · 경로 부분문자열 |
+| **미러** | `make git-sync-legacy` | origin 으로 **강제 동기화**(`reset --hard`). `ARGS=--dry-run` · `--clean` · 경로 부분문자열 |
 
-`git-status` 가 미러를 행으로 나열하지 않는 것은 cctv 를 따른 것이다 — cctv `git-status.sh` 는 명시적 REPOS 배열에 개발 대상만 담고 `device/fw-orig/*` 는 한 건도 넣지 않는다. read-only 미러는 어차피 강제 동기화로 버려지므로 "상태"가 의미를 갖지 않는다. 다만 오편집 감지는 남길 가치가 있어 요약 한 줄로 접었고, **편집된 미러가 있을 때만** 이름을 드러낸다.
+`git-status` 는 미러를 행으로 나열하지 않는다. read-only 미러는 어차피 강제 동기화로 버려지므로 "상태"가 의미를 갖지 않기 때문이다. 다만 오편집 감지는 남길 가치가 있어 요약 한 줄로 접었고, **편집된 미러가 있을 때만** 이름을 드러낸다.
 
 > 미러 복구는 반드시 **`ARGS=--clean`** 을 붙인다. `--clean` 없는 동기화는 추적 파일만 되돌리므로 실수로 만든 untracked 파일이 살아남아 계속 EDITED 로 잡힌다(실측 확인).
 
@@ -89,25 +97,55 @@ cctv 의 `device/fw-orig` 와 같은 위상이되 펌웨어에 한정되지 않�
 
 ### 저장소 목록
 
-Phabricator 저장소 31개 = **클론 대상 15** + 범위 제외 10(R&D 5 · 사내 인프라 3 · upstream 포크 2) + 중복·연습 6. `id` = Phabricator repo id (클론 URI에 사용). commits·크기는 2026-07-27 클론 실측.
+> **2026-07-27 권한 확대**: 힐세리온이 계정 권한을 열어 **conduit 가시 저장소가 33 → 56건**이 됐다. 이전 기록(31건)은 무효다. 차단돼 있던 `Moana`·`sonon-cloud`·`belle-fw`·`belle-bsp`·`rHFW` 가 전부 열렸고, **존재조차 몰랐던 저장소 20여 건**이 드러났다. 미해결 블로커 1~3번은 이것으로 해소된다.
 
-| id | 로컬 경로 | commits | 크기 | 내용 |
-|----|-----------|---------|------|------|
-| 76 | `mobile/orig/sonex-app` | 249 | 510M | **Flutter sonex 앱** — android·ios·linux·macos·web·windows 6개 타깃 |
-| 74 | `mobile/orig/sonex-framework` | 524 | 2.0G | **sonex 앱의 SDK·ADK** (미러 중 최신 커밋 2026-07-23) |
-| 73 | `web/orig/sonex-admin-web` | 1 | 57M | SoNex cloud admin web site |
-| 65 | `server/orig/russia-server` | 3 | 200K | REST API test server (Russia ambulance) |
-| 26 | `server/orig/dicomcontroller` | 14 | 17M | (설명 없음) |
-| 70 | `device/orig/belle-msp` | 6 | 12M | MSP430 MCU 펌웨어 |
-| 60 | `device/orig/elsa-fw` | 74 | 70M | (설명 없음) |
-| 75 | `device/orig/500c-sn-fw` | 71 | 74M | 500C Firmware (`[LAB] CHARM`) |
-| 34 | `device/orig/elsa-yocto-bsp` | 60 | 232K | Elsa Project BSP |
-| 36 | `device/orig/meta-elsa` | 7 | 264K | meta-elsa yocto recipes |
-| 66 | `device/orig/belle-fw` | — | — | **inactive — 클론 실패(B2)**. elsa project firmware repo |
-| 67 | `device/orig/belle-bsp` | — | — | **inactive — 클론 실패(B2)**. elsa project firmware BSP |
-| 68 | `fpga/orig/fuji-oem-us-fpga` | 20 | 4.9M | FUJI OEM 64Ch ultrasound equipment |
-| 58 | `fpga/orig/ginny-renewal` | 87 | 119M | 300 series ginny FPGA renewal |
-| 40 | `fpga/orig/ginny-table` | 96 | 121M | Ginny FPGA Table |
+> **IMPORTANT (측정 규칙)**: **활동성은 반드시 `--all`(전 브랜치) 기준으로 측정한다.** 이 조직은 **master 에서 작업하지 않는다.** master 만 보면 9개 저장소가 죽은 것으로 오독된다 — 예: `belle-fw` master 4커밋/2021-09 vs 전체 66커밋/**2026-07-01**, `moana` master 4,433/2022-02 vs 전체 **5,705**/**2026-07-27**. 실제 작업 브랜치는 `production-fw-ver2.0`·`service_QT693`·`FW_1_1_8_0`·`feature-apply_*` 같은 이름을 갖는다.
+> ```bash
+> git -C <repo> rev-list --count --all
+> git -C <repo> for-each-ref --sort=-committerdate --format='%(committerdate:short) %(refname:short)' refs/remotes | head -1
+> ```
+
+Phabricator 저장소 **56개** = **클론 대상 33** + 범위 제외(신호처리·시뮬레이터 R&D · 사내 인프라 3 · upstream 포크 2) + 중복·연습·inactive. `id` = Phabricator repo id (클론 URI에 사용). 아래 **commits 는 `--all` 기준**, **최종은 전 브랜치 최신 커밋일**이다(2026-07-27 실측).
+
+| id | callsign | 로컬 경로 | commits | 크기 | 최초~최종 | 내용 |
+|----|---|-----------|--------:|------|---|------|
+| 76 |`SAPP` | `mobile/legacy/sonex-app` | 249 |510M | 2024-04 ~ 2026-07 | **Flutter sonex 앱**. 실제 타깃은 4개(linux·web 은 stub) |
+| 74 |`SFW` | `mobile/legacy/sonex-framework` | 524 |2.0G | 2023-05 ~ 2026-07 | **sonex 앱의 SDK·ADK**. 미러 중 최신 |
+| 47 |`M` | `mobile/legacy/moana` | 5705 |9.4G | 2018-06 ~ 2026-07 | **Moana (Qt). 저자 17명, 9.4G 로 미러 중 최대. `service_QT693` 브랜치에서 현재도 개발 중** |
+| 42 |`GST` | `mobile/legacy/ginny-string-table-converter` | 10 |208K | 2017-04 ~ 2017-07 | XLSX → 앱 문자열 변환 도구 |
+| 73 |`SAW` | `web/legacy/sonex-admin-web` | 1 |57M | 2023-01 ~ 2023-01 | SoNex cloud admin web site |
+| 71 |`SCBE` | `server/legacy/sonex-cloud-backend` | 16 |3.1M | 2022-09 ~ 2025-05 | **SoNex cloud web application server + DB server** |
+| 62 |`CL` | `server/legacy/sonon-cloud` | 394 |169M | 2019-03 ~ 2026-06 | **sonon web admin site. 저자 9명, 현재 운영 중** |
+| 65 |`RUS` | `server/legacy/russia-server` | 3 |204K | 2021-01 ~ 2023-03 | REST API test server (Russia ambulance) |
+| 26 |`HDC` | `server/legacy/dicomcontroller` | 14 |17M | 2015-09 ~ 2017-12 | DICOM SCU 라이브러리 + iOS 샘플 |
+| 45 |`CS` | `desktop/legacy/cuattro-sdk` | 58 |1.6M | 2017-10 ~ 2018-12 | Cuattro 용 Windows SDK (C# 포팅) |
+| 17 |`HFW` | `device/legacy/ginny-fw` | 1661 |216M | 2013-01 ~ 2021-07 | **300 시리즈 펌웨어. 저자 6명 — 펌웨어 개발 이력의 본체** |
+| 60 |`FW` | `device/legacy/elsa-fw` | 74 |70M | 2020-09 ~ 2021-08 | ginny·belle 2세대 혼재 |
+| 50 |`BF` | `device/legacy/belle-fw` | 66 |87M | 2021-08 ~ 2026-07 | **Belle Firmware** |
+| 53 |`BB` | `device/legacy/belle-bsp` | 18 |9.7M | 2021-08 ~ 2022-05 | **Belle BSP** |
+| 51 |`BK` | `device/legacy/belle-kernel` | 5 |1.2G | 2021-08 ~ 2021-10 | **Belle Kernel** (현행 빌드 계통) |
+| 52 |`BU` | `device/legacy/belle-u-boot` | 9 |158M | 2021-08 ~ 2022-04 | **Belle U-Boot** |
+| 54 | `BFS` | `device/legacy/belle-fsbl` | — | 124K | — | **Belle FSBL** (ZynqMP BOOT.BIN 구성) |
+| 55 | `BP` | `device/legacy/belle-pmu` | — | 124K | — | **Belle PMU** (ZynqMP PMU 펌웨어) |
+| 75 |— | `device/legacy/500c-sn-fw` | 71 |74M | 2023-06 ~ 2026-04 | 500C Firmware (`[LAB] CHARM`), Socionext 베어메탈 |
+| 70 |— | `device/legacy/belle-msp` | 6 |12M | 2022-04 ~ 2022-05 | MSP430 MCU 전원·감시 펌웨어 |
+| 34 |`EY` | `device/legacy/elsa-yocto-bsp` | 60 |236K | 2013-03 ~ 2016-08 | **BSP 아님** — `repo` 매니페스트 |
+| 36 |`ME` | `device/legacy/meta-elsa` | 7 |268K | 2016-06 ~ 2016-07 | bbappend 3개 오버레이 |
+| 68 |`FF` | `fpga/legacy/fuji-oem-us-fpga` | 20 |5.6M | 2021-09 ~ 2022-01 | FUJI OEM 64Ch. ginny 계보의 포크 |
+| 58 |`FGR` | `fpga/legacy/ginny-renewal` | 87 |119M | 2020-03 ~ 2021-01 | 300 series ginny FPGA renewal |
+| 40 |`GT` | `fpga/legacy/ginny-table` | 96 |122M | 2016-08 ~ 2017-04 | **HDL 없음** — 배포 아티팩트 저장소 |
+| 56 |`EF` | `fpga/legacy/elsa-fpga` | 107 |9.8M | 2018-12 ~ 2022-02 | ginny → fuji 계보의 중간 |
+| 72 |`CF` | `fpga/legacy/charm-fpga` | 12 |45M | 2022-09 ~ 2022-12 | 500C 용 FPGA |
+| 18 |`GF` | `fpga/legacy/ginny-fpga` | 194 |386M | 2015-08 ~ 2019-07 | (설명 없음) |
+| 48 |`EDF` | `fpga/legacy/elsa-dump-fpga` | 41 |3.0M | 2018-07 ~ 2019-02 | `elsa-fpga` 의 출발점 |
+| 41 |`AF` | `fpga/legacy/ash-fpga` | 61 |17M | 2017-02 ~ 2017-08 | Ash FPGA |
+| 43 |`BDC` | `fpga/legacy/bf-delay-calculation` | 2 |896K | 2017-04 ~ 2018-03 | **Beamforming Delay Calculation** (테이블 생성기) |
+
+**inactive 6건은 클론 불가**(SSH 비활성) — 32 phabricator-to-slack · 38 test · 44 cuattro-SDK · 59 esla-fw · 61 elsa-fw · 66 belle-fw · 67 belle-bsp · 69 belle-msp. **66·67 은 실물 `rBF`(50)·`rBB`(53) 와 다른 죽은 사본**이다. 이전 클론 스크립트가 66·67 을 겨냥한 것은 과녁이 틀린 것이었다.
+
+**범위 보류 — 시뮬레이터·도플러 R&D(5)**: 23 doppler-simul · 29 DopplerAndroidTest · 30 Doppler_Simulator_Code · 31 doppler_simul_win · 33 sonon-simul. **접근은 가능하다.** 기존 컨테이너 6개 어디에도 맞지 않아 새 축이 필요해 보류했다 — 축 신설은 사용자 판단 사항.
+
+**범위 보류 — 연습용**: 46 Moana Practice("Qt 환경 파악을 위한 practice용").
 
 **범위 제외 — upstream 포크(2)**: 37 elsa-linux(`git.freescale.com/imx/linux-2.6-imx`) · 35 elsa-u-boot(`github.com/Freescale/u-boot-fslc`). **힐세리온이 쓴 코드가 아니고 우리는 빌드하지 않는다.** 커널·부트로더 버전은 저장소 설명만으로 확정되므로 수 GB 클론의 이득이 없다. (cctv 는 이것들을 클론하지만 cctv 는 *빌드하는* 환경이라 위상이 다르다.)
 
@@ -121,7 +159,7 @@ Phabricator 저장소 31개 = **클론 대상 15** + 범위 제외 10(R&D 5 · �
 
 ### 제품 라인 (저장소 설명 기준)
 
-제품 라인 관계도. **점선 = 미확보(블로커) 또는 미검증 주장**이며, 실선만 코드로 확인한 것이다. 전부 `orig/` 아래 있으므로 경로는 생략했다.
+제품 라인 관계도. **점선 = 미확보(블로커) 또는 미검증 주장**이며, 실선만 코드로 확인한 것이다. 전부 `legacy/` 아래 있으므로 경로는 생략했다.
 
 ```mermaid
 flowchart TB
@@ -184,14 +222,13 @@ echo '{"queryKey":"all","limit":100}' | ssh -p 2222 git@phab.healcerion.com cond
 
 > 아래는 **우리 쪽에서 할 수 있는 확인을 모두 끝낸 뒤 남은 것**이다. 직접 시험 결과 = [docs/review/dev-environment.md](docs/review/dev-environment.md) §2.3~2.6
 
-1. **`Moana`·`sonon-cloud`·`belle-fw`·`rHFW` 4건이 프로젝트 멤버십으로 잠겨 있다** — callsign 직접 클론으로 **존재는 확정**했고(대조군과 응답이 다름), 차단 원인이 **프로젝트 멤버십 기반 view 정책**임도 확정했다. 우리 계정은 공용 임시 계정 `develop`(dev@healcerion.com) 이다.
-   **남은 것은 하나뿐** — 어느 프로젝트의 멤버가 되어야 하는지. Phabricator 가 그 프로젝트 이름을 의도적으로 숨긴다. 후보: `[LAB] Moana`·`[LAB] SONON Cloud`·`[LAB] belle`·`[LAB] members`
-2. **~~`belle-fw`·`belle-bsp` inactive → 활성화 요청~~ — 과녁이 틀렸다.** 우리에게 보이는 `R66`(callsign 없음, inactive)과 실물 `rBF`(active, 66 commits)는 **다른 저장소**다. 1번으로 흡수된다. `belle-bsp` 는 실물 callsign 미확인
-3. **~~`rHFW` 존재 추정~~ → 존재 확정.** 1번으로 흡수
-4. **conduit 이 파라미터를 무시한다** — 어떤 조회든 첫 100건만 얻는다(§2.6). Maniphest(8777)·Phriction(1284) 전수 조사는 **웹 UI 로그인 또는 API 토큰**이 필요하다
-5. **Differential(코드리뷰) 앱 접근 차단** — 사용 여부 자체를 확인할 수 없다
-5. **판단 대기 항목** — sonex 전환과의 중복 관계, "cctv-platform 유사 형태"의 정의 범위, 의료기기 규제(IEC 62304 / ISO 14971) 제약, 반입 승인. 상세 = `tmp/handoff-hlab-2487.md`
-   (범위 경계 중 **신호처리 R&D 제외는 결정됨**, `fpga/` 는 유지)
+1. **~~저장소 5건 권한 차단~~ → 2026-07-27 해소.** 힐세리온이 권한을 열어 `Moana`·`sonon-cloud`·`belle-fw`·`belle-bsp`·`rHFW` 전부 클론했다. 가시 저장소 33 → 56건. **부수 효과가 더 컸다** — 존재조차 몰랐던 belle 빌드 계통(`belle-kernel`·`belle-u-boot`·`belle-fsbl`·`belle-pmu`)과 FPGA 4건(`ginny-fpga`·`elsa-dump-fpga`·`ash-fpga`·`bf-delay-calculation`), 서버 2건이 드러났다
+2. **~~`belle-fw`·`belle-bsp` inactive~~ → 해소.** `R66`·`R67`(inactive)은 실물 `rBF`(50)·`rBB`(53)와 다른 죽은 사본이었다. 실물은 클론 완료
+3. **~~`rHFW` 정체 불명~~ → 확정. 그러나 추정이 틀렸다** — `rHFW` = **`ginny-fw`, 300 시리즈 장비 펌웨어**(커밋 1,109개)이고 데스크톱 호스트 SW 가 아니다. `desktop/` 축의 근거가 바뀌었다(§폴더 구조)
+4. **conduit 이 파라미터를 무시한다** — 어떤 조회든 첫 100건만 얻는다(§2.6). Maniphest(8777)·Phriction(1284) 전수 조사는 **웹 UI 로그인 또는 API 토큰**이 필요하다. `diffusion.repository.search` 는 56건 < 100 이라 완전하다
+5. **Differential(코드리뷰) 앱 접근 차단** — `differential.revision.search` 가 "You do not have access to the application which provides this API method" 를 반환한다. 사용 여부 자체를 확인할 수 없다
+6. **판단 대기 항목** — sonex 전환과의 중복 관계, "cctv-platform 유사 형태"의 정의 범위, 의료기기 규제(IEC 62304 / ISO 14971) 제약, 반입 승인. 상세 = `tmp/handoff-hlab-2487.md`
+7. **범위 판단 재개 필요** — 접근이 열리면서 보류 항목이 늘었다: 시뮬레이터·도플러 R&D 5건(새 컨테이너 축이 필요), 신호처리 R&D 5건(제외 판단이 이미 재검토 대상), `Moana Practice`
 
 ## 확인된 검토 사실
 
