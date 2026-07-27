@@ -9,8 +9,8 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help \
-        git-status git-clone git-pull \
-        git-push git-push-all git-commit \
+        git-status git-clone git-pull git-push git-sync-orig \
+        git-push-all git-commit \
         build test clean
 
 ARGS ?=
@@ -27,30 +27,48 @@ help:
 	@printf ' cloned\n'
 	@printf 'Conventions: CLAUDE.md · Review docs: docs/review/\n\n'
 
-# ─── git (cross-repo) ──────────────────────────────────────────
+# ─── git: 루트 저장소 (우리 산출물) ────────────────────────────
+# 루트만 우리 것이고 나머지는 전부 미러다. 그래서 pull/push 의미가 정반대다.
+#   루트  : ff-only pull + push  (작업물을 절대 잃으면 안 된다)
+#   미러  : reset --hard 강제 동기화 (로컬 상태는 언제나 버린다)
+# 한 타겟에 섞으면 루트 작업물을 날릴 수 있어 cctv 처럼 분리한다
+# (cctv: git-pull-all vs git-sync-fw-orig).
 
-## git-status: Show git status across root + all mirrors (DIRTY = accidental edit)
+## git-status: Show git status across root + all mirrors (DIRTY mirror = accidental edit)
 git-status:
 	scripts/git-status.sh
+
+## git-pull: Fast-forward the ROOT repo from origin (refuses if dirty)
+git-pull:
+	@[ -n "$$(git remote)" ] || { echo "no remote configured on root"; exit 1; }
+	@[ -z "$$(git status --porcelain)" ] || { echo "root has uncommitted changes — commit or stash first"; exit 1; }
+	git pull --ff-only
+
+## git-push: Push the ROOT repo to origin (mirrors can never be pushed)
+git-push:
+	@[ -n "$$(git remote)" ] || { echo "no remote configured on root"; exit 1; }
+	git push -u origin $$(git branch --show-current)
+
+# ─── git: 미러 (read-only) ─────────────────────────────────────
 
 ## git-clone: Clone missing mirrors (safe to re-run; existing repos are skipped)
 git-clone:
 	scripts/clone-repos.sh
 
-## git-pull: Force-sync mirrors to origin [ARGS=--dry-run|--clean|<path-substring>]
-git-pull:
+## git-sync-orig: Force-sync all mirrors to origin [ARGS=--dry-run|--clean|<path>]
+git-sync-orig:
 	scripts/pull-mirrors.sh $(ARGS)
 
-# ─── 거부: 미러는 read-only ────────────────────────────────────
-# cctv 에는 git-push-all 이 있으나 여기서는 금지다. 손에 익은 명령을
-# 무심코 쳤을 때 조용히 성공하는 대신 여기서 멈추게 한다.
+# ─── 거부 ──────────────────────────────────────────────────────
+# cctv 의 git-push-all 을 손에 익은 대로 쳤을 때 미러까지 밀어버리지 않도록 막는다.
 
-git-push git-push-all git-commit:
+git-push-all git-commit:
 	@echo ""
-	@echo "$@: refused — every sub-repo here is a READ-ONLY mirror of Healcerion source."
-	@echo "  Editing, committing or pushing to a mirror is forbidden (see CLAUDE.md)."
-	@echo "  Check for accidental edits with: make git-status"
-	@echo "  Discard them with:               make git-pull"
+	@echo "$@: refused — this workspace is not cctv."
+	@echo "  Sub-repos are READ-ONLY mirrors of Healcerion source; they are never pushed."
+	@echo "  For the root repo use: make git-push"
+	@echo "  Check for accidental mirror edits: make git-status"
+	@echo "  Discard them with:                 make git-sync-orig"
 	@echo ""
 	@exit 1
 

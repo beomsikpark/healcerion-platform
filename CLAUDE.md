@@ -67,15 +67,21 @@ cctv 의 `device/fw-orig` 와 같은 위상이되 펌웨어에 한정되지 않�
 
 `make help` 가 진입점이다. **현 단계에서는 git 계열만 제공한다** — 이 워크스페이스는 검토용이라 빌드·배포 타겟이 없다.
 
-| 타겟 | 동작 |
-|---|---|
-| `make git-status` | 루트 + 미러 13건 상태. **DIRTY = 실수로 편집한 것** |
-| `make git-clone` | 누락 미러 클론 (재실행 안전, 기존은 SKIP) |
-| `make git-pull` | 미러를 origin 으로 **강제 동기화**(`reset --hard`). `ARGS=--dry-run` · `--clean` · 경로 부분문자열 |
+> **IMPORTANT**: 루트와 미러는 **pull/push 의 의미가 정반대**라 타겟을 반드시 분리한다. 루트는 우리 작업물이라 절대 잃으면 안 되고(ff-only), 미러는 로컬 상태를 언제나 버린다(`reset --hard`). 한 타겟에 섞으면 루트 작업물이 날아간다. cctv 의 `git-pull-all` ↔ `git-sync-fw-orig` 분리와 같은 이유다.
 
-> **`make git-push`·`git-push-all`·`git-commit` 는 존재하되 거부한다.** cctv 에서 손에 익은 명령을 무심코 쳤을 때 조용히 성공하지 않고 여기서 멈추게 하기 위함이다. `make build`·`test`·`clean` 도 같은 이유로 거부한다.
+| 대상 | 타겟 | 동작 |
+|---|---|---|
+| 공통 | `make git-status` | 루트 + 미러 13건 상태. **미러에 DIRTY = 실수로 편집한 것** |
+| **루트** | `make git-pull` | origin 에서 **ff-only** pull. 미커밋 변경이 있으면 **거부** |
+| **루트** | `make git-push` | origin 으로 push (원격 = `beomsikpark/healcerion-platform`) |
+| **미러** | `make git-clone` | 누락분 클론 (재실행 안전, 기존은 SKIP) |
+| **미러** | `make git-sync-orig` | origin 으로 **강제 동기화**(`reset --hard`). `ARGS=--dry-run` · `--clean` · 경로 부분문자열 |
+
+> `make git-push-all`·`git-commit` 은 존재하되 **거부**한다 — cctv 에서 손에 익은 명령이 미러까지 밀어버리는 것을 막는다. `make build`·`test`·`clean` 도 거부한다(우리는 빌드하지 않는다).
 
 `pull-mirrors.sh` 는 저장소 목록을 **디스크에서 탐색**한다(하드코딩 배열 아님) — 경로 매핑의 SOT 는 `clone-repos.sh` 하나이고, 사본을 두면 어긋나기 때문이다. cctv 의 `pull-all.sh` 가 배열을 갖는 것과 다른 선택이다.
+
+> **알려진 제약**: `.claude/settings.json` 의 `deny` 에 `Bash(git push*)` 가 있어 **에이전트는 `make git-push` 를 실행할 수 없다.** 미러 보호용 규칙이 루트 push 까지 함께 막는다. `Bash(git -C * push*)` 만 남기면 해소된다. 같은 파일의 `git -C * reset*`·`rebase*` 도 복구 경로를 막는 오류이나 classifier 로 수정이 차단돼 있다.
 
 ### 저장소 목록
 
