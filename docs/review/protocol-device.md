@@ -77,7 +77,22 @@ typedef struct __common_packet_header {
 | `packet_body_size` | 10 | 4 | `U32` | `unsigned int` |
 | — | 14 | — | 별도 `PACKET_S` 로 본문 결합 | `char packet_body[1]` 로 구조체에 포함 |
 
-**바이트 배치는 동일**하고 크기 상수도 양쪽 14로 일치한다(`PACKET_HEADER_SIZE` / `COMMON_PACKET_HEADER_SIZE`). 다만 `recv_id` 타입이 다르므로 **엔디언 처리가 갈릴 여지**가 있다 — 앱은 바이트 배열로 다루고 장비는 정수로 다룬다.
+**바이트 배치는 동일**하고 크기 상수도 양쪽 14로 일치한다(`PACKET_HEADER_SIZE` / `COMMON_PACKET_HEADER_SIZE`). 배치 동일성은 이후 **컴파일 타임 단언으로 확정**했다([../refactoring/proof/protocol-sot/](../refactoring/proof/protocol-sot/)).
+
+> **다만 `sizeof` 는 다르다** — 앱 구조체는 `char packet_body[1]` 을 품고 있어 15바이트다. 앱 코드가 `sizeof` 대신 상수 14를 쓰기 때문에 wire 호환이 유지된다.
+
+### 2.3.1 `recv_id` — 타입 차이가 이미 결함을 만들었다
+
+| | 모델 | 코드 |
+|---|---|---|
+| 장비 | `U16` | `sonon_receive.cpp:79` — `header->recv_id = HER_TARGET_ID_CLIENT;` (=`0x0002`) |
+| 앱 | `char[2]` | `BasePacket.cpp:731` — `if (m_pkt_head->recv_id[1] == m_packet_hdr_info.target_id)` |
+
+리틀엔디언에서 장비는 target 을 **바이트 0** 에 쓴다(`{0x02, 0x00}`). 앱은 **바이트 1** 을 본다. `target_id` 는 `0x0001`·`0x0002` 뿐이므로 **이 조건은 성립할 수 없다 — 도달 불가 코드다.**
+
+실제 target 검증은 바로 위의 `memcmp(m_pkt_head, m_packet_hdr_info.context, 6)` 이 수행한다. `context[4] = target_id`·`context[5] = 0` 이라 이 6바이트 비교가 우연히 `recv_id` 를 덮는다(`BasePacket.cpp:628-633`).
+
+**활성 버그가 아니라 잠복 결함이다.** 현재 동작은 맞고, memcmp 길이를 바꾸거나 필드를 재배치하면 target 검증이 조용히 사라진다. 실행 재현 = 실증 산출물의 `verify_layout.c`.
 
 `identifier` 는 수신 시 검증된다 — `if (header->identifier[0] != 'H' || header->identifier[1] != 'C')`.
 
@@ -200,9 +215,27 @@ typedef struct __scan_data_packet {
 | `0x0220` | `FPGA_READ_COLOR_DOPPLER_FILTER_SET` | `FPGA_READ_CF_FILTER_SETTING` |
 | `0x0309` | `FPGA_READ_DP_FOCAL_LENGTH` | `FPGA_READ_DP_FOCAL` |
 
-### 6.3 양쪽이 일치하는 것
+### 6.3 양쪽이 일치하는 것 — **15건뿐이다**
 
-`DEVICE_SCAN_READY 0x0001` · `DEVICE_SCAN 0x0002` · `DEVICE_KEEP_ALIVE 0x0003` · `DEVICE_FW_UPGRADE 0x0006` · `DEVICE_KEY_EVENT 0x0008` · `DEVICE_SPEC_INFO 0x2001` · `DEVICE_TIME_SYNC 0x2002` · `DEVICE_FW_UPGRADE_PROGRESS 0x2003` · `DEVICE_FW_UPGRADE_STATUS 0x2004` · `FPGA_RESET 0x0001` · `FPGA_READ_PROBE_TYPE 0x0110`
+> **전수 기계 대조로 갱신했다**([../refactoring/proof/protocol-sot/](../refactoring/proof/protocol-sot/) `make report`). 아래 §6.1~6.2 는 손으로 고른 표본이라 규모를 과소평가했다.
+
+`DEVICE_SCAN_READY 0x0001` · `DEVICE_SCAN 0x0002` · `DEVICE_KEEP_ALIVE 0x0003` · `DEVICE_FW_UPGRADE 0x0006` · `DEVICE_KEY_EVENT 0x0008` · `DEVICE_SPEC_INFO 0x2001` · `DEVICE_TIME_SYNC 0x2002` · `DEVICE_FW_UPGRADE_PROGRESS 0x2003` · `DEVICE_FW_UPGRADE_STATUS 0x2004` · `FPGA_RESET 0x0001` · `FPGA_PD_WRITE_PARAM 0x6001` · `PACKET_TYPE_DEVICE_COMM/RESP 0x0001/0x0002` · `PACKET_TYPE_FPGA_COMM/RESP 0x0003/0x0004`
+
+> **정정**: 이전 판은 `FPGA_READ_PROBE_TYPE 0x0110` 을 일치 항목으로 적었으나 **앱은 `FPGA_PROBE_TYPE` 이다.** 명명 불일치 쪽에 속한다.
+
+### 6.3.1 전수 대조 결과
+
+`belle-fw` ∪ `moana` = **138개 값**(packet_type · DEVICE · FPGA · target_id).
+
+| 분류 | 건수 |
+|---|---:|
+| 같은 값, 공유 이름 없음 | **41** |
+| 이름까지 일치 | 15 |
+| 장비만 선언 | 72 |
+| 앱만 선언 | 8 |
+| **같은 이름, 다른 값** | **0** |
+
+마지막 줄이 통합 가능성을 결정한다 — 이름 충돌이 0 이므로 원본 철자를 전부 별칭으로 남기는 무손실 통합이 성립한다(실증 완료).
 
 ### 6.4 장비에만 있는 것 (앱에 대응 상수 없음)
 
@@ -250,7 +283,7 @@ typedef struct __scan_data_packet {
 ## 9. 미확인
 
 - `PACKET_DATA_U`(장비 측 본문 union)의 전체 구성 — 명령별 페이로드 레이아웃은 정리하지 않았다
-- 엔디언 — 헤더 필드가 리틀엔디언 전제로 보이나 명시적 변환 코드를 확인하지 않았다
-- `recv_id` 의 실제 용도 — `HER_TARGET_ID_SERVER 0x0001`/`CLIENT 0x0002` 두 값만 관측
+- 엔디언 — 명시적 변환 코드가 **없다**(확인 완료). 양쪽 다 리틀엔디언 호스트라 성립하고 있을 뿐이다
+- ~~`recv_id` 의 실제 용도~~ → §2.3.1 로 확정. 두 값(`0x0001`·`0x0002`)뿐이고, 앱의 검사는 도달 불가다
 - 앱이 READ 계열 opcode 를 실제로 어떻게 호출하는지
 - `0x0101`(스캔라인 단위 전송)이 belle 에서 실제로 쓰이는지
