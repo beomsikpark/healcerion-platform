@@ -20,43 +20,45 @@ JOBS="${JOBS:-3}"
 # Never edited or committed by us. The container top level is reserved for our
 # own output. See CLAUDE.md.
 REPOS=(
-    # --- mobile: Flutter client app + its SDK/ADK, and the Qt predecessor ---
-    "76:mobile/legacy/sonex-app"          # rSAPP : flutter 로 구현된 sonex app
-    "74:mobile/legacy/sonex-framework"    # rSFW  : sonex 앱의 SDK, ADK
-    "47:mobile/legacy/moana"              # rM    : Moana project (Qt 원본, 배포중)
-    "42:mobile/legacy/ginny-string-table-converter"  # rGST : XLSX -> app string (Android/iOS)
-    # --- web ---
+    # --- client: 장비·클라우드에 붙는 호스트 SW ---
+    #     단일 코드베이스가 모바일·데스크톱을 함께 낸다(moana=Qt, sonex=Flutter).
+    #     플랫폼별로 쪼갤 대상이 없어 mobile/desktop 축을 두지 않는다.
+    #     그들 코드도 이 계층을 SononClient / TARGET_ID_CLIENT 로 부른다.
+    "47:client/legacy/moana"              # rM    : Moana project (Qt, 앱 SOT)
+    "76:client/legacy/sonex-app"          # rSAPP : flutter 로 구현된 sonex app (재작성 진행 중)
+    "74:client/legacy/sonex-framework"    # rSFW  : sonex 앱의 SDK, ADK
+    "45:client/legacy/cuattro-sdk"        # rCS   : Cuattro 용 window SDK C# 포팅 (300C/300L 전용)
+    "42:client/legacy/ginny-string-table-converter"  # rGST : XLSX -> app string (Android/iOS)
+    # --- web: 브라우저 관리자 콘솔 (장비 연결 없음) ---
     "73:web/legacy/sonex-admin-web"       # rSAW  : SoNex cloud admin web site
     # --- server ---
     "71:server/legacy/sonex-cloud-backend" # rSCBE : SoNex cloud web application server + database server
     "62:server/legacy/sonon-cloud"        # rCL   : sonon web admin site
     "65:server/legacy/russia-server"      # rRUS  : REST API test server (Russia ambulance)
-    "26:server/legacy/dicomcontroller"    # rHDC  : (설명 없음)
-    # --- desktop: 호스트 SW. cctv 는 앱(cms-app), 여기는 SDK 뿐 ---
-    "45:desktop/legacy/cuattro-sdk"       # rCS   : Cuattro 용 window SDK C# 포팅
+    "26:server/legacy/dicomcontroller"    # rHDC  : DICOM SCU 라이브러리 + iOS 샘플
     # --- device: 장비 펌웨어·MCU·커널·부트로더·BSP ---
-    #     belle = 500 시리즈(ZynqMP) · ginny = 300 시리즈. elsa-fw 는 두 세대 혼재.
-    "60:device/legacy/elsa-fw"            # rFW   : (설명 없음)
-    "17:device/legacy/ginny-fw"           # rHFW  : 300 시리즈 펌웨어. desktop 호스트 SW 가 아니다
-    "50:device/legacy/belle-fw"           # rBF   : Belle Firmware
-    "53:device/legacy/belle-bsp"          # rBB   : Belle BSP
-    "51:device/legacy/belle-kernel"       # rBK   : Belle Kernel        (현행 타깃 빌드 계통)
-    "52:device/legacy/belle-u-boot"       # rBU   : Belle U-Boot        (현행 타깃 빌드 계통)
-    "54:device/legacy/belle-fsbl"         # rBFS  : Belle FSBL          (ZynqMP BOOT.BIN 구성)
-    "55:device/legacy/belle-pmu"          # rBP   : Belle PMU           (ZynqMP PMU 펌웨어)
-    "75:device/legacy/500c-sn-fw"         # r75   : 500C Firmware ([LAB] CHARM)
-    "70:device/legacy/belle-msp"          # r70   : MSP430 MCU 펌웨어
-    "34:device/legacy/elsa-yocto-bsp"     # rEY   : Elsa Project BSP
+    #     belle = 500 시리즈(ZynqMP, 검토 범위) · ginny = 300 시리즈(단종, 범위 밖).
+    "50:device/legacy/belle-fw"           # rBF   : Belle Firmware (현행 생산 라인)
+    "53:device/legacy/belle-bsp"          # rBB   : Belle BSP (PetaLinux 프로젝트)
+    "51:device/legacy/belle-kernel"       # rBK   : Belle Kernel (Linux 5.4.0)
+    "52:device/legacy/belle-u-boot"       # rBU   : Belle U-Boot (v2020.01)
+    "54:device/legacy/belle-fsbl"         # rBFS  : Belle FSBL  — 원격이 빈 저장소
+    "55:device/legacy/belle-pmu"          # rBP   : Belle PMU   — 원격이 빈 저장소
+    "70:device/legacy/belle-msp"          # r70   : MSP430 전원·감시 MCU
+    "17:device/legacy/ginny-fw"           # rHFW  : 300 시리즈 펌웨어 (개발 이력의 본체)
+    "60:device/legacy/elsa-fw"            # rFW   : ginny -> belle 과도기
+    "75:device/legacy/500c-sn-fw"         # r75   : 500C Firmware ([LAB] CHARM, Socionext 베어메탈)
+    "34:device/legacy/elsa-yocto-bsp"     # rEY   : repo 매니페스트 (BSP 아님)
     "36:device/legacy/meta-elsa"          # rME   : meta-elsa yocto recipes
     # --- fpga: cctv 에 대응 축 없음 (healcerion 고유) ---
-    "68:fpga/legacy/fuji-oem-us-fpga"     # rFF   : FUJI OEM 64Ch ultrasound equipment
+    "56:fpga/legacy/elsa-fpga"            # rEF   : xczu3cg — belle 의 PL (검토 범위)
     "58:fpga/legacy/ginny-renewal"        # rFGR  : 300 series ginny FPGA renewal
     "40:fpga/legacy/ginny-table"          # rGT   : Ginny FPGA Table (배포 아티팩트, HDL 없음)
-    "56:fpga/legacy/elsa-fpga"            # rEF   : ginny -> fuji 계보의 중간
-    "72:fpga/legacy/charm-fpga"           # rCF   : charm project 500C 를 위한 FPGA
-    "18:fpga/legacy/ginny-fpga"           # rGF   : (설명 없음)
-    "48:fpga/legacy/elsa-dump-fpga"       # rEDF  : elsa-fpga 최초 커밋이 지목한 ELSA DUMP project
-    "41:fpga/legacy/ash-fpga"             # rAF   : Ash FPGA
+    "18:fpga/legacy/ginny-fpga"           # rGF   : ginny 계보의 출발점
+    "48:fpga/legacy/elsa-dump-fpga"       # rEDF  : elsa-fpga 의 출발점
+    "68:fpga/legacy/fuji-oem-us-fpga"     # rFF   : FUJI OEM 64Ch ultrasound equipment
+    "72:fpga/legacy/charm-fpga"           # rCF   : 500C 용 FPGA (Efinix)
+    "41:fpga/legacy/ash-fpga"             # rAF   : Ash FPGA (SMIC ASIC + FPGA 에뮬)
     "43:fpga/legacy/bf-delay-calculation" # rBDC  : Beamforming Delay Calculation (테이블 생성기)
 )
 
@@ -75,12 +77,6 @@ REPOS=(
 # 제외 — 중복(inactive 사본) 및 연습용:
 #   69 belle-msp(inactive dup) · 61 elsa-fw(inactive dup) · 59 esla-fw(오타 dup)
 #   38 test · 27 Sanbox · 11 Sandbox Test
-#
-# 미가시(계정 권한 필요) — PPT 스크린샷에는 있으나 conduit 조회 결과에 없음.
-# 아래 3건이 확보되면 이 배열에 추가한다:
-#   rM   Moana (5,705 commits, 배포중 Qt 앱)  -> mobile/legacy/moana
-#   rCL  sonon-cloud (394 commits)            -> server/legacy/sonon-cloud
-#   rHFW (cf-doppler-neon 설명이 통합 대상으로 언급 — 존재 추정) -> desktop/legacy/rhfw
 
 clone_one() {
     local id="${1%%:*}" path="${1#*:}"

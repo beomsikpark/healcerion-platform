@@ -9,7 +9,7 @@
 
 ## 이 워크스페이스의 성격
 
-> **IMPORTANT**: `mobile/`·`desktop/`·`web/`·`server/`·`device/`·`fpga/` 아래는 전부 **힐세리온(외부사) 소유 소스의 read-only 미러**다.
+> **IMPORTANT**: `client/`·`web/`·`server/`·`device/`·`fpga/` 아래는 전부 **힐세리온(외부사) 소유 소스의 read-only 미러**다.
 >
 > - **편집·커밋·push 절대 금지.** 검토(read) 목적으로만 클론했다.
 > - 상태 확인: `make git-status` — 하단 `Mirrors:` 줄에 편집된 미러가 뜨면 `make git-sync-legacy ARGS=--clean` 으로 되돌린다.
@@ -24,7 +24,11 @@
 
 > **IMPORTANT**: git 명령(status, diff, log 등)은 반드시 `git -C <path>` 로 해당 저장소에서 실행한다. 루트에서 실행하면 엉뚱한 저장소를 건드린다.
 
-컨테이너 이름은 **cctv-platform 의 어휘를 그대로 쓴다**(`mobile`·`desktop`·`web`·`server`·`device`·`device/bsp`). 본 검토의 논제가 "cctv-platform 과 유사한 형태" 이므로, 힐세리온 저장소를 같은 어휘에 얹어 **어디가 맞고 어디가 안 맞는지를 구조 자체로 드러내기** 위함이다. cctv 에 대응 축이 없는 `fpga/` 는 healcerion 고유 축으로 남긴다.
+컨테이너는 **실제 구조에 맞춘 5축**이다 — `client`·`web`·`server`·`device`·`fpga`.
+
+> **`mobile`·`desktop` 을 쓰지 않는 이유(실측)**: cctv 는 `mobile/mobile-app`·`desktop/cms-app`·`web/web-app` 이 **별개 저장소**지만, 힐세리온은 **단일 코드베이스가 모바일·데스크톱을 함께 낸다** — `moana`(Qt)가 Android·iOS·UWP 로, `sonex-app`(Flutter)이 android·ios·macos·windows 로 나간다. **플랫폼별로 쪼갤 대상이 존재하지 않는다.**
+>
+> `client` 는 그들 어휘다 — `moana/framework/SononClient/`·`cuattro-sdk` 의 `CSononClient`·프로토콜 상수 `HER_TARGET_ID_CLIENT`. 장비가 서버이고 앱이 클라이언트라는 관계가 코드에 박혀 있다.
 
 | 폴더 | 설명 | cctv 대응 |
 |------|------|-----------|
@@ -33,16 +37,15 @@
 | `Makefile` | cross-repo 오케스트레이션 (아래 §표준 CLI) | `Makefile` |
 | `scripts/` | `clone-repos.sh` · `git-status.sh` · `pull-mirrors.sh` | `scripts/` |
 | `tmp/` | 임시·핸드오프 (루트 git 비추적, 정식 문서 아님) | `tmp/` |
-| `mobile/` | Flutter 클라이언트 앱 + 그 앱 전용 SDK/ADK | `mobile/mobile-app` |
-| `desktop/` | 데스크톱·콘솔형 장비 호스트 SW | `desktop/cms-app` 외 |
-| `web/` | 웹 UI | `web/` |
+| `client/` | **장비·클라우드에 붙는 호스트 SW** — 앱 + 그 SDK. 단일 코드베이스가 모바일·데스크톱을 함께 낸다 | `mobile/mobile-app` + `desktop/cms-app` (**축이 1:1 아님**) |
+| `web/` | 브라우저 관리자 콘솔 (장비 연결 없음) | `web/` |
 | `server/` | 서버·클라우드 | `server/` |
 | `device/` | 장비 펌웨어·MCU·yocto | `device/ipc-app`·`xvr-app` |
 | `fpga/` | FPGA (**cctv 대응 없음**) | — |
 
 각 컨테이너의 실제 코드는 전부 그 아래 `legacy/` 에 있다 — 아래 절 참조.
 
-`sonex-framework` 는 저장소 설명이 "sonex **앱의** SDK, ADK" 로 앱 전용이라 `mobile/` 안에 둔다. cctv 의 `shared/flutter/aivue_client`(web-app·mobile-app **양쪽**이 공유)와 달리 소비처가 하나뿐이므로 `shared/` 축을 만들지 않는다.
+`sonex-framework` 는 `sonex-app` 전용 SDK 이므로 `client/` 안에 둔다. cctv 의 `shared/flutter/aivue_client`(web-app·mobile-app **양쪽**이 공유)와 달리 소비처가 하나뿐이므로 `shared/` 축을 만들지 않는다.
 
 ### 원본 소스 배치 — `<컨테이너>/legacy/`
 
@@ -54,14 +57,11 @@
 
 | 컨테이너 | `legacy/` 내용 (33건) |
 |---|---|
-| `mobile/legacy/` | `sonex-app` · `sonex-framework` · `moana` · `ginny-string-table-converter` |
+| `client/legacy/` | `moana`(SOT) · `sonex-app` · `sonex-framework` · `cuattro-sdk` · `ginny-string-table-converter` |
 | `web/legacy/` | `sonex-admin-web` |
 | `server/legacy/` | `sonex-cloud-backend` · `sonon-cloud` · `russia-server` · `dicomcontroller` |
-| `desktop/legacy/` | `cuattro-sdk` |
 | `device/legacy/` | `ginny-fw`(300계) · `elsa-fw` · `belle-fw`·`belle-bsp`·`belle-kernel`·`belle-u-boot`·`belle-fsbl`·`belle-pmu`(500계 = belle) · `500c-sn-fw` · `belle-msp` · `elsa-yocto-bsp` · `meta-elsa` |
 | `fpga/legacy/` | `ginny-fpga` · `ginny-renewal` · `ginny-table` · `elsa-dump-fpga` · `elsa-fpga` · `charm-fpga` · `fuji-oem-us-fpga` · `ash-fpga` · `bf-delay-calculation` |
-
-> **`desktop/` 의 근거는 `cuattro-sdk` 하나다** — "Cuattro 용 window SDK C# 포팅"(네이티브 DLL + WinForms 앱). cctv 는 `desktop/cms-app`(앱)인데 여기는 SDK 뿐이라는 **비대칭 자체가 검토 결과물**이라 축을 유지한다. `cuattro-sdk` 는 `moana/framework/SononClient` 의 포크다(파일 17개 중 15개 동명).
 
 > **하지 말 것**: 구/신 관계(예: `belle-fw` → `elsa-fw`, `Moana` → `sonex`)를 **폴더 구조로 표현하지 않는다.** 그것은 분석의 *결론*이지 전제가 아니며, 현재 전부 미검증 주장이다. 관계는 `docs/review/` 문서에 근거와 함께 기록한다.
 
@@ -105,16 +105,16 @@ Phabricator 저장소 **56개** = **클론 대상 33** + 범위 제외(신호처
 
 | id | callsign | 로컬 경로 | commits | 크기 | 최초~최종 | 내용 |
 |----|---|-----------|--------:|------|---|------|
-| 76 |`SAPP` | `mobile/legacy/sonex-app` | 249 |510M | 2024-04 ~ 2026-07 | **Flutter sonex 앱**. 실제 타깃은 4개(linux·web 은 stub) |
-| 74 |`SFW` | `mobile/legacy/sonex-framework` | 524 |2.0G | 2023-05 ~ 2026-07 | **sonex 앱의 SDK·ADK**. 미러 중 최신 |
-| 47 |`M` | `mobile/legacy/moana` | 5705 |9.4G | 2018-06 ~ 2026-07 | **Moana (Qt). 저자 17명, 9.4G 로 미러 중 최대. `service_QT693` 브랜치에서 현재도 개발 중** |
-| 42 |`GST` | `mobile/legacy/ginny-string-table-converter` | 10 |208K | 2017-04 ~ 2017-07 | XLSX → 앱 문자열 변환 도구 |
+| 76 |`SAPP` | `client/legacy/sonex-app` | 249 |510M | 2024-04 ~ 2026-07 | **Flutter sonex 앱**. 실제 타깃은 4개(linux·web 은 stub) |
+| 74 |`SFW` | `client/legacy/sonex-framework` | 524 |2.0G | 2023-05 ~ 2026-07 | **sonex 앱의 SDK·ADK**. 미러 중 최신 |
+| 47 |`M` | `client/legacy/moana` | 5705 |9.4G | 2018-06 ~ 2026-07 | **Moana (Qt). 저자 17명, 9.4G 로 미러 중 최대. `service_QT693` 브랜치에서 현재도 개발 중** |
+| 42 |`GST` | `client/legacy/ginny-string-table-converter` | 10 |208K | 2017-04 ~ 2017-07 | XLSX → 앱 문자열 변환 도구 |
 | 73 |`SAW` | `web/legacy/sonex-admin-web` | 1 |57M | 2023-01 ~ 2023-01 | SoNex cloud admin web site |
 | 71 |`SCBE` | `server/legacy/sonex-cloud-backend` | 16 |3.1M | 2022-09 ~ 2025-05 | **SoNex cloud web application server + DB server** |
 | 62 |`CL` | `server/legacy/sonon-cloud` | 394 |169M | 2019-03 ~ 2026-06 | **sonon web admin site. 저자 9명, 현재 운영 중** |
 | 65 |`RUS` | `server/legacy/russia-server` | 3 |204K | 2021-01 ~ 2023-03 | REST API test server (Russia ambulance) |
 | 26 |`HDC` | `server/legacy/dicomcontroller` | 14 |17M | 2015-09 ~ 2017-12 | DICOM SCU 라이브러리 + iOS 샘플 |
-| 45 |`CS` | `desktop/legacy/cuattro-sdk` | 58 |1.6M | 2017-10 ~ 2018-12 | Cuattro 용 Windows SDK (C# 포팅) |
+| 45 |`CS` | `client/legacy/cuattro-sdk` | 58 |1.6M | 2017-10 ~ 2018-12 | Cuattro 용 Windows SDK (C# 포팅) |
 | 17 |`HFW` | `device/legacy/ginny-fw` | 1661 |216M | 2013-01 ~ 2021-07 | **300 시리즈 펌웨어. 저자 6명 — 펌웨어 개발 이력의 본체** |
 | 60 |`FW` | `device/legacy/elsa-fw` | 74 |70M | 2020-09 ~ 2021-08 | ginny·belle 2세대 혼재 |
 | 50 |`BF` | `device/legacy/belle-fw` | 66 |87M | 2021-08 ~ 2026-07 | **Belle Firmware** |
@@ -193,8 +193,8 @@ flowchart TB
 
 - **SONON / sonex** — 휴대형 초음파 앱 라인. `Moana`(Qt, 배포중) → `sonex`(Flutter, 개발중) 전환이 이미 진행 중인 구도
 - **elsa / belle** — 동일 프로젝트의 두 이름(`belle-fw` 설명이 "elsa project firmware repo"). i.MX6 + Yocto 기반 장비 펌웨어 스택
-- **CHARM(500C) · ginny(300 series) · FUJI OEM** — 별도 장비 라인. 콘솔형이라 호스트 SW(`rHFW` 추정)가 `desktop/` 에 온다
-- **신호처리 R&D** — 알고리즘 트랙이라 **범위 제외**. `cf-doppler-neon` 만 rHFW 통합 예정이라 `desktop/` 축과 물려 있다
+- **CHARM(500C) · ginny(300 series) · FUJI OEM** — 별도 장비 라인. 전부 단종·비호환으로 **검토 범위 밖**
+- **신호처리 R&D** — 알고리즘 트랙이라 **범위 제외**. `cf-doppler-neon` 은 `ginny-fw`(300 시리즈) 통합 예정이었다
 
 ## Phabricator 접근
 
@@ -220,7 +220,7 @@ echo '{"queryKey":"all","limit":100}' | ssh -p 2222 git@phab.healcerion.com cond
 
 1. **~~저장소 5건 권한 차단~~ → 2026-07-27 해소.** 힐세리온이 권한을 열어 `Moana`·`sonon-cloud`·`belle-fw`·`belle-bsp`·`rHFW` 전부 클론했다. 가시 저장소 33 → 56건. **부수 효과가 더 컸다** — 존재조차 몰랐던 belle 빌드 계통(`belle-kernel`·`belle-u-boot`·`belle-fsbl`·`belle-pmu`)과 FPGA 4건(`ginny-fpga`·`elsa-dump-fpga`·`ash-fpga`·`bf-delay-calculation`), 서버 2건이 드러났다
 2. **~~`belle-fw`·`belle-bsp` inactive~~ → 해소.** `R66`·`R67`(inactive)은 실물 `rBF`(50)·`rBB`(53)와 다른 죽은 사본이었다. 실물은 클론 완료
-3. **~~`rHFW` 정체 불명~~ → 확정. 그러나 추정이 틀렸다** — `rHFW` = **`ginny-fw`, 300 시리즈 장비 펌웨어**(커밋 1,109개)이고 데스크톱 호스트 SW 가 아니다. `desktop/` 축의 근거가 바뀌었다(§폴더 구조)
+3. **`rHFW` = `ginny-fw`** — 300 시리즈 장비 펌웨어이며 데스크톱 호스트 SW 가 아니다
 4. **conduit 이 파라미터를 무시한다** — 어떤 조회든 첫 100건만 얻는다(§2.6). Maniphest(8777)·Phriction(1284) 전수 조사는 **웹 UI 로그인 또는 API 토큰**이 필요하다. `diffusion.repository.search` 는 56건 < 100 이라 완전하다
 5. **Differential(코드리뷰) 앱 접근 차단** — `differential.revision.search` 가 "You do not have access to the application which provides this API method" 를 반환한다. 사용 여부 자체를 확인할 수 없다
 6. **판단 대기 항목** — sonex 전환과의 중복 관계, "cctv-platform 유사 형태"의 정의 범위, 의료기기 규제(IEC 62304 / ISO 14971) 제약, 반입 승인. 상세 = `tmp/handoff-hlab-2487.md`

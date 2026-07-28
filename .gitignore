@@ -1,6 +1,5 @@
 # Phabricator 미러 (scripts/clone-repos.sh 로 관리 — read-only, 루트 git 비추적)
-/mobile/
-/desktop/
+/client/
 /web/
 /server/
 /device/
