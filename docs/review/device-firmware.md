@@ -164,27 +164,15 @@ IPC 방식이 셋 다 다르다.
 
 전송은 **TCP 2채널**이다 — `CTRL_PORT 1234` · `DATA_PORT 1235`, `TCP_NODELAY`. **장비가 서버**이고 호스트 앱이 접속한다. 장비는 자체 AP 로 뜬다(`192.168.10.1`).
 
-### 7.1 정본 선언이 둘로 갈렸다
+상세는 [protocol.md](protocol-device.md) 가 SOT 다. 여기서는 belle 측 요점만 적는다.
 
-| 계보 | 선언 위치 | 타입 |
-|---|---|---|
-| A `PACKET_HEADER_S` | `500c-sn-fw/src/App/include/USSCustomCommand.h` (범위 밖 저장소) | `U8`/`U16`/`U32` |
-| B `COMMON_PACKET_HEADER` | `moana/framework/SononClient/SononPacket.h` | `char`/`unsigned short`/`unsigned int` |
+- `belle-fw` 는 `sonon/sonon_receive.h:2210` 에 **자체 `PACKET_HEADER_S` 선언**을 갖는다. 같은 구조체가 앱(`moana`)·`500c-sn-fw` 에도 각각 선언돼 있어 **정본이 3벌**이다
+- 프로토콜 버전이 `HER_PROTOCOL_VER_MAJOR 0x01`·`MINOR 0x00` 으로 **컴파일 타임 고정**이다(500 계열 태그)
+- opcode 를 `DEVICE_READ_*`/`DEVICE_WRITE_*` 쌍으로 정의하는데 **앱은 쌍 중 하나만 이름 붙인다**
+- 장비에만 있는 명령이 많다 — 디버그·공장시험·AFE 레지스터 직접 로드(`FPGA_LOAD_MAX2082_REG_FILE`)
+- **CRC 가 없다** — `verify_packet_header_and_crc` 함수명과 달리 검사 코드가 없다
 
-```c
-// 계보 A
-typedef struct __attribute__ ((packed)) {
-    U8  identifier[2];   U8  version[2];
-    U16 recv_id;         U16 session_id;   U16 packet_type;
-    U32 packet_body_size;
-} PACKET_HEADER_S;   // PACKET_HEADER_SIZE 14
-```
-
-`recv_id` 가 A 는 `U16`, B 는 `char[2]` 다. 바이트 배치는 같지만 **타입 정의가 갈라져 있고 동기화 장치가 없다.** `belle-fw` 는 이 타입을 쓰면서 **선언을 자기 저장소에 두지 않는다.**
-
-**CRC 는 구현돼 있지 않다** — 검증 함수 이름이 `verify_packet_header_and_crc` 이지만 `//check CRC` 주석만 있다.
-
-### 7.2 커맨드 공간
+### 7.1 커맨드 공간
 
 `packet_type` 으로 계열을 가르고(`DEVICE_COMM 0x0001`·`DEVICE_RESP 0x0002`·`FPGA_COMM 0x0003`·`FPGA_RESP 0x0004`·`B 0x0100`·`B_C 0x0102`·`PW 0x0104`·`M 0x0106`) 그 안에서 16비트 opcode 를 쓴다.
 
@@ -196,7 +184,7 @@ typedef struct __attribute__ ((packed)) {
 
 `version[2]` 필드가 모델 선택자를 겸한다 — `0x00 0x01`=S300C · `0x00 0x02`=S300L · `0x00 0x03`=S300MC · `0x01 0x00`=500 시리즈. **기능 플래그 협상이나 세만틱 버저닝은 없다.**
 
-### 7.3 같은 프로토콜이 7개 코드베이스에 복제돼 있다
+### 7.2 같은 프로토콜이 7개 코드베이스에 복제돼 있다
 
 장비 측 `ginny-fw`·`elsa-fw`·`belle-fw`·`500c-sn-fw`, 호스트 측 `moana`·`sonex-framework`·`cuattro-sdk`. **통합 효과가 가장 큰 표면**이며, `cuattro-sdk` 는 `moana` 의 포크임이 확인됐다(파일 17개 중 15개 동명).
 

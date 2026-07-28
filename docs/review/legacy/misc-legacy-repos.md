@@ -3,7 +3,7 @@
 > **범위 판단**: 아래는 **belle 과 무관하거나 300 시리즈 전용**이라 검토 범위 밖이다.
 > **근거**: 코드 직접 읽기(2026-07-27).
 
-## 1. `desktop/legacy/cuattro-sdk` — Windows 호스트 SDK
+## 1. `client/legacy/cuattro-sdk` — Windows 호스트 SDK
 
 C++ Win32 DLL(`SononClient.dll`) + **C# WinForms 데모 앱**. .NET Framework 4.7, VS2017.
 

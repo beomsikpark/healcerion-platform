@@ -14,7 +14,7 @@ HLAB-2487 의 목적 전문은 두 줄이다.
 
 이 문서가 답하는 부분: "cctv-platform 과 유사한 형태"를 릴리스·CI 규약 수준까지 평가하려면 **힐세리온의 현행 개발 환경을 먼저 확정**해야 한다. 코드 구조만으로는 이 축을 볼 수 없다.
 
-메타: HummingLab 팀 / CCTV 프로젝트 / Backlog / 담당·작성 Beomsik Park / 생성 2026-07-27 / 우선순위 미지정 / 라벨·연관이슈 없음.
+메타: Beomsoft 팀 / CCTV 프로젝트 / Backlog / 담당·작성 Beomsik Park / 생성 2026-07-27 / 우선순위 미지정 / 라벨·연관이슈 없음.
 
 ## 2. 현행 스택 — Phabricator 단일 (검증됨)
 
@@ -127,11 +127,11 @@ conduit 의 `dateModified` 는 **Phabricator 저장소 설정의 수정 시각**
 
 생성일은 별개로 의미가 있다 — `sonex-framework` 2023-05-22, `sonex-APP` 2024-04-11 로 **SDK 가 앱보다 약 1년 앞선다**(주장이 아니라 conduit 메타 값).
 
-## 3. HummingLab 기준(Linear + GitHub) 대비
+## 3. Beomsoft 기준(Linear + GitHub) 대비
 
 리팩토링이 "cctv-platform 과 유사한 형태"를 목표로 하면 코드 구조뿐 아니라 아래 축도 함께 이동한다. 오른쪽 열이 이 검토의 기준선이다.
 
-| 축 | 힐세리온 현행 | HummingLab (cctv-platform) |
+| 축 | 힐세리온 현행 | Beomsoft (cctv-platform) |
 |---|---|---|
 | VCS 호스팅 | Phabricator Diffusion (**검증됨**) | GitHub |
 | 코드 리뷰 | Differential — **우리 계정 접근 차단**(§3.1) | GitHub PR |
@@ -179,7 +179,7 @@ flowchart LR
         h3[Maniphest - 미확인]
         h4[CI - 미확인]
     end
-    subgraph humminglab_target
+    subgraph beomsoft_target
         g1[GitHub]
         g2[Pull Request]
         g3[Linear]

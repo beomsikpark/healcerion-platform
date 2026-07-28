@@ -7,9 +7,9 @@
 
 | 저장소 | commits | master 최종 | **전 브랜치 최종** | 작업 브랜치 | 저자 |
 |---|---:|---|---|---|---:|
-| `mobile/legacy/moana` | **5,705** | 2022-02-17 | **2026-07-27** | `service_QT693` | 17 |
-| `mobile/legacy/sonex-framework` | 524 | 2026-07-23 | **2026-07-23** | master | 8 |
-| `mobile/legacy/sonex-app` | 249 | 2026-06-18 | **2026-07-15** | `feature-apply_v1.23.4` | 5 |
+| `client/legacy/moana` | **5,705** | 2022-02-17 | **2026-07-27** | `service_QT693` | 17 |
+| `client/legacy/sonex-framework` | 524 | 2026-07-23 | **2026-07-23** | master | 8 |
+| `client/legacy/sonex-app` | 249 | 2026-06-18 | **2026-07-15** | `feature-apply_v1.23.4` | 5 |
 | `device/legacy/belle-fw` | 66 | 2021-09-06 | **2026-07-01** | `production-fw-ver2.0` | 1 |
 | `server/legacy/sonon-cloud` | 394 | 2026-06-02 | **2026-06-02** | master | 9 |
 | `device/legacy/500c-sn-fw` | 71 | 2023-07-03 | **2026-04-24** | `FW_1_1_8_0` | 2 |
@@ -29,10 +29,10 @@
 | `fpga/legacy/fuji-oem-us-fpga` | 20 | 2022-01-04 | 2022-01-04 | master | 2 |
 | `fpga/legacy/charm-fpga` | 12 | 2022-12-12 | 2022-12-12 | master | 2 |
 | `fpga/legacy/bf-delay-calculation` | 2 | 2018-03-08 | 2018-03-08 | master | 2 |
-| `desktop/legacy/cuattro-sdk` | 58 | 2018-12-17 | 2018-12-17 | master | 1 |
+| `client/legacy/cuattro-sdk` | 58 | 2018-12-17 | 2018-12-17 | master | 1 |
 | `device/legacy/elsa-yocto-bsp` | 60 | 2016-08-17 | 2016-08-17 | master | 8 |
 | `server/legacy/dicomcontroller` | 14 | 2017-12-11 | 2017-12-11 | master | 1 |
-| `mobile/legacy/ginny-string-table-converter` | 10 | 2017-07-10 | 2017-07-10 | master | 1 |
+| `client/legacy/ginny-string-table-converter` | 10 | 2017-07-10 | 2017-07-10 | master | 1 |
 | `device/legacy/meta-elsa` | 7 | 2016-07-11 | 2016-07-11 | master | 1 |
 | `server/legacy/russia-server` | 3 | 2023-03-31 | 2023-03-31 | master | 2 |
 | `web/legacy/sonex-admin-web` | 1 | 2023-01-19 | 2023-01-19 | master | 1 |

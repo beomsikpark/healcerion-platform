@@ -1,8 +1,8 @@
 # Moana — Qt 앱과 호스트 SW 3종 대조
 
-> **근거**: `mobile/legacy/moana` **`origin/service_QT693`**(HEAD 2026-07-27) 코드 직접 읽기 + `cuattro-sdk`·`sonex-app` 대조(2026-07-27).
+> **근거**: `client/legacy/moana` **`origin/service_QT693`**(HEAD 2026-07-27) 코드 직접 읽기 + `cuattro-sdk`·`sonex-app` 대조(2026-07-27).
 > **⚠ master 를 보면 안 된다** — `master` 는 2022-02-17 에 멈춰 있고 실제 개발은 `service_QT693` 에서 오늘까지 이어진다.
-> **관련**: [legacy/sonex-app.md](legacy/sonex-app.md)(sonex, 범위 밖) · [device-firmware.md §8](device-firmware.md)(프로토콜)
+> **관련**: [sonex-app.md](sonex-app.md)(진행 중인 재작성) · [device-firmware.md §8](device-firmware.md)(프로토콜)
 
 ## 0. Moana 는 대체되는 구세대가 아니다
 
