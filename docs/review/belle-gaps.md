@@ -41,18 +41,19 @@
 | ZynqMP 정확한 부품번호 | `config` 에 없다. `.xsa` 안에 있으나 원본 프로젝트가 없다 |
 | 보드 리비전 대응 | `HIT REV1.0`(DT) · `elsa-es3` · `elsa-pp` 세 표기의 관계 |
 
-## 4. 프로토콜 — 정본이 둘로 갈렸다
+## 4. 프로토콜 — 정본이 셋으로 갈렸다
 
-`'H','C'` 14바이트 헤더가 **belle 을 포함해 7개 코드베이스에 복제**돼 있고, 선언은 두 곳에 있다.
+`'H','C'` 14바이트 헤더가 **belle 을 포함해 7개 코드베이스에 복제**돼 있고, 선언은 **세 곳**에 있다.
 
-| 계보 | 선언 위치 | `recv_id` |
-|---|---|---|
-| A `PACKET_HEADER_S` | `500c-sn-fw` (범위 밖 저장소) | `U16` |
-| B `COMMON_PACKET_HEADER` | `moana/framework/SononClient/SononPacket.h` | `char[2]` |
+| 코드베이스 | 선언 위치 | 타입명 | `recv_id` |
+|---|---|---|---|
+| `belle-fw` (장비) | `sonon/sonon_receive.h:2210` | `PACKET_HEADER_S` | `U16` |
+| `moana` (앱, SOT) | `framework/SononClient/SononPacket.h` | `COMMON_PACKET_HEADER` | `char[2]` |
+| `500c-sn-fw` (범위 밖) | `src/App/include/USSCustomCommand.h` | `PACKET_HEADER_S` | `U16` |
 
-**`belle-fw` 는 이 타입을 쓰면서 선언을 자기 저장소에 두지 않는다.** 빌드 시 외부 include 로 주입되는 것으로 보이나 미확정이다.
+> **정정 (2026-07-28 적대적 검증)**: 이 절은 "정본이 둘" 이고 "**`belle-fw` 는 이 타입을 쓰면서 선언을 자기 저장소에 두지 않는다 · 외부 include 로 주입되는 것으로 보이나 미확정**" 이라 적었다. **틀렸다** — `belle-fw` `origin/production-fw-ver2.0:sonon/sonon_receive.h:2210` 에 자체 선언이 있다. [protocol-device.md §2.1](protocol-device.md) 이 같은 줄 번호로 이미 인용하고 있었다. §10 요청 목록에서도 해당 항목을 뺐다.
 
-동기화 장치가 없고 CRC 도 구현돼 있지 않다(`verify_packet_header_and_crc` 함수명과 달리 검사 코드 없음). **위험 낮고 효과 큰 첫 리팩토링 대상**이다.
+동기화 장치가 없고 CRC 도 구현돼 있지 않다(`verify_packet_header_and_crc` 함수명과 달리 검사 코드 없음). **위험 낮고 효과 큰 첫 리팩토링 대상**이다. 전수 대조·정본 1벌 실증 = [../refactoring/proof/protocol-sot/](../refactoring/proof/protocol-sot/).
 
 ## 5. 클라우드
 
@@ -68,13 +69,18 @@
 | 항목 | belle 범위 실측 |
 |---|---|
 | **CI** | `belle-fw`·`belle-bsp`·`belle-kernel`·`belle-u-boot`·`belle-msp`·`elsa-fpga`·`moana` **전부 0건** |
-| 자동 테스트 | belle 계열 **0건**. `moana` 도 0건(`test/` 는 수동 프로토타입 앱) |
+| 자동 테스트 | `belle-fw` 에 **1건** — `lib/test/cf_ff_compare.c`(2026-06-17). 나머지 belle 계열 0건. `moana` 도 0건(`test/` 는 수동 프로토타입 앱) |
 | 문서 | `moana` 만 개발자 작성 분석 문서 23건 보유. belle 계열은 없음 |
 | 저자 | belle 계열 **전부 `jacob` 단독**. `moana` 만 17명 |
 
-**자동 회귀 판정이 없다.** 변경의 동작 동일성을 확인할 기준선이 없고, 6개 타깃·다수 인증 변종을 **수동으로 검증**하고 있다. 의료기기 규제 검토(판단 대기 5번)의 핵심 공백이다.
+**자동 회귀 판정이 돌아가는 계통이 없다.** 6개 타깃·다수 인증 변종을 **수동으로 검증**하고 있다. 의료기기 규제 검토(판단 대기 5번)의 핵심 공백이다.
 
-> 안전망 자체가 없다는 뜻은 아니다 — `moana` 출하 브랜치에 사내 QA 표기(`[SQA]`)가 **150건** 있다([change-cost.md §5](change-cost.md)). 없는 것은 **자동화된 판정**이다.
+> 안전망 자체가 없다는 뜻은 아니다. 둘을 구분해 적는다.
+>
+> - `moana` 출하 브랜치에 사내 QA 표기(`[SQA]`) **150건** ([change-cost.md §5](change-cost.md))
+> - `belle-fw` 출하 브랜치에 **호스트 검증 하니스 1건** — 실제 펌웨어 `lib/cf-doppler.c` 를 컴파일해 골든 모델과 대조하고 정량 합격 기준(`recall=1.0`·`scatter=0`·마스크 일치 ≥0.95)을 갖는다 ([change-cost.md §3.2](change-cost.md))
+>
+> 없는 것은 판정 수단이 아니라 **그것을 자동으로 돌리는 CI** 다.
 
 ## 7. 릴리스·변종 관리
 
@@ -114,10 +120,11 @@
 
 1. **빌드 재현** — FSBL·PMU 소스(또는 생성 절차) · `es3_v00.01.00.xsa` 를 만든 Vivado 프로젝트 · 커널 모듈 3종의 빌드 방법 · PetaLinux 릴리스 버전 · `belle-sysroot` · `libNE10.a`
 2. **하드웨어** — 회로도·BOM · QSPI 플래시 부품번호 · ZynqMP 부품번호 · 보드 리비전 표기 대응
-3. **프로토콜** — `belle-fw` 가 참조하는 `PACKET_HEADER_S` 선언의 실제 소재
-4. **클라우드** — `sdi`·`ela` 스키마 DDL · belle 장비의 클라우드 연결 현황
-5. **보안 통보** — §8 두 건
-6. **확인 질문** — `belle-fw` 의 실제 출하 브랜치(`production-fw` vs `production-fw-ver2.0`) · `auth` 파티션 사용처
+3. **클라우드** — `sdi`·`ela` 스키마 DDL · belle 장비의 클라우드 연결 현황
+4. **보안 통보** — §8 두 건
+5. **확인 질문** — `belle-fw` 의 실제 출하 브랜치(`production-fw` vs `production-fw-ver2.0`) · `auth` 파티션 사용처
+
+> 초판에 있던 "`belle-fw` 가 참조하는 `PACKET_HEADER_S` 선언의 실제 소재" 는 **뺐다.** 저장소 안에 있다(§4).
 
 ## 11. 미확인
 

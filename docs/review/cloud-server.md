@@ -13,7 +13,7 @@
 | 스택 | Java 8 · Spring MVC 5.2.22 · Spring Security 5.3.13 · MyBatis 3.5.10 · **MariaDB** | **Firebase Cloud Functions**(Node 10) · **Firestore** · Vue2/Quasar SPA |
 | 배포 | WAR `CloudService`, **포트 8080** | Firebase Hosting 3타깃 + Functions |
 | 호스트 | `sonex.healcerion.com:8080` | `sonon.healcerion.com` |
-| 핸들러 | **124개** | HTTPS 함수 **17개** |
+| 핸들러 | **136개** (SSO 53 · SDI 56 · ELA 23 · Core 4) | HTTPS 함수 **17개** |
 | 커밋 | 16 (2022-09, 2025-05 두 시점) | **394** (2019-03 ~ **2026-06-02**, 저자 8명) |
 | 상태 | 사실상 정지 | **현재 운영 중** |
 | 프론트엔드 | `sonex-admin-web`(정적 HTML) | `admin-dashboard`(Vue2) · `user-dashboard`(Quasar) |
@@ -49,18 +49,25 @@ Maven 멀티모듈. **Core 만 `packaging=war`** 이고 SSO·SDI·ELA 는 JAR �
 
 **모바일** (`SSO_Controller`): `CheckServerModuleSSO` · `InstantSignUp` · **`MigrationUser`** · `RemoveAccount` · `CheckDuplicateID` · `SignUp` · `Withdrawal` · `RetransmitAuthMail` · `ResendAuthMail` · `VerifyCloudSignUp` · `VerifySignUp` · `ForgotPassword` · `VerifyChangePassword` · `LogIn` · `LogOut` · `GetProfile` · `ChangeProfile` · `ChangePassword`
 
-### 2.2 SDI — 디바이스·배터리 (관리자 32 + 모바일 12)
+### 2.2 SDI — 디바이스·배터리 (관리자 **44** + 모바일 12)
 
 **관리자** (`SDI_ControllerAdmin`) — 도메인마다 CRUD + Count + List + Info 패턴
 
 | 도메인 | 엔드포인트 |
 |---|---|
+| 헬스체크 | `CheckServerModuleSDI` |
 | 디바이스 모델 | `AddDeviceModel` · `ModDeviceModel` · `DelDeviceModel` · `GetDeviceModelCount` · `GetDeviceModelList` |
 | 디바이스 | `AddDevice` · `ModDevice` · `DelDevice` · `GetDeviceCount` · `GetDeviceList` · `GetDeviceInfo` |
 | 배터리 | `AddBattery` · `ModBattery` · `DelBattery` · `GetBatteryCount` · `GetBatteryList` · `GetBatteryInfo` |
 | 사용자↔디바이스 | `AddUserDevice` · `ModUserDevice` · `DelUserDevice` · `GetUserDeviceCount` · `GetUserDeviceList` · `GetUserDeviceInfo` |
 | 사용자↔배터리 | `AddUserBattery` · `ModUserBattery` · `DelUserBattery` · `GetUserBatteryCount` · `GetUserBatteryList` · `GetUserBatteryInfo` |
+| **디바이스↔사용자 (역방향 CRUD)** | `AddDeviceUser` · `ModDeviceUser` · `DelDeviceUser` · `GetDeviceUserCount` · `GetDeviceUserList` · `GetDeviceUserInfo` |
+| **배터리↔사용자 (역방향 CRUD)** | `AddBatteryUser` · `ModBatteryUser` · `DelBatteryUser` · `GetBatteryUserCount` · `GetBatteryUserList` · `GetBatteryUserInfo` |
 | 역조회 | `GetDeviceUserList` · `GetBatteryUserList` |
+
+> **정정 (2026-07-28 적대적 검증)**: 초판은 관리자 **32** 로 적고 아래 두 CRUD 군(`*DeviceUser` 6 · `*BatteryUser` 6)과 `CheckServerModuleSDI` 를 통째로 빠뜨렸다. `SDI_ControllerAdmin.java` 의 method-level `@RequestMapping` 실측은 **44** 다. (대조로 SSO 18/35 · ELA 2/21 · Core 4 는 실측과 정확히 일치했다 — SDI 만 누락이었다.)
+
+> **⚠ 실제 결함**: 같은 파일에 **중복 매핑**이 있다 — `/GetDeviceUserList` 가 **L284·L325**, `/GetBatteryUserList` 가 **L343·L384** 로 각각 두 번 선언된다. Spring MVC 에서 ambiguous mapping 이므로 기동 실패 또는 비결정적 라우팅이 된다. 위 표의 "역조회" 행이 그 중복분이다.
 
 **모바일** (`SDI_Controller`): `CheckServerModuleSDI` · `GetDeviceModelList` · `RegistDevice` · `UpdateDevice` · `DeleteDevice` · `GetDeviceCount` · `GetDeviceList` · `RegistBattery` · `UpdateBattery` · `DeleteBattery` · `GetBatteryCount` · `GetBatteryList`
 
@@ -155,7 +162,8 @@ Firestore 컬렉션(`functions/constants.js`): `emailVerifications` · `users` �
 | 관측 | 함의 |
 |---|---|
 | 클라우드가 2개 스택으로 병존 | 계정·디바이스 도메인이 **두 곳에 각각 구현**돼 있다. 사용자층(B2B vs 소비자)이 달라 단순 병합은 아니다 |
-| `sonex-cloud-backend` 가 정지 | 완성도는 높으나(핸들러 124개, admin-web 47/48 대응) 유지되지 않는다. **belle 장비의 클라우드 연동을 어디에 둘지 결정이 필요** |
+| `sonex-cloud-backend` 가 정지 | 완성도는 높으나(핸들러 136개, admin-web 47/48 대응) 유지되지 않는다. **belle 장비의 클라우드 연동을 어디에 둘지 결정이 필요** |
+| SDI 에 중복 라우트 2건(§2.2) | 정지 상태라 드러나지 않았을 뿐 **기동 시 ambiguous mapping** 이다. 재가동·이전 시 먼저 걸린다 |
 | `sdi`·`ela` DDL 부재 | 서버 재구축 불가 |
 | 클라우드가 `ctrl_port`·`data_port`·`cv_license` 관리 | **장비 프로토콜 파라미터와 상용 라이선스가 클라우드 스키마에 박혀 있다.** 프로토콜을 바꾸면 서버 스키마도 함께 바뀐다 |
 | `sonon-cloud` 만 실제 테스트 보유 | Mocha 24 + Cypress e2e |

@@ -17,7 +17,7 @@
 
 **앱 계층만 살아 있고 밑단은 4~5년째 동결**이다. 이것은 우연이 아니라 빌드 구조의 결과다(§4).
 
-플랫폼: **Xilinx Zynq UltraScale+ MPSoC**(Cortex-A53 aarch64), 보드 `HIT REV1.0`. **FPGA 는 SoC 내장 PL 하나뿐**이고 외부 FPGA 는 없다(비트스트림 IDCODE `0x04a42093` = ZU3). 하드웨어 상세 = [belle-hardware.md](belle-hardware.md).
+플랫폼: **Xilinx Zynq UltraScale+ MPSoC**(Cortex-A53 aarch64), 보드 `HIT REV1.0`. **FPGA 는 SoC 내장 PL 하나뿐**이고 외부 FPGA 는 없다 — 500l 비트스트림 IDCODE 가 `0x04a42093` 로 Artix-7(`0x03631093`)이 아니고, PL 저장소 `elsa-fpga` 가 `xczu3cg` 를 타깃한다([belle-hardware.md §3.1](belle-hardware.md)). 정확한 ZU 부품번호는 미확인이다. 하드웨어 상세 = [belle-hardware.md](belle-hardware.md).
 
 ## 2. 빌드가 3개로 갈라져 있다
 
@@ -88,9 +88,10 @@ sudo mkfs.ubifs ... hcproc.img ; sudo ubinize ... hcproc.ubi.bin
 대신 부팅할 때마다 `scripts/hcproc.sh`(`S95hcproc`, init 우선순위 95)가 UBI 오버레이를 마운트해 **live rootfs 위로 복사**한다.
 
 ```sh
-cp -rf /hcproc/belle/   /usr/share/belle
-cp -rf /hcproc/bin/*    /usr/bin/
-cp -rf /hcproc/module/* /lib/modules/extra/
+cp -rf /hcproc/belle/       /usr/share/
+cp -rf /hcproc/bin/*        /usr/bin/
+cp -rf /hcproc/module/*     /lib/modules/extra/
+cp -rf /hcproc/elsa_version /etc/
 ```
 
 → **제품의 핵심이 bitbake 가 관리하지 않는 손수 만든 이미지에만 존재한다.** 동시에 이것이 밑단 동결을 설명한다 — **앱만 바꿔 내보내는 것이 가능**하므로 커널·BSP 를 건드릴 이유가 없었다.
@@ -159,6 +160,20 @@ IPC 방식이 셋 다 다르다.
 | MAX1720x 퓨얼게이지 재구현 | `tools/max17205.cpp` |
 
 `tools/` 아래 23개 파일이 독자적으로 `ioctl()`/`open("/dev...")` 를 호출한다.
+
+### 6.5 호스트 검증 하니스가 있다 — `lib/test/`
+
+`origin/production-fw-ver2.0:lib/test/`, 커밋 `b8b12a7`(**2026-06-17**). 실험 브랜치가 아니라 **출하 브랜치 위**다.
+
+| 파일 | 내용 |
+|---|---|
+| `cf_ff_compare.c` (218 LOC) | 실제 펌웨어 `lib/cf-doppler.c` 를 호스트에서 컴파일해 `cf_process()` 를 IQ 덤프(`scanlineNNN.dat`+`param.txt`)에 구동 |
+| `build.sh` | `-D_CF_SAMPLE_40M_`, `__NEON_ASSEM__` 미정의(순수 C 폴백)로 링크 |
+| `README.md` | "**골든 모델(파이썬) 재구현이 아니라 펌웨어 코드 자체를 검증한다(목업 없음)**" |
+
+정량 합격 기준이 문서에 있다 — `recall=1.0(device 보존)` · `scatter=0` · `v21 far ≥ v20 far` · **골든 검출마스크 일치 ≥0.95**. 드라이버(`run_fw_v21_compare.py`)와 골든 데이터는 **`nextdoppler` 저장소**에 있고, 그것은 루트 `CLAUDE.md` 가 범위에서 뺀 78 NextDoppler 다 — **범위 제외 판단이 in-scope 출하 펌웨어의 검증 의존물을 잘랐다.**
+
+→ belle 장비 축을 "회귀 판정 수단이 구조적으로 없는 곳"으로 인용하면 사실과 다르다. 없는 것은 **CI**(0건)이고, 하니스는 사람이 손으로 돌린다. 상세 = [change-cost.md §3.2](change-cost.md).
 
 ## 7. 외부 통신 — HC 프로토콜
 
@@ -233,10 +248,10 @@ TI **MSP430FR2433**, TI CCS 10.0.0. 초음파가 아니라 **전원·부팅 감�
 | 빌드가 3갈래로 갈라져 절대경로로 이어짐(§2) | **재현 가능한 빌드 확보가 리팩토링의 선행 조건**이다. 이것 없이는 변경의 동작 동일성을 확인할 수 없다 |
 | 메인 바이너리가 rootfs 밖 오버레이(§3) | 앱만 교체하는 운영이 가능해 **밑단이 5년째 동결**됐다. 커널·BSP 현대화는 별도 결심이 필요하다 |
 | 변종이 컴파일 타임(§5) | 이전 세대의 런타임 방식으로 되돌리는 것이 명확한 개선 방향. **사내 선례가 근거** |
-| 프로토콜 정본이 둘, 구현이 7벌(§7) | 위험 낮고 효과 큰 첫 리팩토링 대상 |
+| 프로토콜 정본이 셋, 구현이 7벌(§7) | 위험 낮고 효과 큰 첫 리팩토링 대상 |
 | FSBL·PMU·Vivado 프로젝트 부재(§9) | 하드웨어 변경 대응 불가. **저장소가 아니라 개발자 머신에 있을 가능성** |
 | 개발이 알고리즘·OEM 대응에만 집중(§10) | 플랫폼 개선 여력이 조직에 배정돼 있지 않다 |
-| 테스트·CI 0건 | 회귀 안전망 없음. 의료기기 규제 검토의 핵심 공백 |
+| **CI 0건 · 검증 하니스 1건**(§6.5) | 판정 수단이 없는 게 아니라 **자동으로 돌리는 계통이 없다.** 규제 검토의 공백은 후자다 |
 
 ## 12. 미확인
 

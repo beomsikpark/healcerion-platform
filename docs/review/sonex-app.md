@@ -162,7 +162,7 @@ flowchart TB
 
 | 항목 | `sonex-framework` | `sonex-app` |
 |---|---|---|
-| 단위 테스트 | **실질 1파일** — `test_firmware_version_checker.cpp`, 프레임워크 없이 손으로 만든 pass/fail 카운터. gtest·Catch2·XCTest 심볼 0건 | `test/` 9파일 + `integration_test/` 3파일, **2,518 LOC**, 실제 `expect` 사용 |
+| 단위 테스트 | **실질 1파일** — `test_firmware_version_checker.cpp`, 프레임워크 없이 손으로 만든 pass/fail 카운터. gtest·Catch2·XCTest 심볼 0건 | `test/` **10파일** + `integration_test/` 3파일, **2,518 LOC**, 실제 `expect` 사용 |
 | CI | **없음** | **없음** (`.github`·`.gitlab-ci.yml`·`codemagic.yaml`·fastlane 전부 부재) |
 | 코드 생성 | — | `.g.dart`·`.freezed.dart` **0개**. `injectable` 의존성이 있으나 codegen 산출물이 없다 |
 
@@ -200,7 +200,18 @@ i18n 은 설정만 있고 내용이 없다 — `easy_localization` 이 배선돼
 
 즉 목표 구조를 갖춘 유일한 부분이 **`moana` 도메인의 이식물이 아니다.** 측정·환자기록·DICOM·Ambulance 중 신 계층으로 옮겨진 것은 **0건**이다.
 
-바꿔 말하면 **역량 문제가 아니다** — 새로 짜는 것은 clean architecture 로 짠다. 기존 도메인 이식에 손이 가지 않는 것이다.
+> **정정 (2026-07-28)**: 이 자리에 있던 "역량 문제가 아니다 — 새로 짜는 것은 clean architecture 로 짠다" 는 서술을 **철회한다.** `packages/dr_sono` 를 그 근거로 들었으나, 재측정에서 그 패키지의 실체가 `pubspec.yaml` description 그대로 **"Dr. Sonon 음성/Gemini 모듈"** 임이 확인됐다.
+>
+> | | 실측 |
+> |---|---|
+> | 전체 | Dart **33파일 6,138 LOC** — 앱 Dart 코드 69,107 LOC 의 **8.9%** (추적 파일 39) |
+> | `domain/` | **5파일 251 LOC** |
+> | 그 5파일 | `voice_command` · `voice_control_repository` · `scan_control_repository` · `process_voice_command` · `speech_recognition_service` — **전부 음성 제어** |
+> | `domain/` 을 가진 `lib/features/` | **1개** (`split_window` = 창 분할) |
+>
+> **초음파 도메인은 이 구조에 하나도 없다.** 계층이 선 곳은 음성 부가기능이고, 제품 본체는 계층 없는 48,206 LOC 다. 디렉토리 이름을 구조로 읽은 것이 이전 판정의 오류였다.
+>
+> 따라서 정확한 서술은 **"신규 기능 중 하나가 계층 구조를 갖는다"** 까지이고, "새로 짜는 것은 clean architecture 로 짠다" 는 표본 1건의 일반화다. 전체 대조 = [change-cost.md §8.4](change-cost.md).
 
 ### 10.3 현재 `lib/modules/` 구성
 
@@ -242,17 +253,22 @@ i18n 은 설정만 있고 내용이 없다 — `easy_localization` 이 배선돼
 |---|---|
 | **"절반에서 멈춤" 이 아니다** | 멈춘 상태가 아니라 **구 계층이 자라는 상태**다. 이식해야 할 양이 분기마다 늘어난다 |
 | **이식 진척 0건** | 신 계층의 유일한 실체가 신규 기능(§10.2). `moana` 도메인은 하나도 옮겨지지 않았다 |
-| **전환 완료 조건이 없다** | 2024-04 착수 후 2년 3개월. 완료 판정 기준이 코드·문서 어디에도 없다 |
+| **전환 완료 조건이 없다** | 2024-04 착수 후 2년 3개월(SDK 기준 **3년 2개월**). 완료 판정 기준이 코드·문서 어디에도 없다 |
+| **공백은 4.5개월이다 — 11개월이 아니다** | `sonex-app` 만 보면 2024-06-14 → 2025-05-16, 336일 0건이나 **같은 구간에 `sonex-framework` 가 99커밋**을 냈다. 두 저장소가 동시에 멈춘 것은 **2025-01-01 ~ 2025-05-16 약 4.5개월** ([change-cost.md §8.3](change-cost.md)) |
 | **활동량이 꺾이는 중** | `sonex-app` 2026-05 17 → 06 9 → 07 2커밋, `sonex-framework` 05 **97** → 06 24 → 07 4. (7월은 각각 07-15·07-23 까지의 부분 집계) |
-| **역량이 아니라 배치 문제** | 신규는 clean architecture 로 짜고 테스트도 붙인다. 기존 도메인 이식만 비어 있다 |
+| **방식 문제다 — 인력 배치가 아니다** | 같은 사람들이 같은 시기에 `moana` 의 Qt5→Qt6 이행을 **출하 계통 위에서 2개월 17일에 끝냈다**([change-cost.md §8](change-cost.md)). 별도 저장소 전면 재작성만 3년째 도달하지 못한다 |
 
 ## 11. 활동 실태
 
+**`--all`(전 브랜치) 기준이다** — 이 조직은 master 에서 작업하지 않으므로 master 수치는 쓰지 않는다.
+
 | | `sonex-framework` | `sonex-app` |
 |---|---|---|
-| 커밋 | 521 (2023-05-22 ~ **2026-07-23**) | 247 (2024-04-12 ~ 2026-06-18) |
-| 저자 | claud 236 · jacob 170 · ben 110 · rio 4 | ben 227 · rio 22 |
+| 커밋 | **524** (2023-05-22 ~ **2026-07-23**) | **249** (2024-04-12 ~ **2026-07-15**) |
+| 저자 | Claud 240 · jacob 170 · ben 110 · rio 4 | ben 227 · rio 22 |
 | 최근 | 2026-05 에 **97커밋** 피크 | 2025-08 56 · 2026-01 44 |
+
+> **정정 (2026-07-28 적대적 검증)**: 초판은 이 표만 `origin/master` 기준(521 / 247, 앱 최종 2026-06-18)이었다. [repo-activity.md](repo-activity.md)·[change-cost.md §8](change-cost.md)(합계 773 = 524+249)와 어긋나고, 표 안에서도 저자 합(227+22 = **249**)이 커밋 칸 247 과 맞지 않았다. `--all` 로 통일했다.
 
 `sonex-framework` 는 2025-01~07 공백 후 급증했고, 원격 브랜치에 `dev/adk_v0.51.0`·`adk_work` 가 있다. **미러 13건 중 유일하게 현재 활발한 축이다.**
 

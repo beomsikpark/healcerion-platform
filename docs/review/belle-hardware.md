@@ -85,16 +85,20 @@ plif: plif@b0000000 {
 - **인터럽트가 GIC 가 아니라 GPIO 40 번을 통해 온다** — GIC 경로(`interrupts = <0 89 1>`)는 주석 처리돼 있다. 우회 배선으로 보인다(추정)
 - 전용 드라이버 `modules/plif/`(`plif.c`·`plif_dma.c`) + `modules/zynqdma/` 가 DMA 를 담당
 
-### 3.1 FPGA 가 몇 개인지 미확정
+### 3.1 FPGA 는 ZynqMP PL 하나다 — 초판 판정 철회
 
-두 경로가 공존한다.
+> **정정 (2026-07-28 적대적 검증)**: 초판은 "`configs/500l/fpga.bin` 의 IDCODE 가 **`0x03631093` = Artix-7 XC7A100T** 이므로 **ZynqMP PL + 외부 Artix-7 2개 구성인지 미확정**" 이라 적었다. **틀렸다** — `fpga.bin` 은 파일이 아니라 **심볼릭 링크**(mode `120000`)이고, 링크를 따라가지 않고 다른 파일의 IDCODE 를 귀속시킨 것이다.
 
-| 경로 | 대상 |
-|---|---|
-| `scripts/fpga_dnw.sh` → `/sys/class/fpga_manager/fpga0/firmware` · `belle-post.sh` → `fpgautil -b /userdata/fpga.bin` | **ZynqMP PL** |
-| `configs/500l/fpga.bin` (IDCODE **`0x03631093` = Artix-7 XC7A100T**) + 빔포밍 테이블 | **외부 Artix-7** |
+| 경로 | 링크 대상 | 비트스트림 IDCODE | 소자 계열 |
+|---|---|---|---|
+| `configs/500l/fpga.bin` | `PP_1119_ext_trig.bin` | **`0x04a42093`** | **Artix-7 아님** (7-series 계열코드 `0x03…` 과 다름) |
+| `configs/300l/fpga.bin` | `top_steer_1211.bin` | `0x03631093` | Artix-7 XC7A100T |
 
-경로가 다르다 — FPGA manager 가 읽는 것은 `/userdata/fpga.bin`, 테이블·Artix 비트스트림이 놓이는 곳은 `/userdata/config/500l/` 이다. **ZynqMP PL + 외부 Artix-7 2개 구성인지, Artix 비트스트림이 이전 세대 잔존물인지 미확정**이다(§7).
+**Artix-7 비트스트림은 `configs/300l/` 아래에만 있다.** 그 디렉토리는 현재 컴파일 플래그 조합에서 도달 불가능한 300 시리즈 잔존물이다([device-firmware.md §5](device-firmware.md)). 교차 확인 — `elsa-fpga`(belle 의 PL 저장소)는 전 브랜치에서 **`xczu3cg`** 만 타깃한다(브랜치당 24~29건, `xc7a100tcsg324-1` 은 3건 잔존).
+
+→ **belle 은 ZynqMP 내장 PL 단독**이고 외부 FPGA 는 없다. `scripts/fpga_dnw.sh`(`/sys/class/fpga_manager/fpga0/firmware`)·`belle-post.sh`(`fpgautil -b /userdata/fpga.bin`) 경로 하나로 일관된다.
+
+> **다만 정확한 ZU 부품번호는 여전히 미확인이다.** 이 `.bin` 에는 part 문자열 헤더가 없어 IDCODE 만 남고, 우리는 Xilinx IDCODE 표로 대조하지 않았다. `0x04a42093` 을 "ZU3" 으로 읽은 [device-firmware.md §1](device-firmware.md) 의 서술은 **그쪽 주장이지 우리가 검증한 것이 아니다.** 확정 근거는 `elsa-fpga` 의 `xczu3cg` 쪽이다.
 
 ## 4. 주변장치
 
@@ -147,8 +151,8 @@ plif: plif@b0000000 {
 | 항목 | 현재 상태 |
 |---|---|
 | **QSPI 플래시 실장 부품** | 주석의 `mt25ql02g`(256 MiB)가 유일한 단서. 부팅 로그의 `spi-nor: found ...` 로 확정 가능 |
-| **FPGA 개수·구성** | ZynqMP PL 단독인지, 외부 Artix-7 XC7A100T 가 별도로 있는지(§3.1) |
-| **ZynqMP 정확한 부품번호** | `config` 에 없다. `es3_v00.01.00.xsa`(Vivado 핸드오프) 안에 있으나 원본 프로젝트가 없다 |
+| ~~**FPGA 개수·구성**~~ | **해소** — ZynqMP PL 단독(§3.1). 외부 Artix-7 은 300 시리즈 잔존물이었다 |
+| **ZynqMP 정확한 부품번호** | `config` 에 없다. `es3_v00.01.00.xsa`(Vivado 핸드오프) 안에 있으나 원본 프로젝트가 없다. `elsa-fpga` 의 `xczu3cg` 가 가장 강한 단서이나 비트스트림 IDCODE(`0x04a42093`)를 Xilinx 표와 대조하지 않았다 |
 | **보드 리비전 관계** | `HIT REV1.0`(DT) · `elsa-es3` · `elsa-pp` 세 표기의 대응 |
 | **`auth` 파티션 사용처** | 정의만 있고 펌웨어 스크립트에서 접근 흔적 없음 |
 | **회로도·BOM** | 없음. 위 내용은 전부 소프트웨어에서 역산한 것 |

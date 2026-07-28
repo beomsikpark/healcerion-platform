@@ -7,11 +7,11 @@
 
 | 저장소 | commits | master 최종 | **전 브랜치 최종** | 작업 브랜치 | 저자 |
 |---|---:|---|---|---|---:|
-| `client/legacy/moana` | **5,705** | 2022-02-17 | **2026-07-27** | `service_QT693` | 17 |
+| `client/legacy/moana` | **5,705** | 2022-02-17 | **2026-07-27** | `service_QT693` | 19 (별칭 병합 13) |
 | `client/legacy/sonex-framework` | 524 | 2026-07-23 | **2026-07-23** | master | 8 |
 | `client/legacy/sonex-app` | 249 | 2026-06-18 | **2026-07-15** | `feature-apply_v1.23.4` | 5 |
 | `device/legacy/belle-fw` | 66 | 2021-09-06 | **2026-07-01** | `production-fw-ver2.0` | 1 |
-| `server/legacy/sonon-cloud` | 394 | 2026-06-02 | **2026-06-02** | master | 9 |
+| `server/legacy/sonon-cloud` | 394 | 2026-06-02 | **2026-06-02** | master | 8 |
 | `device/legacy/500c-sn-fw` | 71 | 2023-07-03 | **2026-04-24** | `FW_1_1_8_0` | 2 |
 | `server/legacy/sonex-cloud-backend` | 16 | 2025-05-09 | 2025-05-09 | master | 2 |
 | `device/legacy/ginny-fw` | **1,661** | 2020-04-17 | 2021-07-15 | `ginny-renewal` | 6 |
@@ -81,9 +81,10 @@
 | 저장소 | 편중 |
 |---|---|
 | `ginny-fw` | `lyle` 1,225커밋(74%, 2015~2017) → `jacob` 174커밋(2017~2021). **순차 단독 소유** |
-| `belle-fw`·`belle-bsp`·`belle-kernel`·`belle-u-boot`·`elsa-fw`·`500c-sn-fw`·`belle-msp` | 전부 `jacob` 단독 |
-| `moana` | 17명 — 유일하게 팀 규모 |
-| `sonon-cloud` | 9명 (`sungyong` 281) |
+| `belle-fw`·`belle-bsp`·`belle-u-boot`·`elsa-fw`·`500c-sn-fw`·`belle-msp` | 전부 `jacob` 단독 (`jacob`/`jacob40` 은 동일인) |
+| `belle-kernel` | `jacob` 1 + `OpenEmbedded` 4 — 나머지는 업스트림 임포트 커밋이다 |
+| `moana` | 저자명 19개, 별칭·대소문자 병합 시 **13명** — 유일하게 팀 규모 |
+| `sonon-cloud` | 8명 (`sungyong` 281) |
 
 **장비 펌웨어 전 계열이 사실상 1인 소유**다. 앱·클라우드만 복수 저자다.
 
