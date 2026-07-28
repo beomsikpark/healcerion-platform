@@ -237,7 +237,10 @@ echo '{"queryKey":"all","limit":100}' | ssh -p 2222 git@phab.healcerion.com cond
 - **HC 프로토콜(TCP 1234/1235, 14바이트 `'H','C'` 헤더)이 7개 코드베이스에 복제돼 있고 정본 선언이 둘로 갈렸다** — `PACKET_HEADER_S`(`500c-sn-fw`)와 `COMMON_PACKET_HEADER`(`moana`)가 `recv_id` 타입부터 다르다. **통합 효과가 가장 큰 표면**
 - **`belle-fw` 의 메인 바이너리 `sonon` 은 PetaLinux rootfs 에 없다** — 부팅 시 UBI 오버레이(mtd4/5)를 live rootfs 위로 복사한다. 빌드가 PetaLinux · ad-hoc 셸 · 저장소 밖 Vivado/커널모듈 **3개로 갈라져 절대경로로 이어져 있다**
 - **`fpga/` 는 독립 축이 아니다** — `elsa-fw/configs/300l` 이 `ginny-table` 과 31파일 MD5 동일이고, 비트스트림 IDCODE 가 전부 `0x03631093`(Artix-7 XC7A100T)이다. FPGA 계보는 MD5 동일 파일 수로 확정했다(`elsa-fpga`→`fuji` 48건 등)
-- **CI 가 31건 전부 0건이고, 실제 자동 테스트는 3건뿐**이다(`sonon-cloud`·`sonex-app`·FPGA 골든 모델). 의료기기 규제 검토(판단 대기 5번)의 핵심 공백
+- **CI 가 31건 전부 0건이고, 실제 자동 테스트는 3건뿐**이다(`sonon-cloud`·`sonex-app`·FPGA 골든 모델). 다만 **사내 QA 는 돌고 있다** — `moana` 출하 브랜치에 `[SQA]` 표기 150건. 없는 것은 안전망이 아니라 **자동 판정**이다
+- **변경 비용을 실측했다** — `moana` 커밋 5,705건 중 **712건(12%)** 이 출하 브랜치 미도달(국가·고객사·인증 329 · 기술·기능 207 · 단종라인 142). Power Doppler 기능 1건은 출하 계통 **3곳에 각각 재적용**됐고 **patch-id 가 전부 다르다**. 장비 완료 → 앱 출하 도달 **5.5개월**. SOT = [docs/review/change-cost.md](docs/review/change-cost.md)
+- **논지에 불리한 실측도 확정됐다** — `belle-fw` 미도달 33%는 별도 제품라인·진행 중 R&D 라 **구조 문제가 아니고**, 펌웨어 중복 patch-id 는 각 1건뿐이며, 릴리스 재출시 태그는 **2022-05 이후 소멸**했다(그들이 스스로 고침). 효과를 주장할 구간은 `moana` OEM 분기·장수 기능 브랜치·장비↔앱 이음매로 좁다
+- **HC 프로토콜 정본 1벌을 실제로 만들었다** — 원본 3벌과 바이트 배치 동일 · 원본 철자 198개 값 보존 · 동작 보존을 **컴파일러가 판정**한다. 전수 대조에서 명명 불일치 41건, **같은 이름·다른 값 0건**(무손실 통합 가능). 산출물 = [docs/refactoring/proof/protocol-sot/](docs/refactoring/proof/protocol-sot/)
 
 ## 파일 탐색 범위
 
