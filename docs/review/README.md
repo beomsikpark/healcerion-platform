@@ -19,6 +19,7 @@ HLAB-2487(힐세리온 SW 리팩토링 검토)의 산출물이다. **미러 소�
 
 | 문서 | 내용 |
 |---|---|
+| **[change-cost.md](change-cost.md)** | **변경 1건의 실제 비용 실측** — 재작업·출하 지연·미도달 커밋. **다른 문서의 "효과" 주장은 전부 여기로 수렴한다.** 논지에 불리한 결과도 그대로 적었다 |
 | [belle-hardware.md](belle-hardware.md) | 보드·SoC·QSPI 파티션·PL 인터페이스·주변장치·MSP430 |
 | [device-firmware.md](device-firmware.md) | 펌웨어 구조 · 빌드/패키징 · 변종 선택 · HC 프로토콜 |
 | [moana-app.md](moana-app.md) | **Qt 앱(SOT)** 구조 · 도메인 기능 · 호스트 SW 3종 대조 |
