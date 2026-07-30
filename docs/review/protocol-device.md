@@ -179,6 +179,19 @@ typedef struct __scan_data_packet {
 | `CTRL_PACKET_MAX_SIZE` | 14 + 1,024 |
 | `RF_DATA_PACKET_MAX_SIZE` | 14 + 10 + 262,144 |
 
+### 5.1 device → client 처리 경계 — 모드별로 다르다
+
+`frame_data` 안에 실리는 것이 스캔 모드마다 다르고, **장비가 어디까지 만들고 앱이 어디부터 만드는지가 모드별로 갈린다.** 근거는 500C/P 벤더 SDK(`viewphii64_WPDP_SCS_2.0.0`)의 `Ultrasound Processing Unit Specification[Rev1.8]`(§1.4)이다 — 프로토콜 자체(패킷 포맷)는 HC 클론이지만 **"이미지냐 raw 데이터냐"는 두 라인(belle·500c-sn-fw) 다 같은 LSI/UDL 아키텍처 제약**이라 이 스펙이 사실상 공통 계약이다.
+
+| 모드 | 장비가 만드는 것 | 앱(sonex-framework/moana)이 해야 하는 것 |
+|---|---|---|
+| B mode | **완성된 JPEG** | 그대로 표시 |
+| Color Doppler | B mode 와 **별도의 JPEG**(색상 오버레이만, alternately 전송) | **리사이즈 후 B mode 위에 오버레이 합성** — LSI 제약으로 실제 폭·높이가 응답값과 다를 수 있어 리사이즈가 필수(벤더 스펙 원문: *"The application needs to resize the received image... before overlaid on the B mode image"*) |
+| M mode / M mode color doppler | 각각 JPEG(alternately) | Color 와 동일하게 오버레이 합성 |
+| **Pulse Doppler** | **이미지가 아니라 raw 스펙트럼 데이터(64×128 밝기값 배열) + 오디오** | **밝기값을 스크롤 스펙트로그램 비트맵으로 직접 플롯** — 벤더 스펙 원문: *"Plot onto bitmap with their brightness"*. `sonex-framework` 는 이걸 `ImageRenderer/shared/objects/HCScanSpectrum.cpp`(698줄, OpenGL 텍스처 기반 스크롤 렌더러, 축 눈금·보간 포함)로 실제 구현하고 있다 — 스펙상의 요구가 스텁이 아니라 동작 코드로 확인된다 |
+
+**즉 "device 가 전부 하고 sonex 는 안 한다"는 아니다.** 신호처리(빔포밍·게인·오토코릴레이터)와 B/M/Color 의 **픽셀 인코딩**은 device 쪽(500c-sn-fw 는 UDL 하드웨어, belle 는 `lib/cf-doppler.c` 등 소프트웨어 — [500c-hardware.md §3](500c-hardware.md))이 담당하지만, **오버레이 합성·리사이즈·스펙트로그램 렌더링은 client 쪽 일**이고 여기에 더해 client 는 자체 후처리 계층(CVIE 상용 라이브러리 또는 자체 AI 필터 HNS, [sonex-framework.md §8](sonex-framework.md))과 측정·룰러·cine 렌더링([sonex-framework.md §4](sonex-framework.md))까지 얹는다.
+
 ## 6. Opcode — 명명 규약이 갈렸다
 
 **장비는 `READ`/`WRITE` 쌍을 각각 정의**한다(대체로 짝수=READ, 홀수=WRITE). **앱은 쌍 중 하나만 이름 붙인다.**

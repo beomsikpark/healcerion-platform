@@ -208,6 +208,20 @@ extern "C" ExportSDK HC::StreamData* hc_GetLatestRawFrame(int streamIndex);
 
 **MI/TI(음향출력)는 SDK 렌더러에 0건**이다 — `ScannerModelSpec` 에 `acusticOutputMi`·`acusticOutputTib`(주석 *"인증 요구 사항"*)가 데이터로만 있고, 표시는 앱이 한다.
 
+### 4.4 모델별 분기 — belle(500L) 과 500C/500P 는 렌더 코드가 같지 않다
+
+`HCImageRenderCore.cpp`(§10.1 최대 파일)와 그 render object 들이 `scannerModel.contains("500C"/"500P"/"500L"/"300C"/...)` 문자열 비교로 **기기별 분기를 직접 코드에 박아 둔다** — belle·500c-sn-fw 를 공용 경로로 추상화하지 않았다.
+
+| 분기 지점 | 500C/500P(UDL) | 500L(belle) |
+|---|---|---|
+| Convex/Phased-array ROI 스케일링(`HCImageRenderCore.cpp:3821`) | **물리 scanline 고정값 128**(`DEF_SCANLINES`) 대비 이미지 픽셀폭 스케일 보정 필요 | 해당 없음 — `SCANNER_TYPE_LINEAR` 는 사각형 mesh 라 직접 width/height 사용, 이 스케일 계산 자체가 다른 코드 경로(:3803) |
+| B-mode UV 미러링(`:4204-4243`) | **500C 는 미러링 필요**(scanline당 2 device pixel) / **500P 는 불필요**(프레임 헤더 scanline·pixel 좌표계 일치) — **같은 500C/P 계열 안에서도 다르다** | Linear 전용 좌표 변환(다른 함수) |
+| PW cursor sample volume(`HCScanPwCursor.cpp:26,160`) | `useMmAccurateVolume=false` — **레거시 hack**(`volume*10`) 유지 | 500L 도 동일하게 레거시 hack — 정확 mm 계산은 **300C/310C 에만** 적용(모델 축이 belle/500c-sn-fw 이분법과 다르게 갈린다) |
+| 측정 룰러 hit-area(`HCScanSideRuler.cpp:380-394`, Fix 2026-05-19) | **500C 전용 버그였다** — Convex 부채꼴 mesh 가 화면 수직 영역의 일부만 차지해 mesh 밖을 터치하면 드래그가 먹지 않음 | **500L 은 원래부터 영향 없음** — Linear 사각형 mesh 가 화면 수직 전체를 차지 |
+| 진단 로그(`:232`, `:6559`) | `[DIAG 2026-05-19] 500L vs 500C cineSideRuler hit-area 비교용` — **두 라인의 렌더 동작 차이를 사람이 직접 비교하며 고친 흔적** | 〃 |
+
+**결론** — sonex-framework 의 영상 "처리"는 device 가 보낸 데이터를 그대로 그리는 공용 파이프라인이 아니라, **프로브 지오메트리(Convex·Phased-array·Linear)와 모델별 레거시 호환 요구가 렌더 코드 곳곳에 개별 분기로 박혀 있는 구조**다. belle(500L) 대 500C/500P 라는 이분법으로 깔끔히 갈리지도 않는다 — 어떤 분기는 500C 하나만 다르고(UV 미러링·룰러 버그), 어떤 분기는 300 계열만 다르며(PW volume 정확도), 500L 은 대개 "레거시 유지" 그룹에 500C/500P 와 같이 묶인다.
+
 ## 5. 장치 통신
 
 `sdk/sdk/DeviceManager/shared/` 가 프로토콜 스택 전부다.
