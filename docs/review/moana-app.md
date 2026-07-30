@@ -11,10 +11,26 @@
 | | **Moana** | `sonex-app` + `sonex-framework` |
 |---|---|---|
 | 실제 타깃 | **6개** — Android · iOS · Windows · **UWP** · macOS · Linux(x64 + **arm64**) | 4개 (linux·web 은 stub) |
-| 지원 모델 | 300C · 310C · 300MC · 300VC · 300L · 300PA · 500L · 500C · 500P · **FUJI_L43K** | 300C · 300L · 500C · 500L · 500P |
+| 지원 모델 | **8종** — 300C · 310C · 300MC · 300VC · 300L · 300PA · 500L · **FUJI_L43K** | **5종** — 300C · 300L · **500C** · 500L · **500P** |
 | 자체 코드 | C++ 142.5k + QML 85k LOC | Dart 69k + C++ 119k(SDK+ADK) |
 | 최종 커밋 | **2026-07-27** | 2026-07-15 / 2026-07-23 |
-| 계층 분리 | `framework`(static lib) ↔ `app`(QML), **역의존 없음** | ADK→SDK 단방향(양호) / 앱은 구·신 패턴 혼재 |
+| 계층 분리 | `framework`(static lib) ↔ `app`(QML), **역의존 6건**(아래 주) | ADK→SDK 단방향(양호) / 앱은 구·신 패턴 혼재 |
+
+> **정정(2026-07-28)**: 이전 판은 "역의존 없음" 이라 적었으나 **실측 결과 6건 있다.** `framework/framework.pro:269` 이 `INCLUDEPATH += $$PWD/../app/Sources` 를 올리고, `SononClient/{CtrlChannel,SononCtrlPacket,SononDataPacket}.cpp` · `Record/{RecordFileWriter,BackupFileReader}.cpp` 가 `Common/AppSetting.h` 를, `Database/DataManager.cpp:15` 가 `common/AppUtility.h` 를 include 한다. 헤더 basename 중복이 0건이고 `framework/Common/` 에 두 헤더가 없으므로 전부 `app/Sources/Common/` 을 가리킨다.
+>
+> **다만 475파일 대비 6건은 작다** — 2계층 규율이 대체로 지켜졌다는 §3 의 평가 자체는 유지된다. 상세·처리 계획 = [../refactoring/r1/phase2-layer-boundary.md](../refactoring/r1/phase2-layer-boundary.md).
+
+> **정정 (2026-07-29) — 모델 목록이 틀렸다.** 이전 판은 moana 를 **10종(500C·500P 포함)** 으로 적었다. **실측하면 `app/Sources/Common/Model.cpp` 의 `modelName ==` 분기 + `InitCapabilityTable_*` 가 8종뿐이고 500C·500P 가 없다.** 그 둘은 `framework/Common/CommonData.cpp:71,73` 의 `deviceModelList` 문자열 목록에만 있다(700C·700L 도 함께) — **이름만 알고 구동하지 못한다.**
+>
+> **따라서 두 앱의 모델 집합은 부분집합이 아니라 교집합이다.**
+>
+> | | 모델 |
+> |---|---|
+> | 공통 3종 | 300C · 300L · 500L |
+> | **moana 전용 5종** | 310C · 300MC · 300VC · 300PA · FUJI L43K |
+> | **`sonex` 전용 2종** | **500C · 500P** |
+>
+> 이 오류가 [../refactoring/r1/phase10-runtime-variant.md](../refactoring/r1/phase10-runtime-variant.md) §2.1 로 전파됐고 함께 정정했다. 판단에 미치는 영향 = [../refactoring/moana-vs-sonex.md §3.1](../refactoring/moana-vs-sonex.md).
 
 **둘 다 현재 활발하다.** "전환" 이 아니라 **병행 유지**로 보는 것이 코드에 부합한다. 판단 대기 1번(sonex 전환과의 중복 관계)이 여기서 갈린다.
 
@@ -107,7 +123,7 @@ app/         ← QML UI + C++ 뷰컨트롤러
 | 언어·UI | C++/Qt QML | C++ DLL + **C# WinForms** | C++ SDK (UI 없음) |
 | 프로토콜 선언 | **`COMMON_PACKET_HEADER`** 원본 | **moana 의 포크** | 자체 상수(`HC_PACKET_*`) |
 | `SononClient` 파일 | 17개 | **15개가 동명**(내용 분기) | — |
-| 지원 모델 | 10종 | 300C·300L 뿐 | 5종 |
+| 지원 모델 | **8종**(500C·500P 없음) | 300C·300L 뿐 | 5종(**500C·500P 포함**) |
 | 최종 | 2026-07-27 | 2018-12 | 2026-07-23 |
 
 `cuattro-sdk/SononClient/` 의 `BasePacket`·`BaseSocket`·`CtrlChannel`·`DataChannel`·`SononClient`·`SononCtrlPacket`·`SononDataPacket`·`SononPacket` 이 전부 moana 와 동명이다. "Cuattro 용 window SDK **C# 포팅**" 의 실체는 **moana `framework/SononClient` 를 떼어내 Windows DLL 로 만들고 C# 래퍼를 씌운 것**이다. Cuattro 자체는 별도 제품이 아니라 `#ifdef HAVE_CUATTRO` 브랜딩 스위치다.

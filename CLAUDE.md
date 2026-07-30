@@ -1,6 +1,7 @@
 ## 응답 언어
 
-> **IMPORTANT**: 사용자에게 응답할 때는 반드시 **존댓말(경어)**을 사용한다. 반말 금지.
+> **IMPORTANT**: 사용자에게 응답할 때는 반드시 **존댓말(경어)**을 사용한다. **반말 금지** — 예외 없음.
+> 문장 종결어미까지 전부 적용한다(예: "확인했다"·"~하자"·"~인데" 금지 → "확인했습니다"·"~합시다"·"~인데요"). 빠르게 정정하거나 짧게 덧붙이는 문장에서도 동일하게 지킨다.
 > **IMPORTANT**: 응답/설명/코멘트에 **일본어 사용 금지**. 한국어 또는 영어만 사용한다.
 
 ## 소스 코드 언어
@@ -193,7 +194,8 @@ flowchart TB
 
 - **SONON / sonex** — 휴대형 초음파 앱 라인. `Moana`(Qt, 배포중) → `sonex`(Flutter, 개발중) 전환이 이미 진행 중인 구도
 - **elsa / belle** — 동일 프로젝트의 두 이름(`belle-fw` 설명이 "elsa project firmware repo"). i.MX6 + Yocto 기반 장비 펌웨어 스택
-- **CHARM(500C) · ginny(300 series) · FUJI OEM** — 별도 장비 라인. 전부 단종·비호환으로 **검토 범위 밖**
+- **ginny(300 series) · FUJI OEM** — 별도 장비 라인. 단종·비호환으로 **검토 범위 밖**
+- **CHARM(500C/500P)** — 별도 장비 라인이고 belle 과 코드를 공유하지 않는다(Socionext 베어메탈). **단종이 아니다** — `500c-sn-fw` 최신 `FW_1_1_8_0` **2026-04-24**(Rev1.7 하드웨어·ABLIC WiFi SDK 전환), `sonex-framework` **2026-07-23** 펌웨어 굽기 실장비 검증. **범위 포함 여부는 미결**이며 상세 = [docs/review/legacy/500c-firmware.md](docs/review/legacy/500c-firmware.md)
 - **신호처리 R&D** — 알고리즘 트랙이라 **범위 제외**. `cf-doppler-neon` 은 `ginny-fw`(300 시리즈) 통합 예정이었다
 
 ## Phabricator 접근
@@ -230,7 +232,8 @@ echo '{"queryKey":"all","limit":100}' | ssh -p 2222 git@phab.healcerion.com cond
 
 코드로 확인한 것만 적는다. 저장소 설명·PPT 는 주장이며 여기 넣지 않는다. 상세는 [docs/review/](docs/review/) 참조.
 
-- **호스트 앱이 2계열 병행이다** — `moana`(Qt/QML, 타깃 6개, 모델 10종, 최종 2026-07-27)와 `sonex`(Flutter, 타깃 **4개** — `linux`·`web` 은 `flutter create` 스텁, 모델 5종). **Moana 쪽이 더 넓고 더 성숙하다.** "Moana → sonex 전환" 이 아니라 병행 유지로 보는 것이 코드에 부합하며, 판단 대기 1번이 여기서 갈린다
+- **호스트 앱이 2계열 병행이다** — `moana`(Qt/QML, 타깃 6개, **모델 8종**, 최종 2026-07-27)와 `sonex`(Flutter, 타깃 **4개** — `linux`·`web` 은 `flutter create` 스텁, 모델 5종). "Moana → sonex 전환" 이 아니라 병행 유지로 보는 것이 코드에 부합하며, 판단 대기 1번이 여기서 갈린다
+- **두 앱의 모델 집합은 부분집합이 아니라 교집합이다**(2026-07-29 정정, 이전에 moana 를 10종으로 적은 것은 오류). **공통 3종**(300C·300L·500L) · **moana 전용 5종**(310C·300MC·300VC·300PA·FUJI L43K) · **`sonex` 전용 2종(500C·500P)**. `moana` `Model.cpp` 에 500C·500P capability table 분기가 없어 **구동하지 못한다** — `CommonData.cpp:71,73` 문자열 목록에만 있다. 판단 영향 = [docs/refactoring/moana-vs-sonex.md §3.1](docs/refactoring/moana-vs-sonex.md)
 - **장비 펌웨어 세대는 `ginny-fw`(1,661커밋) → `elsa-fw`(74) → `belle-fw`(66, 현행 생산)** 이고, 세대 전환마다 새 저장소로 임포트돼 **git 이력이 두 번 끊겼다**
 - **변종 선택이 퇴화했다** — `ginny-fw` 는 u-boot 환경변수로 런타임에 5개 모델을 고르는 **단일 유니버설 이미지**였는데, `belle-fw` 는 `-D_USING_500L_DEV_` 등 **컴파일 타임 분기**로 되돌아갔다
 - **인증·국가·고객사·하드웨어 리비전을 브랜치로 영구 분기한다** — 앱·펌웨어 공통. `ginny-fw` 는 브랜치 29개 중 6개만 병합됐다. 이 방식의 비용이 실제로 발생했다(`moana` 의 CE/US 빌드 뒤바뀜 출하 사고)

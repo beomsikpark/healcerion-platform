@@ -1,0 +1,625 @@
+# Phase 0 — 빌드 재현성 (B1)
+
+> **상태**: 미시작
+> **범위**: `sonex-framework`(SDK+ADK)가 **깨끗한 체크아웃에서 문서화된 절차만으로** 빌드되게 한다. 코드 계층·API 계약은 건드리지 않는다 — 이 phase 가 바꾸는 것은 **의존물 확보·경로 선언·빌드 진입점·저장소 위생**뿐이다.
+> **선행**: 없음 (0-0 저장소 재배치가 이 phase 의 첫 항목)
+> **후행**: [Phase 1](./phase1-regression-baseline.md)
+> **근거**: [plan.md](./plan.md) Phase 0 · [goal.md B1](../goal.md) · 판정 SOT = [gap.md §3·§5](../gap.md) · 실측 SOT = [../../review/sonex-framework.md §1·§7](../../review/sonex-framework.md)
+> **실측 기준**: `master` `f336e25b`(2026-07-23), 로컬 HEAD == `origin/master`, 마지막 fetch 2026-07-27. 이 문서의 신규 실측은 2026-07-30 에 `client/legacy/sonex-framework` 에서 직접 측정했다.
+
+---
+
+## 1. 배경
+
+### 1.1 "빌드 불가"는 한 가지 사실이 아니다 — 층위가 셋이고, 서로 다른 타깃이다
+
+[gap.md §5](../gap.md)·[plan.md §1](./plan.md) 이 두 층위(정적 분석 vs 실제 관측)를 이미 갈라 놨다. **여기에 세 번째가 붙고, 그보다 중요한 사실이 하나 더 있다 — 두 층위가 같은 실패의 경쟁 설명이 아니다.**
+
+| 층위 | 내용 | 대상 타깃 |
+|---|---|---|
+| ① **의존물 확보 문제** | `sdk/third_party/readme.txt` 가 *"Actual files are excluded from git"* 로 angle·freetype2·opencv 를 **외부 의존물로 선언**한다. 없는 것이 정상이며 **코드 결함이 아니다** | 전 플랫폼 |
+| ② **정적 분석 도출** | `EGL_PLATFORM_ANGLE_*` 정의가 저장소에 0건 — 소비처 `HCImageRenderCore.cpp`(13곳)뿐이고 번들 `glad_egl.h` **3벌 전부 0건** | **SDK `ImageRenderer`** |
+| ③ **실제 관측** | 커밋된 `build_adk_arm64_log1.txt`(408줄)의 실패 = **링크**(`ld: error: unable to find library -lSonexCommon`, 3건)와 **NuGet 복원 누락**(`NETSDK1004`, 2건) | **ADK 5모듈** |
+
+`[신규 실측]` **그 로그는 `ImageRenderer` 를 빌드한 적이 없다.**
+
+```bash
+grep -aoE 'sdk\\(adk|sdk)\\[A-Za-z_]+\\' build_adk_arm64_log1.txt | sort -u
+#  -> sdk\adk\{BackupReadWriter,DatabaseHelper,DicomHandler,NetworkProcess,VideoEncoder,sample,workspace}
+grep -ac 'ImageRenderer' build_adk_arm64_log1.txt   # -> 0
+```
+
+```mermaid
+flowchart TB
+    L1[의존물 확보 문제 - readme.txt 가 git 제외를 선언]
+    L2[정적 분석 도출 - ANGLE 확장 상수 정의 0건]
+    L3[실제 관측 - 링크 실패와 NuGet 복원 누락]
+    T1[타깃 SDK ImageRenderer - 미관측]
+    T2[타깃 ADK 5모듈 - 관측됨]
+    L1 --> L2
+    L2 --> T1
+    L3 --> T2
+```
+
+**귀결**: ②와 ③은 **각각 다른 타깃의, 서로 무관한 실패**다. ANGLE 을 확보해도 ③은 그대로 남고, ③을 고쳐도 ②는 그대로 남는다. [plan.md](./plan.md) 의 *"실제로 빌드를 한 번 돌려 실패 지점을 눈으로 확인"* 은 **최소 두 번**(SDK 타깃 · ADK 타깃) 돌려야 한다.
+
+### 1.2 관측된 ADK 실패는 서드파티가 아니라 빌드 순서다
+
+`[신규 실측]` 로그를 줄 번호로 읽으면 원인이 확정된다.
+
+| 줄 | 내용 |
+|---:|---|
+| 225 · 273 · 291 | `ld: error: unable to find library -lSonexCommon` (DicomHandler · NetworkProcess · VideoEncoder) |
+| **358** | `android.vcxproj -> …\_out\ARM64\bin\Release\libSonexCommon.so` |
+
+**필요로 하는 쪽이 먼저 링크되고, 필요한 산출물은 그 뒤에 생긴다.** `sdk/common/android/android.vcxproj` 는 실재하고 빌드도 성공한다 — 빠진 것은 라이브러리가 아니라 `framework.sln` 의 **프로젝트 간 의존 선언**이다.
+
+> **판단 영향**: 0-A·0-B(ANGLE)는 ADK 빌드를 열지 못한다. 이 층을 맡는 것은 **0-F(빌드 진입점 통일)** 이고, 진입점은 모듈 의존 순서를 반드시 표현해야 한다.
+
+### 1.3 ANGLE — 선언 5곳, 대소문자까지 어긋나고, 회수 가능성이 플랫폼마다 다르다
+
+| # | 선언 위치 | 선언 경로 | 표기 |
+|---|---|---|---|
+| 1 | `sdk/third_party/readme.txt` | `third_party/angle/out/{android_v7a,v8a,x64,ios_arm64,ios_x64,windows_x64}` | 소문자 |
+| 2 | `sdk/sdk/Main/ios/CMakeLists.txt:111,134` | `${SDK_ROOT}/../adk/library/angle_ios/lib{EGL,GLESv2}.xcframework/…` | 소문자 |
+| 3 | `sdk/sdk/Main/macos/CMakeLists.txt:101,120` | `${SDK_ROOT}/../third_party/angle{,_macos}/…` | 소문자 |
+| 4 | `sdk/sdk/ImageRenderer/android/android.vcxproj` | include `third_party\Angle\include\` · lib `third_party\angle\out\…` | **대문자·소문자 혼재** |
+| 5 | `sdk/sdk/ImageRenderer/windows/windows.vcxproj` | `third_party\angle\{include,out\windows_x64}\` | 소문자 |
+
+**4번은 한 파일 안에서 갈린다** — include 는 `Angle`, library 는 `angle`. 대소문자 구분 파일시스템(Linux CI·컨테이너)에서 둘 중 하나가 반드시 깨진다.
+
+`[신규 실측]` **여섯 번째 선언이 커밋된 빌드 캐시 안에 얼어 있다** — `sdk/sdk/Main/macos/build/CMakeFiles/SonexSDK.dir/link.txt` 가 `/Users/rio/work/sonex-framework/sdk/sdk/Main/../../../third_party/angle_macos/libEGL.framework/libEGL` 을 절대경로로 박아 두었다. **0-E 가 이 한 건을 부수 효과로 없앤다.**
+
+`[신규 실측]` **ANGLE 바이너리는 tracked·untracked 어디에도 0건이다.**
+
+```bash
+git ls-files | grep -icE 'libEGL|libGLESv2'                 # -> 0
+find . -iname 'libEGL*' -o -iname 'libGLESv2*' | grep -v '^./.git/'   # -> (없음)
+```
+
+`[신규 실측]` **회수 가능성이 4갈래로 갈린다 — 저장소가 iOS 만 알고 있다.**
+
+| 플랫폼 | 저장소 안의 출처·리비전 |
+|---|---|
+| **iOS** | **회수 가능** — `docs/sdk/IOS_TODO.md:1460,1465,2884` 이 `celestiamobile/angle-apple` **v1.1.26** prebuilt, 자산명(`libEGL.xcframework.zip` 384KB · `libGLESv2.xcframework.zip` ~22MB), 실행 검증 결과(`OpenGL ES 3.0.0 (ANGLE 2.1.0.)`)까지 기록. `Main/ios/CMakeLists.txt:105` 주석도 같은 내용 |
+| Windows · Android · macOS | **0건** — 빌드 스크립트·문서 어디에도 출처·리비전 없음 |
+
+> **0-A 의 실제 크기가 여기서 정해진다.** 사람에게 물어야 하는 것은 **3개 플랫폼**이고, iOS 는 저장소가 답을 갖고 있다. 다만 iOS 출처가 **개인 커뮤니티 포크**라는 공급망 리스크는 그대로다([gap.md §3.3](../gap.md)).
+
+### 1.4 선언된 서드파티 버전이 세 갈래다
+
+`[신규 실측]` opencv 하나만 봐도 저장소가 세 가지 버전을 동시에 말한다.
+
+| 선언처 | opencv | freetype |
+|---|---|---|
+| `sdk/third_party/readme.txt` | **4.9.0** (android-sdk · ios-framework · windows) | 2.11.1(android) · 2.13.2(ios·windows) |
+| 디스크 `sdk/adk/library/` | **3.4.5_msvc64** · **3.4.6_android** | (없음) |
+| `sdk/sdk/Main/macos/CMakeLists.txt:99` | **Homebrew 4.12.0_11** | Homebrew `/opt/homebrew/opt/freetype` |
+
+그리고 **Android vcxproj 가 freetype 의 *Windows* 바이너리 include 를 참조한다** — `sdk/sdk/ImageRenderer/android/android.vcxproj:157` 의 `third_party\freetype2\freetype-windows-binaries-2.13.2\include\`. 헤더만 쓰므로 동작할 수는 있으나, **선언이 의도를 표현하지 못한다.**
+
+> 이것이 0-C 가 "경로를 하나로 모으는 일"이 아니라 **"어느 버전이 정본인지 먼저 정하는 일"** 인 이유다.
+
+### 1.5 빌드 진입점 — 툴체인 4갈래, 드라이버 15개, 그중 10개가 머신에 박혀 있다
+
+| 툴체인 | 진입점 | 수 |
+|---|---|---:|
+| MSBuild | `.vcxproj` (+ `sdk.sln`·`framework.sln`) | **29** (sln 2) |
+| CMake | `CMakeLists.txt` (macOS/iOS SDK + Android 샘플 2) | **4** |
+| Xcode | `*.xcodeproj/project.pbxproj` | **9** |
+| `ndk-build` | `sdk/sdk/build_all_android.sh` 가 `Android.mk` 를 `cat > Android.mk << 'EOF'` 로 **인라인 생성**(`:67,115`) | — |
+
+`[신규 실측]` 그 위에 **자체 빌드 드라이버 스크립트가 15개**(서드파티·샘플 제외)이고, **10개가 개발자 머신 경로에 고정돼 있다.**
+
+| 절대경로 | 건수 | 위치 |
+|---|---:|---|
+| `cd /d C:\work\flutter\sonex-framework` | **5** | `build_sdk.bat:3` · `build_windows_only.bat:3` · `build_windows_sdk.bat:3` · `rebuild_devicemanager.bat` · `rebuild_sdk_full.bat` |
+| `SDK_ROOT="/Users/rio/work/sonex-framework/sdk"` | **3** | `sdk/sdk/build_all_android.sh:13` · `build_direct_android.sh:11` · `build_modules_android.sh:12` |
+| `/Users/rio/work/…` 헤더 목록 | **1**(6줄) | `sdk/sdk/fix_ios_exports.sh:9-14` |
+| `/opt/homebrew/…` | **1**(7줄) | `sdk/sdk/Main/macos/CMakeLists.txt:98,99,114-118` |
+| `build_imagefilter.bat` | 1(2건) | |
+
+> **이것이 B1 판정을 직접 막는다.** [gap.md §5.2](../gap.md) 는 *"Android 가 가장 가깝다"* 고 판정했는데, **그 Android 빌드 드라이버 3개가 전부 `/Users/rio/…` 에 묶여 있다.** 즉 성공 판정(제3의 깨끗한 머신에서 Android 빌드)은 **0-C(의존물)보다 0-D(절대경로)가 먼저 풀려야** 시도조차 된다.
+>
+> 반대로 `build_adk.bat` · `build_sdk_macos.sh` · `build_universal_sdk.sh` · `copy_dependencies.bat` · `deploy_android_jnilibs.sh` **5개는 이미 상대경로다** — 남은 10개를 이 형태로 맞추는 것이 0-D 의 내용이고, 저장소 안에 본보기가 있다.
+
+### 1.6 커밋된 빌드산출물이 두 곳이고, 어느 쪽도 `.gitignore` 가 덮지 않는다
+
+`[신규 실측]` 알려진 한 곳이 아니라 둘이다.
+
+| 위치 | tracked | 내용 |
+|---|---:|---|
+| `sdk/sdk/Main/macos/build/` | **194** | `.o` 82 · `.d` 80 · `.cmake` 8 · `Makefile` 계열 · `.framework` 심볼릭 구조. **디스크엔 191** |
+| **`sdk/sdk/DeviceManager/android/`** | **28** | `CMakeCache.txt` · `CMakeFiles/` 26 · `Makefile` · `cmake_install.cmake`. 같은 폴더의 소스 8파일과 **섞여 있다** |
+
+**둘 다 `.gitignore` 규칙이 아예 없다.**
+
+```bash
+git check-ignore -v sdk/sdk/Main/macos/build/CMakeCache.txt        # exit 1 (미커버)
+git check-ignore -v sdk/sdk/DeviceManager/android/CMakeCache.txt   # exit 1 (미커버)
+```
+
+이는 `sdk/adk/library/`(2,600파일)의 상황과 **다른 문제**다 — 그쪽은 규칙이 있으나 추적 뒤에 추가돼 소급되지 않는 것이고, 이쪽은 **규칙 자체가 없다.** 따라서 0-E 는 `git rm --cached` 와 **규칙 신설**을 함께 해야 한다.
+
+`[신규 실측]` 커밋된 빌드 로그도 같은 계열의 구멍이다 — `.gitignore` 는 `build_*_log{,2,3,4,5}.txt` 를 열거하는데 **`log1` 규칙만 없어서** `build_adk_arm64_log1.txt` 가 통과했다(`git check-ignore` exit 1). `.gitignore` 는 101줄이고 `build_*_log.txt` 가 **두 번**(25행·47행) 들어 있다 — 사고마다 한 줄씩 덧붙인 목록이다.
+
+### 1.7 `HCCommon.h` 4벌 — macOS 갈래는 빌드시스템이 매크로를 주입해야만 성립한다
+
+| 경로 | md5 | macOS 갈래 |
+|---|---|---|
+| `sdk/include/HCCommon.h` | `7b04c5df` | **있음** (`#define OS_MACOS` 3회 + `#elif defined(OS_MACOS) && OS_MACOS`) |
+| `sdk/common/shared/HCCommon.h` | `a4f66d89` | **없음** |
+| `sdk/sdk/sample/SDK_Sample_Android/app/include/HCCommon.h` | `a4f66d89` | 없음 |
+| `sdk/adk/sample/Android_SampleApp/app/include/HCCommon.h` | `25382d17` | 없음 (분기 자체가 0) |
+
+`[신규 실측]` **macOS 갈래의 조건이 자기 자신이다** — `sdk/include/HCCommon.h:20` 이 `#elif defined(OS_MACOS) && OS_MACOS` 이고, 그 값을 넣어 주는 곳은 **`sdk/sdk/Main/macos/CMakeLists.txt:160` 의 `OS_MACOS=1` 하나뿐**이다. 즉 macOS 분기는 헤더 안에서 닫히지 않고 **빌드시스템 주입에 의존**한다.
+
+세 조건이 겹친다.
+1. 사본에 따라 macOS 갈래가 있고 없다 → **어느 사본이 include 되느냐로 동작이 갈린다**
+2. 그 갈래마저 외부 `-DOS_MACOS=1` 없이는 죽는다
+3. `#else`·`#error` **둘 다 0건** → 미정의 플랫폼에서 전처리기가 전부 0 으로 평가해 **조용히** 껍데기가 나온다
+
+`OS_MACOS` 사용처는 **자체 소스 12파일**(`HCImageRenderCore.cpp:782` 포함, 문서·빌드캐시 제외). **분기를 하나 더 만들기 전에 사본부터 합쳐야 한다** — 0-G 가 0-C·0-F 뒤에 오는 이유다.
+
+### 1.8 죽은 코드는 두 범주다 — `#if 0` 을 일괄 삭제하면 안 된다
+
+`[신규 실측]` `#if 0` 이 자체 소스 **8파일**에 있으나 성격이 갈린다.
+
+| 범주 | 대상 | 판정 |
+|---|---|---|
+| **죽은 코드** | `sdk/adk/Main/shared/HCSonexFramework.h`(73줄)·`.cpp`(111줄) — **파일 전체가 `#if 0`** · `sdk/sdk/ImageFilter/shared/filter/HCSRIv22Filter.cpp:255,338` 2블록(주석: *"iter5b 폐기"* · *"iter1/2 ridge 미미"*) | **제거 대상** |
+| **디버그 스위치** | `sdk/sdk/DeviceManager/shared/HCSocketCommunicator.cpp` **13블록** — 전부 *"500C_DEBUG 로그 비활성화 — 성능 저하 원인"* | **제거하면 안 된다.** 조건부 로깅으로 전환할 대상 |
+| 미분류 | `HCDataBaseController.cpp` · `HCLogger.h` 2벌 · `PatientInfoDb.cpp` | 각 1블록. 착수 시 개별 판정 |
+
+**병합 충돌 마커는 1파일 3덩이다** — `docs/VERSION_TAGGING.md` 22-29 · 151-212 · 225-231, 상대는 `d3ce40b`, 유입 커밋 `9ac1bfd4`. 마커 줄은 9개다.
+
+### 1.9 브랜치 구도 — 이 저장소는 master 가 주 개발선이다
+
+0-0(fork base)과 0-J(흡수 판단)의 전제다.
+
+| 항목 | 실측 |
+|---|---|
+| HEAD | 로컬 == `origin/master` == `f336e25b`(2026-07-23), 마지막 fetch **2026-07-27** |
+| 완전 병합된 브랜치 | `dev/adk_v0.51.0`(2026-04-29) · `adk_work`(2025-08-25) — **고유 커밋 0**, master 가 각 167·363 앞섬 |
+| master 밖 | `feature-apply_v1.23.4` **2커밋뿐** — `ef7e9ce3`(2026-07-15, `HCSRIv23_4Filter`) · `83bde28a`(2026-07-11, `HCSRIv23_3Filter`) |
+
+루트 `CLAUDE.md` 의 조직 통칙("master 에서 작업하지 않는다")은 `belle-fw`·`moana` 에 맞고 **이 저장소는 예외**다. **fork base 는 master 다.**
+
+---
+
+## 2. 진행 단계
+
+> **순서 주의**: 아래 라벨(0-0·0-A~0-J)은 [plan.md Phase 0](./plan.md) 의 항목 식별자이지 **실행 순서가 아니다.** §1.2·§1.5 의 실측대로 **0-D → 0-F 가 0-A·0-B 보다 먼저 효과를 낸다**(절대경로가 안 풀리면 어떤 머신에서도 시도조차 못 하고, ANGLE 은 ADK 실패와 무관하다). 권장 순서는 §2 끝의 표에 별도로 적는다.
+
+### Step 0-0. 저장소 재배치 — **선행 조건**
+
+**코드를 건드리기 전에 해야 한다.** 지금 `client/legacy/sonex-framework` 는 read-only 미러라 이하 전부를 실행할 수 없다([루트 CLAUDE.md](../../../CLAUDE.md)).
+
+| # | 작업 |
+|---|---|
+| 0-1 | **착수 직전 재fetch** — 마지막 fetch 가 2026-07-27 이라 그 이후 `origin/master` 변화는 미확인이다. `git -C client/legacy/sonex-framework fetch --all --prune` 후 tip 재확인 |
+| 0-2 | `client/legacy/sonex-framework` → **`client/sonex-framework`** 쓰기 가능 작업 사본 생성. **fork base = `master`**(§1.9) |
+| 0-3 | 미러는 `legacy/` 에 **그대로 둔다** — 대조 기준선이자 루트 `CLAUDE.md` 의 소유권 표시다. 작업 사본에만 쓴다 |
+| 0-4 | **힐세리온 원본 반영 방식 협의** — fork-and-PR · 브랜치 위임 등. **정해지기 전에는 작업 사본을 원본에 강제 동기화하지 않는다** |
+| 0-5 | 착수 시점의 `origin/master` SHA 를 작업 사본에 기록(태그 또는 `BASELINE` 파일). Phase 2-B 버전 스탬프가 이 값을 쓴다 |
+
+> **이 시점부터 이하 모든 Phase 를 실제로 실행할 수 있다.** 재배치 전에도 독립적으로 가능한 것은 [Phase 1](./phase1-regression-baseline.md) 의 `[선행 가능]` 항목들이다.
+
+### Step 0-A. ANGLE 을 소스에서 직접 빌드한다
+
+**회수는 성립하지 않는다.** 아래가 실측이고, 셋을 합치면 "남의 바이너리를 받아온다"는 경로가 닫힌다.
+
+| 플랫폼 | 저장소가 아는 것 | 재현 가능한가 |
+|---|---|---|
+| **iOS** | `celestiamobile/angle-apple v1.1.26` — **개인 유지보수 fork 의 prebuilt**(`docs/sdk/IOS_TODO.md:1460,1465` · `Main/ios/CMakeLists.txt:105`) | 아니오 — 남이 만든 바이너리 |
+| **Android · Windows** | `third_party/angle/out/{android_v7a,v8a,x64,windows_x64}` — **`out/` 은 GN 빌드 출력 레이아웃**이라 자체 빌드로 보인다 | **아니오 — `gn args` 가 저장소 어디에도 없다** |
+| **macOS** | 없음 | 아니오 |
+
+**그들이 회피한 이유가 문서에 적혀 있다** — `IOS_TODO.md:1460`: *"Chromium ANGLE 빌드(4~6시간 + 30GB+ 디스크) **완전 회피**"*. `:1718` 은 그것을 대안 C-1 로 평가해 두고 골라내지 않았다.
+
+**개인 머신에서 매번이라면 합리적인 판단이다. 그러나 우리 조건에서는 셈이 다르다.**
+
+| 근거 | 내용 |
+|---|---|
+| **재현성(B1)** | 리비전·빌드설정이 없으면 같은 바이너리를 다시 만들 수 없다. 바이너리를 받아와도 **B1 은 충족되지 않는다** |
+| **공급망(B4)** | 의료기기 SDK 를 **고객사에 재배포**하면서 개인 fork 에 GL 스택을 건다. ANGLE 자체는 BSD 라 재배포는 자유이나, **무엇을 배포하는지 특정할 수 없는 것**이 문제다 |
+| **SOUP** | 리비전 미상 바이너리는 IEC 62304 기준 정의상 SOUP 다. 고정 소스 + 기록된 빌드설정이 규제 산출물의 전제다 |
+| **플랫폼 일관성** | 지금은 플랫폼마다 리비전이 다를 수 있고 **GL 거동 차이가 나도 추적 근거가 없다**([gap.md §3.3](../gap.md)) |
+| **비용이 1회성** | 4~6시간·30GB 는 **CI 이미지에 한 번 굽고 아티팩트로 캐시**하면 끝난다. 매 개발자·매 빌드가 아니다 |
+
+| # | 작업 |
+|---|---|
+| A-1 | **upstream 리비전 1개 고정** — Google 공식 ANGLE. 플랫폼별로 다르게 두지 않는다 |
+| A-2 | **`gn args` 를 플랫폼별 파일로 선언** — 지금 부재한 정보가 정확히 이것이다. `depot_tools`+`gn`+`autoninja` 절차를 스크립트화 |
+| A-3 | **CI 가 빌드하고 아티팩트로 캐시** — 리비전·gn args 해시를 캐시 키로. 0-C 매니페스트에 산출물 해시 기록 |
+| A-4 | **착수 순서는 Android·Windows 먼저** — Apple 플랫폼(Metal 백엔드)이 가장 어렵고, 그것이 애초에 fork 를 쓴 이유다. **iOS 는 기존 fork 를 임시 유지하며 병행**하고 마지막에 전환 |
+| A-5 | **전환 판정은 프레임 골든** — 자체 빌드 산출물로 [Phase 1-C](./phase1-regression-baseline.md) 골든을 돌려 기존 prebuilt 결과와 대조. 리비전·설정 차이가 렌더 거동을 바꾸지 않았음을 보인다 |
+
+> **A-5 때문에 순서가 얽힌다** — 1-C(오프스크린 컨텍스트)가 없으면 대조할 수단이 없고, 1-C 는 ANGLE 이 있어야 돈다. **기존 prebuilt 로 1-C 를 먼저 세우고, 그 골든을 기준으로 자체 빌드를 검증**하는 순서가 자연스럽다. 착수 시 확정한다.
+
+> **질의 항목이 바뀐다** — 힐세리온에 물을 것은 리비전이 아니라 **"왜 그 fork 였는가 · upstream 으로 바꿔도 되는가 · Android/Windows 는 어떤 gn args 로 빌드했는가"** 다.
+
+### Step 0-B. ANGLE 경로 선언 일원화 — 5곳
+
+| # | 작업 |
+|---|---|
+| B-1 | **정본 경로 1곳 결정** — `sdk/third_party/angle/` 계열(readme.txt·macOS·Windows·Android 가 이미 가리키는 곳). iOS 만 `adk/library/angle_ios/` 라 **계층 역방향**이고, 이것은 [Phase 3-A](./plan.md) 와 같은 대상이다 |
+| B-2 | **대소문자 통일 — 소문자.** `android.vcxproj` 의 include 12곳이 `third_party\Angle\include\` 다. `readme.txt` 가 *"Use lower cased folder name"* 을 이미 규약으로 적었으므로 **저장소 안에 정답이 있다** |
+| B-3 | 5곳을 정본 1곳 참조로 교체. `.vcxproj` 는 구성 조합마다 반복되므로 **속성 시트(`.props`)로 빼는 것이 실질**이다 |
+| B-4 | **6번째 선언은 0-E 가 지운다** — `Main/macos/build/…/link.txt` 의 절대경로 ANGLE 참조(§1.3) |
+| B-5 | 대소문자 구분 파일시스템에서 검증 — §3.5 |
+
+### Step 0-C. 서드파티 의존성 관리 도입
+
+**§1.4 대로 "경로 모으기"가 아니라 "정본 버전 정하기"가 먼저다.**
+
+| # | 작업 |
+|---|---|
+| C-1 | **버전 대조표 작성 — SOUP 기준으로 확장한다**(2026-07-30 결정, [gap.md §8](../gap.md)). angle · opencv · freetype · dcmtk · ffmpeg · openssl · cpr · curl · minizip · wxsqlite3 · stb 에 대해 **선언(readme.txt) · 디스크(`adk/library/` 13종) · 빌드파일 참조** 3열에 더해 **알려진 결함(CVE)·EOL/지원 상태·재배포 조건** 3열을 추가한다 — ANGLE 에만 적용하던 SOUP 취급(0-A §근거)을 13종 전부로 일반화하는 것. opencv 는 이미 **4.9.0 / 3.4.5·3.4.6 / 4.12.0_11** 로 갈렸고, **`openssl-1.1.1d` 는 이 표에서 EOL 로 즉시 걸린다**(2023-09 단종, C-6·C-V ①) |
+| C-2 | **플랫폼별 결손 확정** — Android: angle·freetype / iOS: angle_ios·freetype_ios·opencv_ios / macOS: 전부 + Homebrew 의존 / Windows: ANGLE 출처 0건([gap.md §5.2](../gap.md)) |
+| C-3 | **획득 방식 = vcpkg 매니페스트 모드** `[실증]` — 아래 C-V |
+| C-4 | **획득 스크립트를 CI 진입점으로** — `make deps`(가칭). 실패 시 어느 의존물이 왜 없는지 이름으로 보고한다 |
+| C-5 | 자체 소스는 `~7MB`(0.3%)다. `adk/library/` 2,600파일을 매니페스트로 옮기면 **클론 비용이 이 phase 의 부수 효과로 줄어든다** — 다만 이력(`.git` 525MB)은 그대로 남으므로 **저장소 크기 축소는 이 phase 의 목표가 아니다** |
+| **C-6** | **FFmpeg 는 LGPL 전용 구성으로 고정한다**(2026-07-30 결정) — vcpkg `ffmpeg` 포트의 **`gpl` feature 를 켜지 않는다**(기본 비활성 = LGPL 2.1+). x264·x265·xvid 등 GPL 전용 코덱 feature 도 함께 배제한다. 현재 번들(`ffmpeg 4.0.2`·`4.1.4`)이 어떤 구성으로 빌드됐는지는 저장소로 알 수 없으므로([gap.md §8](../gap.md)), vcpkg 전환 전에 **바이너리에서 GPL 전용 심볼(libx264 등) 링크 여부를 먼저 확인**한다 — 있으면 그 번들은 배포 후보에서 제외 |
+
+#### C-V. vcpkg 로 고정한다 — 실증 근거
+
+`[실증 2026-07-30]` 문서 판단이 아니라 **실제로 돌려 확인했다.**
+
+| 확인 | 방법 | 결과 |
+|---|---|---|
+| 포트 존재 | `vcpkg search` | **12종 중 11종 존재** — opencv3(3.4.20)·opencv4(4.12.0)·dcmtk(3.7.0)·ffmpeg(8.0.1)·openssl(3.6.0)·freetype(2.13.3)·minizip-ng(4.0.10)·cpr(1.14.1)·curl(8.18.0)·stb·nlohmann-json·**angle(chromium_7258)**. **`wxsqlite3` 만 없다** |
+| 모바일 트리플렛 | `triplets/` 조회 | `arm64-android`·`x64-android`·`arm-neon-android`·`arm64-ios`·`arm64-ios-simulator` 등 **14개** |
+| 포트의 모바일 지원 | 각 `vcpkg.json` 의 `supports` | 우리 포트 전부 **Android·iOS 를 막지 않는다**(`dcmtk`·`minizip-ng` 만 `!uwp`). **예외: `sqlcipher` 는 `windows & !uwp`** |
+| 의존 그래프 해석 | `vcpkg install opencv3 --triplet arm64-android --dry-run` | **정상 해석** — libjpeg-turbo·libpng·libwebp·tiff·quirc·zlib 까지 arm64-android 로 |
+| **실제 크로스 컴파일** | `vcpkg install zlib --triplet arm64-android` | **성공(21초)**. NDK 28.0.12674087 사용 |
+
+**따라서 Android·iOS 를 개별 수작업 빌드할 필요가 없다.** `vcpkg.json` 하나에 의존성을 선언하고 트리플렛만 바꿔 돌린다. `overrides` 로 버전을 고정하면 **플랫폼마다 버전이 갈리는 현재 문제(OpenCV 4.9.0/3.4.5/3.4.6/4.12.0 네 갈래)가 구조적으로 사라진다** — 이것이 vcpkg 채택의 최대 이득이다.
+
+**남는 제약 넷**
+
+| # | 제약 | 대응 |
+|---|---|---|
+| 1 | **버전 격차가 크다** — ffmpeg 4.0→**8.0**(메이저 4단계) · openssl 1.1.1d(**EOL 2023-09**)→3.6 · dcmtk 3.6.5→3.7 | **API 변경분 코드 수정이 따른다.** `overrides` 로 구버전 고정을 시도하되 **레지스트리 히스토리에 없으면 상향이 강제**된다. OpenSSL 은 EOL 이라 어차피 올려야 한다. **ffmpeg 상향 시에도 `gpl` feature 는 켜지 않는다**(C-6) |
+| 2 | android/ios 는 **community 트리플렛**(11개)이라 MS CI 미검증 | **`supports` 무제한 = 막지 않았다이지 검증됐다가 아니다.** zlib 은 통과했으나 **ffmpeg·opencv 같은 대형 포트는 포트별로 실제 빌드를 돌려봐야 한다** |
+| 3 | 트리플렛 API 레벨 불일치 — `arm64-android` 가 `VCPKG_CMAKE_SYSTEM_VERSION 28` 인데 저장소는 **`android-24`** | 커스텀 트리플렛으로 24 로 맞추거나 24→28 상향을 판단. **0-K 와 함께** |
+| 4 | `ANDROID_NDK_HOME` 미설정 시 **`android-ndk-r13b`(2016) 로 폴백**(`scripts/toolchains/android.cmake:18-21`) | **0-K 의 NDK 고정이 선행**. iOS 는 macOS 호스트(Xcode) 필요 → CI 에 macOS 러너 |
+
+#### C-W. `wxsqlite3` — vcpkg 로 풀리지 않는 유일한 항목
+
+**단순 벤더 사본이 아니라 환자 DB 암호화 엔진 전체**다. 실측 = [../../review/sonex-framework.md §8.1b](../../review/sonex-framework.md).
+
+| 항목 | 값 |
+|---|---|
+| 정체 | **wxSQLite3 v4.0.4 (sqlite3secure)** |
+| 임베드 SQLite | **3.24.0**(2018-06) |
+| 실제 암호 | **`PRAGMA cipher = 'aes256cbc'`** + PBKDF2-SHA1 10000회 → Base64 → `left(32)` → hex |
+| 호환 요구 | **"Moana 호환"** — 기존 출하 DB 를 열어야 한다 |
+
+**대안 넷을 비교한다.**
+
+| # | 대안 | 포맷 호환 | vcpkg | 판정 |
+|---|---|---|---|---|
+| **1** | **SQLite3 Multiple Ciphers(sqlite3mc)** — 같은 저자(Ulrich Telle)가 wxSQLite3 의 sqlite3secure 를 독립 프로젝트로 분리한 **직계 후속**. `aes256cbc` 를 legacy 모드로 유지한다 | **호환 가능성 최고**(같은 코드 계보) — **단 바이트 호환은 미검증** | 포트 없음 → **자체 포트 작성 또는 vendored** | **권장** |
+| 2 | **SQLCipher** | **불가** — on-disk 포맷이 다르다. 전수 마이그레이션 필요 | 있으나 **`windows & !uwp`** 라 Android·iOS·Linux 에서 못 쓴다 | **배제** |
+| 3 | 현행 vendored 유지 + `sqlite3.c` 만 최신 교체 | 유지 | 해당 없음 | **차선** — `codec.c` 가 SQLite 내부 API 에 결합돼 단순 교체가 안 될 수 있다 |
+| 4 | 앱 레벨 암호화(파일·필드 단위) | **불가** | 해당 없음 | **배제** |
+
+**권장 경로 — 대안 1, 단 실증이 선행 조건**
+
+| # | 작업 |
+|---|---|
+| W-1 | **바이트 호환 실증** — 현행 wxSQLite3 4.0.4 로 만든 DB 를 sqlite3mc 가 **같은 PRAGMA 로 열 수 있는지** 확인. **이것이 통과하지 못하면 대안 1 은 대안 3 으로 후퇴**한다. [proof/protocol-sot](../legacy/proof/protocol-sot/) 과 같은 성격의 작은 실증물로 만든다 |
+| W-2 | 통과 시 **vcpkg 자체 포트 작성**(overlay port) — 그러면 나머지 11종과 같은 매니페스트에 들어간다 |
+| W-3 | 미통과 시 **vendored 유지를 명시적 예외로 선언** — 매니페스트에 "vcpkg 밖" 항목으로 적고 사유·버전·갱신 책임자를 남긴다. **암묵적 예외가 지금 상태다** |
+
+> **이것과 별개로 먼저 고쳐야 할 보안 결함 둘** — ① **Windows 는 아예 암호화하지 않는다**(`#if OS_ANDROID || OS_IOS`) ② **암호화 실패 시 비암호화로 폴백한다**(fail-open). **의존물 교체와 무관하게 성립하는 결함**이고 의료 데이터라 우선순위가 더 높다. 소관은 [goal.md B4](../goal.md) 이나 **발견 사실을 여기 남긴다.**
+
+### Step 0-D. 절대경로 제거
+
+**§1.5 대로 이 단계가 성공 판정에 가장 직접 걸린다.**
+
+| # | 작업 |
+|---|---|
+| D-1 | **Windows 5건** — `cd /d C:\work\flutter\sonex-framework` 를 스크립트 위치 기준 상대경로로(`%~dp0`) |
+| D-2 | **Android/iOS 4건** — `SDK_ROOT="/Users/rio/work/sonex-framework/sdk"` 를 스크립트 위치 기준으로. **이 3개가 Android 빌드 드라이버 전부**다 |
+| D-3 | **macOS CMake 7줄** — Homebrew 절대경로를 `find_package`/`pkg_config` 또는 0-C 매니페스트 경로로. `opencv 4.12.0_11` 같은 **패치 리비전 고정이 링크에 박혀 있다** |
+| D-4 | 이미 상대경로인 5개(`build_adk.bat`·`build_sdk_macos.sh`·`build_universal_sdk.sh`·`copy_dependencies.bat`·`deploy_android_jnilibs.sh`)를 **본보기로 삼는다** |
+| D-5 | 회귀 방지 — 절대경로 패턴을 검사하는 스크립트를 만들고 CI 가 판정([Phase 1-E](./phase1-regression-baseline.md)) |
+
+### Step 0-E. 커밋된 빌드산출물 제거 — 두 곳
+
+| # | 작업 |
+|---|---|
+| E-1 | `git rm -r --cached sdk/sdk/Main/macos/build/` — **194파일** |
+| E-2 | `git rm -r --cached` 로 `sdk/sdk/DeviceManager/android/` 의 **28파일**(`CMakeCache.txt`·`CMakeFiles/`·`Makefile`·`cmake_install.cmake`). **같은 폴더의 소스 8파일은 남긴다** — 경로 단위 삭제가 아니라 파일 단위여야 한다 |
+| E-3 | `git rm --cached build_adk_arm64_log1.txt` |
+| E-4 | **`.gitignore` 규칙 신설** — 위 셋 다 현재 **미커버**다(§1.6). `build/`·`CMakeFiles/`·`CMakeCache.txt`·`build_*_log*.txt` 로 열거가 아닌 패턴을 쓴다 |
+| E-5 | `.gitignore` 정리 — 101줄에 중복 1건(`build_*_log.txt` 25·47행). **사고마다 한 줄 덧붙이는 방식 자체가 E-3 을 낳았다** |
+| E-6 | **이력은 재작성하지 않는다.** `.git` 525MB 는 그대로 둔다 — 힐세리온 원본과의 반영 방식(0-4)이 정해지기 전에 history rewrite 는 되돌릴 수 없는 변경이다 |
+
+### Step 0-F. 빌드 진입점 통일
+
+**§1.2 의 관측된 ADK 실패를 실제로 고치는 단계다.**
+
+| # | 작업 |
+|---|---|
+| F-1 | **모듈 의존 그래프를 선언한다** — `SonexCommon` → 각 SDK/ADK 모듈. `framework.sln` 에서 의존이 선언되지 않아 병렬 빌드가 순서를 지키지 않는 것이 관측된 실패(줄 225·273·291 vs 358)의 원인이다 |
+| F-2 | **단일 진입점 신설** — `make build PLATFORM=<android\|windows\|ios\|macos>`(가칭). 내부적으로 MSBuild·Xcode·CMake·`ndk-build` 를 호출하되 **외부 계약은 하나**다 |
+| F-3 | `build_all_android.sh` 의 **`Android.mk` 인라인 생성**(`cat > Android.mk << 'EOF'`, `:67,115`)을 파일로 분리. 지금은 생성된 `Android.mk` 가 저장소에 없어 빌드 구성이 셸 안에만 있다 |
+| F-4 | 드라이버 스크립트 **15개를 정리** — 겹치는 것(`build_sdk.bat`·`build_windows_sdk.bat`·`rebuild_sdk_full.bat`)을 진입점 옵션으로 흡수 |
+| F-5 | **NuGet 복원을 빌드 전 스텝으로** — 관측된 `NETSDK1004` 2건은 `Framework_Sample_Windows`·`ADK_Sample_Test`(C# 샘플)에서 났다. 진입점이 복원을 먼저 부르면 사라진다 |
+| F-6 | **절차 문서화** — B1 의 판정 문구가 *"문서화된 절차만으로"* 다. 현행 `CLAUDE.md` 의 빌드 절에는 의존물 확보 단계가 없다 |
+
+### Step 0-G. headless 빌드 타깃 신설 + `HCCommon.h` 정본화
+
+**§1.7 대로 사본 통합이 선행이다. 분기를 먼저 늘리면 4벌에 각각 늘리게 된다.**
+
+| # | 작업 |
+|---|---|
+| G-1 | **`HCCommon.h` 4벌 → 1벌.** 정본은 `sdk/include/`(macOS 갈래 보유). 나머지 3벌은 정본을 include 하도록 바꾸거나 빌드 시 복사한다 |
+| G-2 | **macOS 갈래의 외부 의존 해소** — `#elif defined(OS_MACOS) && OS_MACOS` 는 `Main/macos/CMakeLists.txt:160` 의 `-DOS_MACOS=1` 이 있어야만 성립한다. `__APPLE__ && !TARGET_OS_IPHONE` 같이 **헤더 안에서 닫히게** 한다 |
+| G-3 | **`#else` + `#error` 추가** — 미정의 플랫폼이 조용히 전부 거짓으로 평가되는 결함([gap.md §5.3](../gap.md))을 컴파일 에러로 바꾼다. **G-1·G-2 뒤에 해야 한다** — 지금 넣으면 macOS 가 즉시 에러가 난다 |
+| G-4 | **`OS_LINUX` 1급 분기 추가** — Linux 는 **주 개발 플랫폼**이다([plan.md §0.1](./plan.md)). "headless 용 가드"가 아니라 정식 분기이며, 이 분기 위에서 CI·[Phase 5](./plan.md) Python wrapper·[Phase 6](./phase6-samples-support.md) Qt6 샘플이 함께 선다. 구현체는 [0-L](#step-0-l-platformslinux-신설) |
+| G-5 | **`#else` 에 `#error`** — 분기를 4개로 늘려도 5번째 플랫폼이 같은 함정에 빠질 수 있다. 미정의 플랫폼이 조용히 전 분기 거짓이 되는 구조 자체를 막는다 |
+| G-5 | `OS_MACOS` 사용처 **자체 소스 12파일**이 통합 후에도 같게 평가되는지 확인 — 특히 `HCImageRenderCore.cpp:782`(ANGLE 백엔드 선택)와 `HCImageFilter.cpp`(CVIE `#if !OS_MACOS` 게이트) |
+| G-6 | **headless 타깃은 렌더 서피스를 만들지 않는다** — 오프스크린 컨텍스트는 [Phase 1-C·Phase 4-D](./plan.md) 의 **신규 구현**이다. 여기서는 **컴파일·링크가 되는 타깃**까지만 만든다 |
+
+### Step 0-H. 병합 충돌 마커 제거
+
+| # | 작업 |
+|---|---|
+| H-1 | `docs/VERSION_TAGGING.md` 의 **3덩이**(22-29 · 151-212 · 225-231) 해소. 상대가 `d3ce40b`, 유입 커밋 `9ac1bfd4` 라 양쪽 원문을 복원할 수 있다 |
+| H-2 | **어느 쪽이 맞는지는 [Phase 2-C](./plan.md)(태깅 규약 정상화)가 정한다.** 이 단계는 마커만 없애고 내용 판단은 넘긴다 |
+| H-3 | 회귀 방지 — 충돌 마커 검사를 CI 에 추가. 전 저장소 13건 중 이 1건뿐이라 **비용이 거의 없는 게이트**다 |
+
+### Step 0-I. 죽은 코드 제거
+
+**§1.8 대로 범주를 갈라서 한다.**
+
+| # | 작업 |
+|---|---|
+| I-1 | **제거** — `sdk/adk/Main/shared/HCSonexFramework.{h,cpp}` 184줄(파일 전체 `#if 0`). **활성 클래스는 `adk/Main/ios/HCSonexFramework.h`(별개)** 이므로 이름이 같다고 함께 지우지 않는다 |
+| I-2 | **제거** — `HCSRIv22Filter.cpp:255`(82줄) · `:338`(52줄). 주석이 폐기 사유를 남겨 뒀다 |
+| I-3 | **제거하지 않는다** — `HCSocketCommunicator.cpp` 13블록은 *"500C_DEBUG 로그 비활성화 — 성능 저하 원인"* 스위치다. **런타임 로그 레벨로 전환**하되, 그것은 이 단계의 범위가 아니므로 **항목으로만 기록**한다 |
+| I-4 | 나머지 4블록(`HCDataBaseController.cpp` · `HCLogger.h` 2벌 · `PatientInfoDb.cpp`) 개별 판정 |
+| I-5 | **빌드 산출물이 바뀌지 않아야 한다** — `#if 0` 제거는 정의상 컴파일 결과가 동일하다. [Phase 1](./phase1-regression-baseline.md) 이 서기 전이므로 **이 성질이 이 단계의 유일한 안전망**이고, 그래서 I-3 처럼 성격이 다른 것을 섞지 않는다 |
+
+### Step 0-J. `feature-apply_v1.23.4` 2커밋 흡수 판단
+
+| # | 작업 |
+|---|---|
+| J-1 | **2커밋 diff 를 읽는다** — `ef7e9ce3`(`HCSRIv23_4Filter`) · `83bde28a`(`HCSRIv23_3Filter`). 커밋 메시지만 확인됐고 `ImageFilter` 실변경은 미확인이다([../../review/sonex-framework.md §11](../../review/sonex-framework.md)) |
+| J-2 | **힐세리온에 머지 예정 여부 질의** — `feature-apply_v1.23.3` 브랜치도 남아 있어(2026-07-11) 이 계열이 **연속 반입 중**일 가능성이 있다 |
+| J-3 | **흡수 여부를 확정한다.** 이후 Phase 가 어느 코드 위에 서는지가 여기서 정해지고, 특히 [Phase 4-G](./plan.md)·[Phase 3-H~3-J](./plan.md) 의 diff 기준선이 걸린다 |
+| J-4 | 흡수하지 않기로 하면 **fork base = master 를 유지하고 그 사실을 기록**한다. 나중에 흡수할 때 재작업량이 늘어난다는 것을 아는 채로 정하는 것과 모르는 것은 다르다 |
+
+### 권장 실행 순서
+
+| 순 | 단계 | 이유 |
+|---:|---|---|
+| 1 | **0-0** | 이것 없이는 아무것도 실행되지 않는다 |
+| 2 | **0-H · 0-I(I-1·I-2) · 0-E** | 저비용·저위험. 산출물이 바뀌지 않으므로 회귀 기준선 없이 할 수 있다 |
+| 3 | **0-J** | 이후 Phase 의 코드 기준선을 확정한다 |
+| 4 | **0-D** | 절대경로가 풀려야 다른 머신에서 **시도**라도 된다(§1.5) |
+| 5 | **0-F(F-1·F-5)** | 관측된 ADK 실패를 실제로 고치는 것은 여기다(§1.2) |
+| 6 | **0-K** | **툴체인·sysroot 가 서야 그 위에서 의존물을 빌드한다.** 0-A 의 ANGLE 자체 빌드가 이것을 전제한다 |
+| 7 | **0-G · 0-L** | **Linux 분기와 구현체.** 주 개발 플랫폼이므로([plan.md §0.1](./plan.md)) 이후 단계가 딛고 설 바닥이다. 0-G 는 `HCCommon.h` 사본 통합 뒤에만 안전하다(§1.7) |
+| 8 | **0-A · 0-C · 0-B** | ANGLE 자체 빌드 → 의존물 관리 도입 → 경로 일원화. **0-A 는 Linux·Android 부터**(A-4) |
+| 9 | **0-F(나머지)** | 진입점·문서 마무리 |
+
+> **6번이 8번 앞에 오는 이유** — ANGLE 을 어느 NDK·어느 SDK sysroot 로 빌드하느냐가 산출물을 결정한다. 툴체인이 안 정해진 상태에서 빌드하면 **재현 불가능한 바이너리를 또 하나 만드는 것**이고, 그것이 지금 상태다.
+>
+> **7번이 8번 앞에 오는 이유** — Linux 분기가 서야 **ANGLE Linux 빌드가 붙을 곳이 생긴다.** 그리고 ANGLE 4플랫폼 중 Linux 가 가장 쉬우므로(Metal·D3D 백엔드 불필요) **자체 빌드 절차를 여기서 먼저 검증**하고 나머지로 넓히는 것이 안전하다.
+
+### Step 0-L. `platforms/linux` 신설
+
+**Linux 는 주 개발 PC 다**([plan.md §0.1](./plan.md)). 기존 문서들이 *"제품 지원 대상이 아니다"* 로 적은 것은 2023년 계획서 기준이며, 이 전제 아래에서는 **범위가 바뀐 것**이지 판정이 틀렸던 것이 아니다.
+
+`[실측 2026-07-30]` **파일은 0개지만 비용이 고르지 않다.**
+
+| 플랫폼 디렉토리 | 파일 수 |
+|---|---:|
+| `shared` | 539 |
+| `macos` | 198 |
+| `android` | 152 |
+| `windows` | 114 |
+| `ios` | 59 |
+| **`linux`** | **0** |
+
+| 대상 | 실측 | 비용 |
+|---|---|---|
+| **소켓** | `HCCompSocketAndroid.cpp` 가 **Android 전용 API 0건**·POSIX 호출 11건 — **순수 POSIX** | **사실상 공짜.** [3-J](./phase3-layer-boundary.md)(공통 추출)와 함께 하면 Linux 가 그 결과를 그대로 받는다 |
+| **오디오** | Android 가 **OpenSLES** 라 이식 불가 | **신규** — ALSA 또는 PulseAudio. 이 phase 최대 항목 |
+| **렌더 서피스** | EGL 이 네이티브. 현재 `GLContext` 구현은 `HCiOSGLContext` 하나뿐이고 그마저 빌드 제외 | **오히려 유리** — [Phase 4-A](./phase4-render-boundary.md) 렌더 HAL 의 **첫 구현체로 삼기 좋다**. surfaceless 컨텍스트가 [1-C](./phase1-regression-baseline.md) 헤드리스 골든의 가장 깨끗한 경로다 |
+| **분기 감사** | `OS_WINDOWS` 111파일 · `OS_ANDROID` 71 · `OS_IOS` 41 | **실제 작업량은 여기다** — Linux 가 Android 경로를 타면 되는 곳과 갈라야 하는 곳을 가른다 |
+
+| # | 작업 |
+|---|---|
+| L-1 | `sdk/sdk/*/linux/` · `sdk/adk/*/linux/` 디렉토리 골격 |
+| L-2 | **소켓** — 3-J 의 공통 POSIX 추출 결과를 Linux 에 연결. 3-J 가 아직이면 `HCCompSocketAndroid.cpp` 를 기준으로 최소 구현 |
+| L-3 | **오디오** — ALSA/PulseAudio 중 택1. 배포 대상 배포판 결정이 선행(0-K K-6) |
+| L-4 | **렌더 서피스** — EGL 컨텍스트 생성. **surfaceless 를 먼저** 만든다(1-C 가 이것을 쓴다) |
+| L-5 | **`OS_ANDROID` 71파일 분기 감사** — Linux 도 참인 것 / Android 전용인 것을 가르고, 전자는 `OS_POSIX` 같은 상위 술어 도입 검토 |
+| L-6 | **서드파티 Linux 조달** — OpenCV·DCMTK·FFmpeg·OpenSSL·freetype. 0-C 매니페스트에 Linux 열 추가 |
+
+> **부수 효과가 크다** — Linux 가 서면 [Phase 5](./phase5-language-wrappers.md) Python 코어의 호스트가 정해지고, [Phase 6-B](./phase6-samples-support.md) Qt6 샘플이 *"core 가 Linux 를 지원하지 않아 Windows·macOS 로 시작"* 하던 제약에서 풀린다.
+
+### Step 0-K. 플랫폼 툴체인·sysroot 고정
+
+**0-C 가 서드파티 *라이브러리*를 다룬다면 0-K 는 플랫폼 *SDK* 다.** 둘 다 없으면 재현 빌드가 성립하지 않는데, 지금까지 후자는 논의된 적이 없다.
+
+`[실측 2026-07-30]` **고정 수준이 플랫폼마다 다르고 일부는 아예 없다.**
+
+| 플랫폼 | 고정된 것 | **고정 안 된 것** |
+|---|---|---|
+| **Android** | `APP_ABI := arm64-v8a`(단일) · `APP_PLATFORM := android-24` · `APP_STL := c++_shared` · `-std=c++17` | **NDK 버전 0건**(`ndkVersion` 선언 없음) → **sysroot 가 머신의 NDK 에 따라 달라진다** |
+| **iOS** | — | **`IPHONEOS_DEPLOYMENT_TARGET` 이 두 갈래**(15.0 **24건** / 16.4 **10건**, 같은 프로젝트 안에서) · Xcode·SDK 버전 미고정 |
+| **macOS** | `CMAKE_OSX_DEPLOYMENT_TARGET 11.0` · `CMAKE_OSX_ARCHITECTURES "arm64"` · `CMAKE_CXX_STANDARD 17` | **`CMAKE_OSX_SYSROOT` 0건** → 머신 기본 SDK. 커밋된 빌드캐시에 **`MacOSX26.2.sdk`·`arm64-apple-macosx15.7.0`·clang 17** 이 박혀 있다 |
+| **Windows** | `<PlatformToolset>v143`(82건) | **`WindowsTargetPlatformVersion` 이 29개 중 14개만**(`10.0.22621.0`). 나머지 15개는 머신 기본 |
+| **headless** | — | **존재 자체가 없다**(0-G 가 신설). glibc·gcc 버전 미정 |
+
+**macOS 는 `arm64` 전용이고 사유가 주석에 있다** — *"Apple Silicon only (Homebrew OpenCV가 arm64 전용)"*. **서드파티 조달 방식이 아키텍처 지원을 좁힌 것**이라 0-C(Homebrew 탈피)와 함께 풀어야 x86_64 Mac 이 열린다.
+
+#### K-0. 무엇으로 고정할 것인가 — 구체안
+
+**표기**: `[코드확정]` 저장소가 이미 요구하는 값 · `[제안]` 우리 판단(근거 명시) · `[결정필요]` 힐세리온이 정해야 하는 값.
+
+**공통**
+
+| 항목 | 값 | 근거 |
+|---|---|---|
+| C++ 표준 | **C++17** `[코드확정]` | `-std=c++17` 7곳 · `CMAKE_CXX_STANDARD 17` 2곳. **C++20 전용 헤더(`<concepts>`·`<ranges>`·`<span>`·`<format>`) 사용 0파일**이라 올릴 이유도 내릴 이유도 없다 |
+
+**Linux — 주 개발·CI·배포 기준선**
+
+| 항목 | 값 | 근거 |
+|---|---|---|
+| **glibc 기준선** | **2.31**(Ubuntu 20.04) `[제안]` | **이 선택이 고객사 호환 범위를 정한다.** SDK 는 재배포물이므로 **빌드 glibc 보다 낮은 시스템에서는 실행되지 않는다.** 낮게 잡을수록 고객이 넓어지고 최신 툴체인은 포기한다. 2.31 은 RHEL 8(2.28)보다 높고 대부분의 현행 배포판을 덮는 절충안이다 — **더 넓히려면 `manylinux_2_28` 계열 컨테이너** |
+| 컴파일러 | **GCC 9**(Ubuntu 20.04 기본) 또는 **Clang 14** `[제안]` | C++17 완전 지원. **OpenCV 3.4.x 가 최신 컴파일러에서 경고·오류를 내므로 상한이 있다**(§K-0 주의) |
+| 빌드 환경 | **컨테이너 이미지로 고정** `[제안]` | K-7. 개발 PC 배포판이 사람마다 달라도 산출물이 같아야 한다 |
+| 오디오 백엔드 | ALSA / PulseAudio `[결정필요]` | [0-L](#step-0-l-platformslinux-신설) L-3. 배포 대상 배포판과 함께 정해진다 |
+
+**Android**
+
+| 항목 | 값 | 근거 |
+|---|---|---|
+| **NDK** | **r25c**(LTS, clang 14) `[제안]` | 현재 **선언 0건**이라 아무 값이나 쓰인다. r25c 는 LTS 이고 `android-24`·`c++_shared` 와 검증된 조합. **더 올리면 OpenCV 3.4.6 프리빌트와의 STL ABI 정합을 재확인해야 한다** |
+| minSdk / API | **`android-24`** `[코드확정]` | `APP_PLATFORM := android-24` |
+| ABI | **`arm64-v8a`**(현행 유지) `[코드확정]` + 확장 여부 `[결정필요]` | 현재 단일. 단 `third_party/readme.txt` 는 `android_v7a`·`android_x64` 도 상정한다 — **선언과 실제가 어긋나므로 어느 쪽으로 맞출지 정해야 한다** |
+| STL | **`c++_shared`** `[코드확정]` | `APP_STL := c++_shared` |
+
+**Windows — 포팅 검증 대상**
+
+| 항목 | 값 | 근거 |
+|---|---|---|
+| 툴셋 | **v143**(VS 2022) `[코드확정]` | `.vcxproj` 82건 |
+| **Windows SDK** | **10.0.22621.0** `[제안]` | **29개 중 14개만 선언**돼 있고 그 14개가 이 값이다. **나머지 15개를 같은 값으로 맞춘다** — 새 값을 고르는 게 아니라 이미 있는 값으로 통일 |
+| 주입 방식 | `Directory.Build.props` `[제안]` | K-5. 29곳을 개별 편집하면 다시 갈라진다 |
+
+**iOS·macOS — 포팅 검증 대상**
+
+| 항목 | 값 | 근거 |
+|---|---|---|
+| **iOS 배포 타깃** | **15.0 또는 16.4 중 택1** `[결정필요]` | 현재 **같은 프로젝트에 15.0(24건)·16.4(10건) 공존**. **낮추면 지원 기기가 넓어지고 높이면 최신 API 를 쓴다** — 제품 정책이라 우리가 정할 수 없다. 다수가 15.0 이므로 **기본값은 15.0 제안** |
+| macOS 배포 타깃 | **11.0** `[코드확정]` | `CMAKE_OSX_DEPLOYMENT_TARGET 11.0` |
+| **macOS sysroot** | **`CMAKE_OSX_SYSROOT` 를 명시 선언** `[제안]` | 현재 **0건**이라 머신 기본 SDK 를 탄다. 커밋된 캐시에 `MacOSX26.2.sdk`·`arm64-apple-macosx15.7.0`·clang 17 이 박혀 있는 것이 그 증거다 |
+| macOS 아키텍처 | `arm64` → **universal 검토** `[제안]` | 현행 `arm64` 전용이고 사유가 *"Homebrew OpenCV가 arm64 전용"* 이다. **0-C 로 Homebrew 를 벗어나면 제약이 사라진다** |
+| Xcode | 배포 타깃을 만족하는 최소 버전 고정 `[결정필요]` | CI 러너 이미지와 함께 정해진다 |
+
+> **주의 — 서드파티가 툴체인 상한을 만든다.** 선언(`third_party/readme.txt`)은 **OpenCV 4.9.0** 인데 실제 `adk/library/` 는 **3.4.5(msvc64)·3.4.6(android)** 이고 macOS 는 Homebrew **4.12.0_11** 이다 — **세 갈래**다. **OpenCV 3.4.x 는 2018년 계열이라 최신 컴파일러에서 깨진다.** 따라서 **툴체인 상한과 서드파티 버전 통일(0-C)은 같이 풀어야 하고**, 어느 OpenCV 로 통일하는지가 컴파일러 선택을 되돌려 제약한다.
+>
+> **부수 발견 — `openssl-1.1.1d` 는 EOL(2023-09) 이다.** 툴체인 항목은 아니나 **재배포물에 EOL 암호 라이브러리가 들어간다**는 것은 B4 에서 별도로 다뤄야 한다.
+
+| # | 작업 |
+|---|---|
+| K-1 | **툴체인 매니페스트 1파일** — 위 K-0 표를 파일로 고정. 0-C 의 서드파티 매니페스트와 같은 파일에 두되 절을 나눈다. `[결정필요]` 3건(Linux 오디오·Android ABI 확장·iOS 배포타깃)은 **미결로 표기한 채 커밋**한다 |
+| K-2 | **Android NDK 버전 고정** — `ndkVersion` 명시. ABI 는 현행 `arm64-v8a` 단일을 유지할지 확장할지 별도 판단(`readme.txt` 는 `android_v7a`·`x64` 도 상정한다) |
+| K-3 | **iOS 배포타깃 통일** — 15.0 / 16.4 두 갈래를 하나로. **낮은 쪽으로 맞추면 지원 기기가 넓어지고, 높은 쪽은 API 를 더 쓴다** — 어느 쪽인지는 힐세리온 판단 |
+| K-4 | **macOS `CMAKE_OSX_SYSROOT` 명시** + `arm64` 전용 제약을 0-C 와 함께 해소 |
+| K-5 | **Windows SDK 버전을 29개 전부에 선언** — `Directory.Build.props` 로 한 곳에서 주입 |
+| K-6 | **headless 툴체인 정의**(0-G 와 짝) — CI 컨테이너 이미지로 고정 |
+| K-7 | **CI 이미지에 굽는다** — 매니페스트가 문서로만 있으면 또 표류한다. **이미지가 강제 수단**이다 |
+
+> **골든 재현성이 여기 걸린다** — [Phase 1-C](./phase1-regression-baseline.md) 의 프레임 골든은 부동소수·컴파일러 버전에 민감하다. 툴체인이 고정되지 않으면 **골든이 머신마다 깨지고**, 그러면 회귀 판정 자체를 신뢰할 수 없다.
+
+---
+
+## 3. 검증
+
+`<repo>` = `client/sonex-framework`(0-0 이후 작업 사본).
+
+| # | 항목 | 명령 | 기대 |
+|---|---|---|---|
+| 3.1 | **ANGLE 경로 선언 1곳** | `git -C <repo> grep -ril 'angle' -- '*.vcxproj' '*.props' 'CMakeLists.txt' '*.txt'` | 정본 선언 파일 **1건**(+ 참조만 하는 파일) |
+| 3.2 | ANGLE 대소문자 | `git -C <repo> grep -c 'Angle' -- '*.vcxproj'` | **0** |
+| 3.3 | ANGLE 상수 해결 | `<repo>` 에서 `ImageRenderer` 만 컴파일 | `EGL_PLATFORM_ANGLE_ANGLE` 미정의 에러 **0건** |
+| 3.4 | 서드파티 버전 단일 | 0-C 매니페스트 vs 빌드파일 참조 대조 스크립트 | 항목별 버전 **1개** |
+| 3.5 | **대소문자 구분 FS** | 대소문자 구분 볼륨(또는 Linux 컨테이너)에 clone 후 `make deps && make build PLATFORM=android` | 경로 대소문자 실패 **0건** |
+| 3.6 | **절대경로 0건** | `git -C <repo> grep -nE 'C:\\work\|/Users/[a-z]+/\|/opt/homebrew' -- '*.sh' '*.bat' '*.ps1' '*.vcxproj' 'CMakeLists.txt'` | **0건** (현재 10 스크립트 + macOS CMake 7줄) |
+| 3.7 | **커밋된 산출물 0건** | `git -C <repo> ls-files '*.o' '*.d'` · `git -C <repo> ls-files \| grep -E 'CMakeCache\.txt\|CMakeFiles/'` | 각 **0** (현재 **164** · **213**) |
+| 3.8 | ignore 커버 | `git -C <repo> check-ignore -v sdk/sdk/Main/macos/build/CMakeCache.txt` | **exit 0** (현재 exit 1) |
+| 3.9 | **빌드 순서** | `make build PLATFORM=android` 를 **병렬 최대치**로 | `unable to find library -lSonexCommon` **0건** |
+| 3.10 | NuGet | 같은 명령 | `NETSDK1004` **0건** |
+| 3.11 | **`HCCommon.h` 1벌** | `git -C <repo> ls-files \| grep -c 'HCCommon\.h$'` | **1** (현재 4) |
+| 3.12 | 미정의 플랫폼 방어 | 플랫폼 매크로 없이 `HCCommon.h` 컴파일 | **`#error` 로 실패** (현재 조용히 통과) |
+| 3.13 | headless 타깃 | `make build PLATFORM=headless` | 링크까지 성공. **렌더 서피스 동작은 판정하지 않는다**(0-G-6) |
+| 3.14 | 충돌 마커 | `git -C <repo> grep -c '^<<<<<<< '` | **출력 없음** (현재 `docs/VERSION_TAGGING.md:3`) |
+| 3.15 | 죽은 코드 | `git -C <repo> ls-files sdk/adk/Main/shared/HCSonexFramework.*` | **0건** |
+| 3.16 | **디버그 스위치 보존** | `git -C <repo> grep -c '#if 0' -- sdk/sdk/DeviceManager/shared/HCSocketCommunicator.cpp` | **13 유지**(또는 로그 레벨 전환 시 등가) |
+| 3.17 | **B1 성공 판정** | **제3의 깨끗한 머신**에서 clone → 문서 절차만 → Android 빌드 | 산출물 생성 |
+| 3.18 | 결정론 | 3.17 을 2회 | 동일 산출물 목록 |
+| **3.19** | **SOUP 인벤토리 완결성**(C-1) | 매니페스트의 13종 각 행에 CVE·EOL 열이 채워졌는지 대조 | **공란 0건.** EOL 컴포넌트(`openssl-1.1.1d` 등)는 대체 버전 또는 예외 사유가 함께 기재돼야 통과 |
+
+> **3.17 이 진짜 게이트다.** 나머지는 그 조건을 만드는 과정이며, [goal.md B1](../goal.md) 의 판정 문구(*"힐세리온 개발자 머신이 아닌 환경에서 clone → 문서 절차 → 빌드 성공"*) 그대로다.
+>
+> **3.5 를 빼지 말 것.** §1.3 의 `Angle`/`angle` 혼재는 macOS·Windows 의 대소문자 무시 파일시스템에서 **드러나지 않는다.** 힐세리온 머신에서 통과하는 것이 곧 재현성이 아니라는 것이 이 phase 의 전제다.
+
+---
+
+## 4. 위험 · 대응
+
+| 위험 | 영향 | 대응 |
+|---|---|---|
+| **ANGLE 출처를 3개 플랫폼에서 회수 못 한다** | 0-A 정지, ②층위 미해소 | **iOS 는 저장소가 답을 갖고 있다**(§1.3). 나머지는 A-2 질의를 **가장 먼저 발신**하고, 회수 전까지는 Android(freetype·angle 2건 결손) 하나로 목표를 좁힌다 — 성공 판정이 1개 플랫폼인 이유 |
+| **ANGLE 을 확보해도 ADK 빌드가 여전히 실패한다** | "고쳤는데 안 된다"로 phase 신뢰 상실 | §1.2 를 착수 전에 공유한다. **관측된 실패는 빌드 순서이고 ANGLE 과 무관**하다. 0-F-1 이 그 층을 맡는다 |
+| **0-C 의 획득 방식 선택이 조직 결정 사항** | 착수 지연 | C-3 은 **CI 무인 재현 가능성** 하나로 가른다. 결정 전에는 매니페스트(C-1·C-3 의 공통 선행)만 만든다 — 어느 방식을 골라도 필요한 산출물이다 |
+| **`git rm --cached` 가 힐세리온 로컬 빌드를 깬다** | 반영 시 충돌 | 0-4(반영 방식 협의) 이후에 0-E 를 밀어 넣는다. **삭제 대상이 전부 생성물**임을 목록으로 제시한다 |
+| **history rewrite 유혹** | 되돌릴 수 없고 힐세리온 원본과 영구 분기 | **0-E-6 — 하지 않는다.** `.git` 525MB 는 이 phase 의 문제가 아니다 |
+| **회귀 판정 수단이 아직 없다** | 0-G(헤더 통합)·0-I 가 동작을 바꿔도 모른다 | 이 phase 는 **산출물이 바뀌지 않는 변경**만 한다. `#if 0` 제거·경로 선언 통일·`git rm --cached` 는 정의상 컴파일 결과가 같다. **0-G-1·G-2 만 예외**이므로 [Phase 1](./phase1-regression-baseline.md) 직후 재검증 대상으로 표시한다 |
+| **0-G-3(`#error`)이 macOS 를 즉시 깬다** | 빌드 중단 | G-1·G-2 완료 후에만 넣는다. §1.7 대로 macOS 갈래는 현재 **외부 매크로 주입에 의존**해 성립한다 |
+| **0-I 가 디버그 스위치까지 지운다** | 500C 디버깅 수단 상실 | I-3 — `HCSocketCommunicator.cpp` 13블록은 **제거 대상이 아니다.** `#if 0` 검색 결과를 그대로 삭제 목록으로 쓰지 않는다 |
+| **착수 후 힐세리온이 master 에 계속 커밋한다** | 작업 사본과 원본이 갈라진다 | 0-4 에서 반영 방식을 먼저 확정. 0-5 의 baseline SHA 로 diff 범위를 항상 계산 가능하게 둔다 |
+| **`feature-apply_v1.23.4` 계열이 계속 자란다** | 0-J 판단이 계속 미뤄진다 | `v1.23.3` 브랜치도 남아 있다(§2 J-2). **연속 반입 중인지**를 질의에 포함하고, 흡수하지 않기로 하면 그 사실을 기록한다(J-4) |
+| 절대경로 제거가 힐세리온 개발자 워크플로를 바꾼다 | 반발·되돌림 | **이미 상대경로인 스크립트 5개가 저장소에 있다**(D-4). 새 규약을 들여오는 것이 아니라 **그들이 이미 쓰는 방식으로 나머지를 맞추는 것**이다 |
+
+---
+
+## 5. 이 phase 가 여는 것
+
+```mermaid
+flowchart LR
+    a[clean checkout]
+    b[make deps]
+    c[make build]
+    d[Android 산출물]
+    e[Phase 1 회귀 하니스]
+    f[Phase 2 패키징]
+    a --> b
+    b --> c
+    c --> d
+    d --> e
+    d --> f
+```
+
+**이 phase 가 만드는 것은 기능이 아니라 판정 가능성이다.**
+
+- [Phase 1](./phase1-regression-baseline.md) 의 CI 는 **빌드가 무인으로 도는 것**을 전제한다. 지금은 드라이버 10개가 두 사람의 머신 경로에 묶여 있어(§1.5) CI 러너에서 시작조차 못 한다
+- [Phase 1-C](./phase1-regression-baseline.md)(헤드리스 렌더 골든)는 0-G 의 headless 타깃이 링크되어야 그 위에 올라간다
+- [Phase 2](./plan.md)(배포 패키지)의 8구성 중 **③ 의존 서드파티**가 0-C 의 매니페스트 그대로다. 지금은 무엇을 넣어야 하는지 저장소가 세 가지로 답한다(§1.4)
+- [Phase 3~4](./plan.md) 의 모든 구조 변경은 "바꾸기 전과 후가 같은가"를 물어야 하는데, **바꾸기 전이 빌드되지 않으면 그 질문이 성립하지 않는다**
+
+그리고 **[goal.md B1](../goal.md) 이 목적 1(외부 고객사 제공)의 첫 관문**이다. B2~B6 가 아무리 채워져도 고객사가 빌드하지 못하면 나머지는 판정 대상이 되지 못한다 — [gap.md §1](../gap.md) 의 B5 판정(*"B1 때문에 고객사가 빌드할 수도 없다"*)이 그 종속을 이미 기록했다.
+
+---
+
+## 6. cross-reference
+
+- [plan.md](./plan.md) Phase 0 — 이 문서의 뼈대. §4 Phase 0 표의 0-0~0-J 를 그대로 전개했다
+- [../gap.md](../gap.md) §3(ANGLE)·§5(B1 빌드) — 판정 SOT
+- [../goal.md](../goal.md) B1 — 성공 판정 문구
+- [../../review/sonex-framework.md](../../review/sonex-framework.md) §1(저장소 구성)·§2.3(플랫폼 분기)·§3.6(`HCCommon.h` 4벌)·§7(빌드)·§10.5(죽은 코드) — 실측 SOT
+- [../rendering-boundary.md](../rendering-boundary.md) — 0-G 가 만들지 **않는** 것(오프스크린 서피스)의 근거. §4.1
+- [phase1-regression-baseline.md](./phase1-regression-baseline.md) — 후행. 이 phase 의 단일 진입점 위에 CI 가 선다
+- [../r2/phase0-hygiene-protocol-sot.md](../r2/phase0-hygiene-protocol-sot.md) — belle-fw 의 대응 phase. **같은 성격의 위생 작업이 장비 쪽에도 있다**
+- [../../../CLAUDE.md](../../../CLAUDE.md) — 0-0 이 해소하는 read-only 미러 제약의 근거
+
+### 이 phase 의 미확인
+
+- **마지막 fetch(2026-07-27) 이후 `origin/master` 변화** — 0-0-1 이 착수 직전에 재확인한다
+- **`feature-apply_v1.23.4` 2커밋의 실제 diff** — 커밋 메시지만 확인했다(0-J-1)
+- **Windows·Android·macOS ANGLE 리비전** — 저장소에 출처 0건, 바이너리 0건. **코드로 회수 불가**(0-A-2)
+- **힐세리온 머신에서 SDK 타깃이 실제로 어디서 막히는지** — 커밋된 로그는 ADK 타깃뿐이라(§1.1) `ImageRenderer` 의 실패는 **관측된 적이 없다.** 정적 분석 도출만 있다
+- **`adk/library/` 13종 벤더 프리빌트의 출처·빌드 옵션** — 파일은 있으나 어디서 받았는지·어떤 구성으로 빌드됐는지 저장소에 없다. FFmpeg GPL 구성 여부([gap.md §8](../gap.md))가 여기 걸린다
+- **`Android.mk` 인라인 생성분과 `.vcxproj` 의 소스 목록이 일치하는지** — 같은 모듈을 두 빌드시스템이 각각 기술하는데 대조하지 않았다
+- **`sdk/common/android/Android.mk` 가 `build_all_android.sh` 의 인라인 생성분과 같은 것인지** — 파일로도 있고 셸이 생성하기도 한다

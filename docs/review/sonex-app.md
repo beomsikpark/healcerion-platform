@@ -1,5 +1,7 @@
 # mobile 그룹 — sonex 코드베이스 실측
 
+> **`sonex-framework`(SDK·ADK) 상세는 [sonex-framework.md](sonex-framework.md) 로 분리했다.** 이 문서에도 framework 내용이 남아 있으나(§1~3·§7~9), 리팩토링 수정 대상의 SOT 는 그쪽이다.
+
 > **근거**: `client/legacy/sonex-app`·`client/legacy/sonex-framework` **코드 직접 읽기**(2026-07-27).
 > **[sonex-architecture.md](sonex-architecture.md) 와의 관계**: 그 문서는 **힐세리온이 쓴 문서(`CLAUDE.md`·`docs/`)가 주장하는 것**을 정리한다. 이 문서는 **코드가 실제로 어떤지**를 다룬다. 둘이 어긋나는 지점은 §3.3·§8 에 표시했다.
 > **표기**: 인용한 경로·심볼·수치는 코드 확인. 확인 안 된 것은 "추정"·"증거 없음".
@@ -32,7 +34,7 @@
 
 | 계층 | 모듈 | LOC |
 |---|---|---:|
-| **SDK** (`sdk/sdk/`, 347파일, **86,853**) | `ImageRenderer` (OpenGL/EGL) | **38,501** |
+| **SDK** (`sdk/sdk/`, 347파일, **86,853**) | `ImageRenderer` (OpenGL/EGL) — 내부 = [legacy/sonex-rendering.md](legacy/sonex-rendering.md) | **38,501** |
 | | `DeviceManager` (하드웨어 프로토콜) | 17,022 |
 | | `ImageFilter` | 14,821 |
 | | `Main`(`HCSonexSDK`) | 9,274 |
@@ -281,6 +283,7 @@ i18n 은 설정만 있고 내용이 없다 — `easy_localization` 이 배선돼
 | 자체 소스 240,900 LOC 에 저장소는 2.0GB | 클론·CI·브랜치 비용이 전부 부풀어 있다. **의존성 관리 도입(vcpkg·Conan·prebuilt 아티팩트 저장소)이 착수 1순위**이며 효과가 즉시 측정된다 |
 | ADK→SDK 단방향 의존이 지켜진다 | 계층 구조는 **살릴 자산**이다. 문제는 계층이 아니라 배포·빌드다 |
 | 앱↔SDK 결합이 플랫폼마다 3가지 | 단일 경계(플러그인 또는 FFI 하나)로 수렴시키는 것이 가장 효과 큰 구조 변경. 폐기된 `flutter_sonex_sdk` 가 그 시도의 흔적이다 |
+| **렌더 표면 결합은 여기서 더 갈라져 4가지**([legacy/sonex-rendering.md §4](legacy/sonex-rendering.md)) | Windows 는 `flutter_native_view` + 자체 HWND + 16ms `SetWindowPos` 추종 **901줄**이다. 텍스처 브리지 일원화가 이 전량을 없앤다 |
 | SDK 바이너리가 개발자 머신 경로로 전달 | **재현 가능한 빌드가 없다.** cctv 형태로 가기 전에 CI 와 아티팩트 파이프라인이 선행돼야 한다 |
 | `linux`·`web` 타깃이 stub | cctv 의 `web/web-app` 축에 대응시킬 실체가 **없다**. 축 매핑은 4개 타깃 기준으로 다시 그려야 한다 |
 | CI 0건, framework 테스트 실질 1파일 | 의료기기 규제(판단 대기 5번) 관점에서 가장 큰 공백 |

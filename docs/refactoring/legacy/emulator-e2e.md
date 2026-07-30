@@ -1,6 +1,6 @@
 # 로컬 에뮬레이터와 E2E
 
-> 왜 필요한지는 [why.md](why.md), 목표 구조는 [architecture.md](architecture.md), 원칙은 [principles.md §3](principles.md).
+> 현행 구조 실측은 [why.md](why.md), 목표 구조는 [architecture.md](architecture.md), 원칙은 [principles.md §4](principles.md).
 > 프로토콜 실측은 [../review/protocol-device.md](../review/protocol-device.md) 가 SOT 다.
 > cctv 에서 이것이 어떤 형태로 서 있는지는 [precedent-cctv.md §3](precedent-cctv.md).
 
@@ -39,7 +39,7 @@
 
 ### 1.3 이유 ③ — 이중 유지보수가 생긴다
 
-프로토콜이 바뀌면 펌웨어와 시뮬레이터를 둘 다 고쳐야 한다. 지금 HC 프로토콜은 이미 **저장소 9곳에 흩어져** 있고([why.md §3](why.md)), 거기에 한 벌을 더 얹는 셈이다.
+프로토콜이 바뀌면 펌웨어와 시뮬레이터를 둘 다 고쳐야 한다. 지금 HC 프로토콜은 이미 **저장소 9곳에 흩어져** 있고([why.md §2](why.md)), 거기에 한 벌을 더 얹는 셈이다.
 
 ## 2. 목표 형태
 
@@ -138,7 +138,7 @@ cctv 의 `IPlatformAdapter`(`Id`·`IsHardwareBacked`·`ApplyRuntimeProfile`·`St
 
 ### 5.4 선례 — 골든 모델 방식이 사내에 있다
 
-FPGA 팀은 비트정확 C 골든 모델 + 기대 벡터로 회귀를 잡는다(`ginny-renewal/model/src/*.c`). §7 의 영상 레벨 검증이 이 방식의 확장이다. **외부 관행을 근거로 들 필요가 없다**([principles.md §7](principles.md)).
+FPGA 팀은 비트정확 C 골든 모델 + 기대 벡터로 회귀를 잡는다(`ginny-renewal/model/src/*.c`). §7 의 영상 레벨 검증이 이 방식의 확장이다. **외부 관행을 근거로 들 필요가 없다**([principles.md §8](principles.md)).
 
 ## 6. 클라우드는 스텁이 아니라 실물을 띄운다
 
@@ -206,7 +206,7 @@ CI 는 **31개 저장소 전부 0건**이므로 단계가 있다.
 | 3 | PC 어댑터 + E2E(§7-1) |
 | 4 | 로컬 클라우드까지 붙인 전 경로(§7-3) · 영상 해시 회귀(§7-2) |
 
-**규제 산출물이 여기서 나온다** — IEC 62304 의 검증 기록이 곧 CI 이력이다([principles.md §9](principles.md)).
+**규제 산출물이 여기서 나온다** — IEC 62304 의 검증 기록이 곧 CI 이력이다([principles.md §10](principles.md)).
 
 ## 9. 판정 기준
 

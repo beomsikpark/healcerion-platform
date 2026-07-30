@@ -1,6 +1,6 @@
 # 목표 구조 — device·client feature-first clean architecture
 
-> 왜 하는지는 [why.md](why.md), 에뮬레이터·E2E 는 [emulator-e2e.md](emulator-e2e.md), 착수 순서는 [assessment.md](assessment.md).
+> 현행 구조 실측은 [why.md](why.md), 에뮬레이터·E2E 는 [emulator-e2e.md](emulator-e2e.md), 착수 순서는 [assessment.md](assessment.md).
 > 현행 구조 실측은 [../review/device-firmware.md](../review/device-firmware.md) · [../review/moana-app.md](../review/moana-app.md) · [../review/sonex-app.md](../review/sonex-app.md).
 
 ## 0. 한 문장
@@ -184,7 +184,7 @@ sonex-app/lib/
 | `data/` | 리포지토리 구현, DTO, 매핑 | domain |
 | `presentation/` | 화면·컨트롤러·위젯 | domain |
 
-`packages/dr_sono` 가 이미 이 형태다 — **새 패턴 도입이 아니라 있는 패턴의 확장이다.**
+`packages/dr_sono` 가 이 형태이므로 **패턴 자체는 사내에 있다.** 다만 그것은 6,130 LOC 의 음성제어 신규 기능이고 `domain/` 은 251 LOC 다 — **초음파 도메인에 이 패턴이 적용된 전례는 없다**([../review/change-cost.md §8.4](../review/change-cost.md)). "있는 패턴의 확장" 이되, 확장 규모가 48,206 LOC 라는 뜻이다.
 
 ### 4.3 왜 Qt 가 먼저인가
 
@@ -224,6 +224,76 @@ feature 단위 파이프라인이라 **진척을 셀 수 있고 중간에 멈춰
 5번이 가장 크고 가장 이득이 크다. 앞 네 단계에서 패턴과 E2E 가 자리잡은 뒤에 한다.
 
 > **이 표의 sonex 쪽 수치는 늘어나는 중이다** — 구 계층이 분기당 +76% 다([../review/sonex-app.md §10](../review/sonex-app.md)). 순서를 늦출수록 각 칸의 숫자가 커진다.
+
+### 4.5 렌더 경계 — 창이 아니라 텍스처를 넘긴다
+
+> **근거·실측 = [../review/legacy/sonex-rendering.md](../review/legacy/sonex-rendering.md).** 여기서는 목표 형태만 적는다.
+
+**계층 위치는 맞다 — 렌더러는 SDK 안에 있어야 한다.** 소비자가 Flutter 만이 아니고(샘플 8종 · `cuattro-sdk` C# 포팅 · FUJI OEM), 측정 13종과 좌표계(scanline↔pixel↔mm)가 스캔 변환에 묶여 있기 때문이다.
+
+**틀린 것은 그 계층의 인터페이스 단위다.** 지금 계약은 `hc_PrepareRenderer(nativeWindow, ...)` — **"OS 창 핸들을 달라"** 이고, 이 하나에서 아래가 전부 파생됐다.
+
+| 파생물 | 규모 |
+|---|---|
+| Windows 자식 HWND + 16ms `SetWindowPos` 추종 + 미문서화 `SetWindowCompositionAttribute` | `native_view_controller.dart` **901줄** |
+| 결합 방식이 플랫폼마다 4벌 | Android PlatformView · iOS·macOS 브리지 · Windows Win32 |
+| **듀얼 스캔을 C++ 안에서 재구현** — Flutter 가 위젯 두 개를 못 놓으므로 | `setDualMode`·`cineCoords`·`cineTouchRecognizer`·`cineMeasureObjects` 등, **6주 반 +3,106줄** |
+| **같은 분할화면을 2중 구현** | `imageRendererSecondary`(별도 렌더러+별도 HWND) 와 `setDualMode`(내부 viewport 분할)가 공존 |
+| 오버레이가 SDK 로 샜다가 되돌아옴 | 줌 인디케이터는 Flutter 위젯으로 이관(SDK 렌더 호출만 주석 처리), 휴지통·FPS 는 아직 C++ |
+| 캡처가 별도 경로 | `readRenderedImage`·`captureFrame`·`hc_renderCineFrameFromGray`·FBO cine job |
+
+### 목표 — `flutter-webrtc` 형태
+
+**참조 구조가 있다.** `flutter-webrtc` 는 동일한 문제(네이티브 C++ SDK 가 실시간 프레임을 생산, Flutter 가 UI)를 **텍스처 핸드오프**로 푼다.
+
+| flutter-webrtc | sonex 목표 |
+|---|---|
+| `libwebrtc` 를 **플러그인이 건드리지 않는다.** 비Flutter 소비자 그대로 | `ImageRenderer` 그대로. **OEM·C#·Java·Swift 소비자 유지** |
+| `common/cpp/src/flutter_video_renderer.cc` — 프레임 싱크가 Flutter 텍스처에 쓴다 | **여기가 지금 비어 있다. 이것만 만든다** |
+| 플랫폼별 **얇은** 플러그인 엔트리 | 두꺼운 4벌을 얇은 4벌로 |
+| `RTCVideoView` = `Texture(textureId:)` | `SonexScanView` = `Texture(textureId:)` |
+| 영상 여러 개 = `Texture` 위젯 여러 개 | **듀얼 = `Row([Texture(0), Texture(1)])`** |
+
+```mermaid
+flowchart TB
+    sdk[SonexSDK ImageRenderer - GL 렌더링 변경 없음]
+    win[출력 A - nativeWindow 직접 그리기 - 기존 계약 유지]
+    tex[출력 B - FBO 렌더 후 텍스처 등록 - 신규]
+    oem[비Flutter 소비자 - C# WPF - Java - Swift 샘플 - OEM]
+    reg[Flutter TextureRegistrar]
+    t0[Texture 위젯 stream 0]
+    t1[Texture 위젯 stream 1]
+    ovl[Flutter 오버레이 위젯 - 줌 - 휴지통 - 측정 패널]
+    stack[Flutter 합성 - Row 와 Stack]
+
+    sdk --> win
+    sdk --> tex
+    win --> oem
+    tex --> reg
+    reg --> t0
+    reg --> t1
+    t0 --> stack
+    t1 --> stack
+    ovl --> stack
+```
+
+**비파괴적이다.** 기존 창 경로(출력 A)를 남기고 텍스처 경로(출력 B)를 **추가**한다. `libwebrtc` 를 수정하지 않고 플러그인이 바인딩만 얹는 것과 같다. 그리고 **렌더러 내부는 다시 쓰지 않는다** — 터치는 이미 `hc_DispatchTouchEvent` 로 내려가고 텍스처는 합성 결과만 넘기므로, `objects/` 8,141 · `measure/` 7,099 는 그대로 둔다. **바뀌는 것은 출력 경로 하나다.**
+
+### 이 앱은 이미 그 방식을 쓰고 있다
+
+`pubspec.yaml` 에 `video_player: ^2.8.2` · `video_player_win: ^3.1.1` 이 있고 `scan_right_panels.dart:722` 가 `WinVideoPlayer` 로 MP4 를 재생한다. `video_player` 는 **Texture 위젯 기반**이다.
+
+> **같은 앱, 같은 화면 계통에서 MP4 는 Flutter 텍스처로 그리고 스캔 영상은 네이티브 창으로 그린다.** 표현 모델이 두 개 공존한다. 반면 스캔 쪽에는 텍스처 경로가 한 줄도 없다 — `Texture(` 0건, `TextureRegistrar`·`registerTexture`·`SurfaceTexture`·`CVPixelBuffer`·`GpuSurface` 전 플랫폼 코드 **0건**.
+
+**시도한 적도 있다** — `pubspec.yaml` 에 주석으로 남은 `flutter_sonex_sdk`(경로가 `/Users/rio/...`)가 플러그인화의 흔적이고, 접혔다. 새 아이디어가 아니라 **되살릴 아이디어**다.
+
+### 미검증
+
+| 항목 | 상태 |
+|---|---|
+| **지연** | 컴포지터 홉 1프레임이 붙는다. 다만 그들이 vsync 를 끈 이유는 **적체**였고, 텍스처는 SDK 가 자기 페이스로 그리고 Flutter 가 최신만 표시하는 mailbox 의미라 **오히려 유리할 수 있다.** 측정하지 않았다 |
+| **Windows 제로카피** | ANGLE D3D11 백엔드라 공유 핸들 → `GpuSurfaceTexture` 경로가 있어 보이나 검증하지 않았다. 안 되면 픽셀 버퍼 복사로 떨어진다 |
+| **캡처 요구사항** | 텍스처가 있으면 `readRenderedImage`·cine FBO 상당수가 불필요해 보이나, 측정 포함·제외 등 캡처 요구사항을 대조하지 않았다 |
 
 ## 5. 양쪽이 같은 feature 이름을 쓴다
 
