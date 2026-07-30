@@ -1,11 +1,12 @@
 # Phase 0 — 빌드 재현성 (B1)
 
-> **상태**: 미시작
+> **상태**: 진행 중 — Step 0-0(0-1·0-2·0-3·0-5) 완료(2026-07-31). 나머지는 미시작
 > **범위**: `sonex-framework`(SDK+ADK)가 **깨끗한 체크아웃에서 문서화된 절차만으로** 빌드되게 한다. 코드 계층·API 계약은 건드리지 않는다 — 이 phase 가 바꾸는 것은 **의존물 확보·경로 선언·빌드 진입점·저장소 위생**뿐이다.
 > **선행**: 없음 (0-0 저장소 재배치가 이 phase 의 첫 항목)
 > **후행**: [Phase 1](./phase1-regression-baseline.md)
 > **근거**: [plan.md](./plan.md) Phase 0 · [goal.md B1](../goal.md) · 판정 SOT = [gap.md §3·§5](../gap.md) · 실측 SOT = [../../review/sonex-framework.md §1·§7](../../review/sonex-framework.md)
 > **실측 기준**: `master` `f336e25b`(2026-07-23), 로컬 HEAD == `origin/master`, 마지막 fetch 2026-07-27. 이 문서의 신규 실측은 2026-07-30 에 `client/legacy/sonex-framework` 에서 직접 측정했다.
+> **작업 사본**: `client/sonex-framework`, 작업 브랜치 = **`refactor/r1`**(2026-07-31 생성, fork base `master`). 브랜치명은 우리 내부 결정 사항 — 힐세리온 협의 대상이 아니다(§2 Step 0-0 참조).
 
 ---
 
@@ -185,6 +186,26 @@ git check-ignore -v sdk/sdk/DeviceManager/android/CMakeCache.txt   # exit 1 (미
 
 루트 `CLAUDE.md` 의 조직 통칙("master 에서 작업하지 않는다")은 `belle-fw`·`moana` 에 맞고 **이 저장소는 예외**다. **fork base 는 master 다.**
 
+### 1.9-보강. `[실측 2026-07-31]` master 전진 — 0-J 판단이 상류에서 선반영됐다
+
+Step 0-0 착수 직전 재fetch(0-1)에서 `origin/master`가 위 실측 기준(`f336e25b`, 2026-07-23)보다 **10커밋 전진**한 것을 확인했다.
+
+```bash
+git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
+```
+
+| 커밋 | 날짜 | 내용 |
+|---|---|---|
+| `15350292` | — | V1.23.3 폐기 — SDK 활성경로 제거(v238 단일) |
+| `be911695` | — | V1.23.4 SDK 재적용 — canonical HCV238 재동기화 |
+| `1080e222`·`e17280b2` | 2026-07-30 | V1.23.5(linmix) SDK 통합 + 병합 |
+
+**귀결**: §1.3·Step 0-J 가 판단을 미뤄 뒀던 `feature-apply_v1.23.4`(`ImageFilter` 를 건드리는 SRI 필터 2커밋)를 힐세리온이 **이미 스스로 master 에 흡수했다.** 새 fork base(`e17280b2`)는 V1.23.4 뿐 아니라 V1.23.5 까지 포함한다 — 0-J 의 "흡수 여부 판단"은 사실상 선반영으로 해소됐다.
+
+**잔여 갭 1건**: `feature-apply_v1.23.4` 브랜치 tip(`c1fafb1d`, 2026-07-27, "V1.23.4 프리셋 동기화 — thyroid 격자·msk 도말/딜레이 수정")은 아직 master 에 없다(`git merge-base --is-ancestor c1fafb1d e17280b2` → NO). `feature-apply_v1.23.3` tip(`83bde28a`)은 master 조상에 포함됨(`git merge-base --is-ancestor` → YES) — 폐기됐어도 커밋 자체는 이력에 남아 있다.
+
+> **0-J 남은 작업**: J-1(2커밋 diff 읽기)은 완료 성격이 바뀌었다 — 흡수 여부가 아니라 **잔여 1커밋(`c1fafb1d`)을 언제 반입할지** 판단으로 좁아졌다. J-2(힐세리온 질의)·J-3(확정)은 이 잔여분에 대해서만 유효하다.
+
 ---
 
 ## 2. 진행 단계
@@ -195,13 +216,13 @@ git check-ignore -v sdk/sdk/DeviceManager/android/CMakeCache.txt   # exit 1 (미
 
 **코드를 건드리기 전에 해야 한다.** 지금 `client/legacy/sonex-framework` 는 read-only 미러라 이하 전부를 실행할 수 없다([루트 CLAUDE.md](../../../CLAUDE.md)).
 
-| # | 작업 |
-|---|---|
-| 0-1 | **착수 직전 재fetch** — 마지막 fetch 가 2026-07-27 이라 그 이후 `origin/master` 변화는 미확인이다. `git -C client/legacy/sonex-framework fetch --all --prune` 후 tip 재확인 |
-| 0-2 | `client/legacy/sonex-framework` → **`client/sonex-framework`** 쓰기 가능 작업 사본 생성. **fork base = `master`**(§1.9) |
-| 0-3 | 미러는 `legacy/` 에 **그대로 둔다** — 대조 기준선이자 루트 `CLAUDE.md` 의 소유권 표시다. 작업 사본에만 쓴다 |
-| 0-4 | **힐세리온 원본 반영 방식 협의** — fork-and-PR · 브랜치 위임 등. **정해지기 전에는 작업 사본을 원본에 강제 동기화하지 않는다** |
-| 0-5 | 착수 시점의 `origin/master` SHA 를 작업 사본에 기록(태그 또는 `BASELINE` 파일). Phase 2-B 버전 스탬프가 이 값을 쓴다 |
+| # | 작업 | 상태 |
+|---|---|---|
+| 0-1 | **착수 직전 재fetch** — 마지막 fetch 가 2026-07-27 이라 그 이후 `origin/master` 변화는 미확인이다. `git -C client/legacy/sonex-framework fetch --all --prune` 후 tip 재확인 | ✅ 완료(2026-07-31) — `origin/master` `f336e25b`→**`e17280b2`**(2026-07-30)로 10커밋 전진 확인. 상세·영향은 §1.9-보강 |
+| 0-2 | `client/legacy/sonex-framework` → **`client/sonex-framework`** 쓰기 가능 작업 사본 생성. **fork base = `master`**(§1.9) | ✅ 완료 — 로컬 clone 후 `origin`을 실제 phabricator 원격(`ssh://git@phab.healcerion.com:2222/diffusion/74/`)으로 교정, `master`를 `e17280b2`로 갱신 후 **작업 브랜치 `refactor/r1`** 생성. 브랜치명은 힐세리온 협의 대상이 아닌 **우리 내부 결정 사항**이라 0-4 와 무관하게 확정했다 |
+| 0-3 | 미러는 `legacy/` 에 **그대로 둔다** — 대조 기준선이자 루트 `CLAUDE.md` 의 소유권 표시다. 작업 사본에만 쓴다 | ✅ 완료 — `make git-status` 로 미러 무변경(`Mirrors: 32 clean`) 확인 |
+| 0-4 | **힐세리온 원본 반영 방식 협의** — fork-and-PR · 브랜치 위임 등. | ⏸ **미정, 그러나 비차단.** 이후 모든 작업은 `master`·`origin` 을 건드리지 않고 **별도 브랜치 `refactor/r1`** 위에서만 진행한다 — 반영 방식이 fork-and-PR 로 정해지든 브랜치 위임으로 정해지든, 지금까지 쌓은 커밋을 그대로 얹을 수 있어 착수를 막을 이유가 없다. 이 협의가 실제로 필요해지는 시점은 **원본에 반영을 시도하는 순간**(diff 제출 또는 위임 브랜치 push)이지 지금이 아니다. **정해지기 전에는 원본에 강제 동기화하지 않는다**는 원칙만 유지한다 |
+| 0-5 | 착수 시점의 `origin/master` SHA 를 작업 사본에 기록(태그 또는 `BASELINE` 파일). Phase 2-B 버전 스탬프가 이 값을 쓴다 | ✅ 완료 — 태그 `baseline-2026-07-31` → `e17280b2` |
 
 > **이 시점부터 이하 모든 Phase 를 실제로 실행할 수 있다.** 재배치 전에도 독립적으로 가능한 것은 [Phase 1](./phase1-regression-baseline.md) 의 `[선행 가능]` 항목들이다.
 
