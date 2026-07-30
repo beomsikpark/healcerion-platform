@@ -77,7 +77,7 @@ while IFS= read -r gitdir; do
     r="${gitdir%/.git}"
     mirror_total=$((mirror_total+1))
     [ -n "$(git -C "$r" status --porcelain 2>/dev/null)" ] && mirror_dirty+=("${r#"$ROOT_DIR"/}")
-done < <(find "$ROOT_DIR" -mindepth 2 -maxdepth 4 -name .git -type d -not -path "$ROOT_DIR/.git")
+done < <(find "$ROOT_DIR" -mindepth 2 -maxdepth 4 -name .git -type d -path "*/legacy/*")
 
 if [ ${#mirror_dirty[@]} -eq 0 ]; then
     echo -e "Mirrors: ${GREEN}${mirror_total} clean${NC} (read-only — detail: make git-sync-legacy ARGS=--dry-run)"
