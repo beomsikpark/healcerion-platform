@@ -1,6 +1,6 @@
 # Phase 0 — 빌드 재현성 (B1)
 
-> **상태**: 진행 중 — Step 0-0(0-1·0-2·0-3·0-5) 완료(2026-07-31). 나머지는 미시작
+> **상태**: 진행 중 — Step 0-0·0-D·0-E·0-H·0-I(I-1·I-2) 완료(2026-07-31, 커밋 `1911035f`·`01505b66`·`62a2ddd7`·`eae9f14d`). 나머지(0-A·0-B·0-C·0-F·0-G·0-J·0-K·0-L)는 미시작
 > **범위**: `sonex-framework`(SDK+ADK)가 **깨끗한 체크아웃에서 문서화된 절차만으로** 빌드되게 한다. 코드 계층·API 계약은 건드리지 않는다 — 이 phase 가 바꾸는 것은 **의존물 확보·경로 선언·빌드 진입점·저장소 위생**뿐이다.
 > **선행**: 없음 (0-0 저장소 재배치가 이 phase 의 첫 항목)
 > **후행**: [Phase 1](./phase1-regression-baseline.md)
@@ -336,28 +336,28 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 
 > **이것과 별개로 먼저 고쳐야 할 보안 결함 둘** — ① **Windows 는 아예 암호화하지 않는다**(`#if OS_ANDROID || OS_IOS`) ② **암호화 실패 시 비암호화로 폴백한다**(fail-open). **의존물 교체와 무관하게 성립하는 결함**이고 의료 데이터라 우선순위가 더 높다. 소관은 [goal.md B4](../goal.md) 이나 **발견 사실을 여기 남긴다.**
 
-### Step 0-D. 절대경로 제거
+### Step 0-D. 절대경로 제거 — ✅ 완료(2026-07-31, `eae9f14d`)
 
 **§1.5 대로 이 단계가 성공 판정에 가장 직접 걸린다.**
 
-| # | 작업 |
-|---|---|
-| D-1 | **Windows 5건** — `cd /d C:\work\flutter\sonex-framework` 를 스크립트 위치 기준 상대경로로(`%~dp0`) |
-| D-2 | **Android/iOS 4건** — `SDK_ROOT="/Users/rio/work/sonex-framework/sdk"` 를 스크립트 위치 기준으로. **이 3개가 Android 빌드 드라이버 전부**다 |
-| D-3 | **macOS CMake 7줄** — Homebrew 절대경로를 `find_package`/`pkg_config` 또는 0-C 매니페스트 경로로. `opencv 4.12.0_11` 같은 **패치 리비전 고정이 링크에 박혀 있다** |
-| D-4 | 이미 상대경로인 5개(`build_adk.bat`·`build_sdk_macos.sh`·`build_universal_sdk.sh`·`copy_dependencies.bat`·`deploy_android_jnilibs.sh`)를 **본보기로 삼는다** |
-| D-5 | 회귀 방지 — 절대경로 패턴을 검사하는 스크립트를 만들고 CI 가 판정([Phase 1-E](./phase1-regression-baseline.md)) |
+| # | 작업 | 상태 |
+|---|---|---|
+| D-1 | **Windows 5건** — `cd /d C:\work\flutter\sonex-framework` 를 스크립트 위치 기준 상대경로로(`%~dp0`) | ✅ `build_sdk.bat`·`build_windows_only.bat`·`build_windows_sdk.bat`·`rebuild_devicemanager.bat`·`rebuild_sdk_full.bat`. `build_imagefilter.bat`(별도 경로 `D:\hc_work\...`, 2건)도 같은 방식으로 처리 |
+| D-2 | **Android/iOS 4건** — `SDK_ROOT="/Users/rio/work/sonex-framework/sdk"` 를 스크립트 위치 기준으로. **이 3개가 Android 빌드 드라이버 전부**다 | ✅ `build_all_android.sh`·`build_direct_android.sh`·`build_modules_android.sh` 는 `SCRIPT_DIR/..`, `fix_ios_exports.sh`(6줄)는 `SCRIPT_DIR` 기준으로 |
+| D-3 | **macOS CMake 7줄** — Homebrew 절대경로를 `find_package`/`pkg_config` 또는 0-C 매니페스트 경로로. `opencv 4.12.0_11` 같은 **패치 리비전 고정이 링크에 박혀 있다** | ✅ `find_package(Freetype)`/`find_package(OpenCV)` 로 교체 — Step 0-C 의 vcpkg 툴체인이 나중에 붙어도 그대로 동작한다 |
+| D-4 | 이미 상대경로인 5개(`build_adk.bat`·`build_sdk_macos.sh`·`build_universal_sdk.sh`·`copy_dependencies.bat`·`deploy_android_jnilibs.sh`)를 **본보기로 삼는다** | 참조만 함(수정 대상 아님) |
+| D-5 | 회귀 방지 — 절대경로 패턴을 검사하는 스크립트를 만들고 CI 가 판정([Phase 1-E](./phase1-regression-baseline.md)) | ✅ `scripts/check-absolute-paths.sh` 신설. 수정 전 커밋으로 역검증해 D-1~D-3 전부 잡아냄을 확인 |
 
-### Step 0-E. 커밋된 빌드산출물 제거 — 두 곳
+### Step 0-E. 커밋된 빌드산출물 제거 — 두 곳 — ✅ 완료(2026-07-31, `62a2ddd7`)
 
-| # | 작업 |
-|---|---|
-| E-1 | `git rm -r --cached sdk/sdk/Main/macos/build/` — **194파일** |
-| E-2 | `git rm -r --cached` 로 `sdk/sdk/DeviceManager/android/` 의 **28파일**(`CMakeCache.txt`·`CMakeFiles/`·`Makefile`·`cmake_install.cmake`). **같은 폴더의 소스 8파일은 남긴다** — 경로 단위 삭제가 아니라 파일 단위여야 한다 |
-| E-3 | `git rm --cached build_adk_arm64_log1.txt` |
-| E-4 | **`.gitignore` 규칙 신설** — 위 셋 다 현재 **미커버**다(§1.6). `build/`·`CMakeFiles/`·`CMakeCache.txt`·`build_*_log*.txt` 로 열거가 아닌 패턴을 쓴다 |
-| E-5 | `.gitignore` 정리 — 101줄에 중복 1건(`build_*_log.txt` 25·47행). **사고마다 한 줄 덧붙이는 방식 자체가 E-3 을 낳았다** |
-| E-6 | **이력은 재작성하지 않는다.** `.git` 525MB 는 그대로 둔다 — 힐세리온 원본과의 반영 방식(0-4)이 정해지기 전에 history rewrite 는 되돌릴 수 없는 변경이다 |
+| # | 작업 | 상태 |
+|---|---|---|
+| E-1 | `git rm -r --cached sdk/sdk/Main/macos/build/` — **194파일** | ✅ |
+| E-2 | `git rm -r --cached` 로 `sdk/sdk/DeviceManager/android/` 의 **28파일**(`CMakeCache.txt`·`CMakeFiles/`·`Makefile`·`cmake_install.cmake`). **같은 폴더의 소스 8파일은 남긴다** — 경로 단위 삭제가 아니라 파일 단위여야 한다 | ✅ 소스 8파일 보존 확인 |
+| E-3 | `git rm --cached build_adk_arm64_log1.txt` | ✅ |
+| E-4 | **`.gitignore` 규칙 신설** — 위 셋 다 현재 **미커버**다(§1.6). `build/`·`CMakeFiles/`·`CMakeCache.txt`·`build_*_log*.txt` 로 열거가 아닌 패턴을 쓴다 | ✅ `sdk/**/{CMakeCache.txt,CMakeFiles/,cmake_install.cmake,Makefile}` 신설, `/sdk/sdk/Main/*/build/` 로 일반화(macOS 도 동일 문제였음), log1 gap 을 `build_*_log*.txt` 로 수정 |
+| E-5 | `.gitignore` 정리 — 101줄에 중복 1건(`build_*_log.txt` 25·47행). **사고마다 한 줄 덧붙이는 방식 자체가 E-3 을 낳았다** | ✅ |
+| E-6 | **이력은 재작성하지 않는다.** `.git` 525MB 는 그대로 둔다 — 힐세리온 원본과의 반영 방식(0-4)이 정해지기 전에 history rewrite 는 되돌릴 수 없는 변경이다 | ✅ 유지 |
 
 ### Step 0-F. 빌드 진입점 통일
 
@@ -386,22 +386,22 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | G-5 | `OS_MACOS` 사용처 **자체 소스 12파일**이 통합 후에도 같게 평가되는지 확인 — 특히 `HCImageRenderCore.cpp:782`(ANGLE 백엔드 선택)와 `HCImageFilter.cpp`(CVIE `#if !OS_MACOS` 게이트) |
 | G-6 | **headless 타깃은 렌더 서피스를 만들지 않는다** — 오프스크린 컨텍스트는 [Phase 1-C·Phase 4-D](./plan.md) 의 **신규 구현**이다. 여기서는 **컴파일·링크가 되는 타깃**까지만 만든다 |
 
-### Step 0-H. 병합 충돌 마커 제거
+### Step 0-H. 병합 충돌 마커 제거 — ✅ 완료(2026-07-31, `1911035f`)
 
-| # | 작업 |
-|---|---|
-| H-1 | `docs/VERSION_TAGGING.md` 의 **3덩이**(22-29 · 151-212 · 225-231) 해소. 상대가 `d3ce40b`, 유입 커밋 `9ac1bfd4` 라 양쪽 원문을 복원할 수 있다 |
-| H-2 | **어느 쪽이 맞는지는 [Phase 2-C](./plan.md)(태깅 규약 정상화)가 정한다.** 이 단계는 마커만 없애고 내용 판단은 넘긴다 |
-| H-3 | 회귀 방지 — 충돌 마커 검사를 CI 에 추가. 전 저장소 13건 중 이 1건뿐이라 **비용이 거의 없는 게이트**다 |
+| # | 작업 | 상태 |
+|---|---|---|
+| H-1 | `docs/VERSION_TAGGING.md` 의 **3덩이**(22-29 · 151-212 · 225-231) 해소. 상대가 `d3ce40b`, 유입 커밋 `9ac1bfd4` 라 양쪽 원문을 복원할 수 있다 | ✅ 마커만 제거, 양쪽 내용 순서 그대로 보존 |
+| H-2 | **어느 쪽이 맞는지는 [Phase 2-C](./plan.md)(태깅 규약 정상화)가 정한다.** 이 단계는 마커만 없애고 내용 판단은 넘긴다 | 판단 안 함 — Phase 2-C 로 이월 |
+| H-3 | 회귀 방지 — 충돌 마커 검사를 CI 에 추가. 전 저장소 13건 중 이 1건뿐이라 **비용이 거의 없는 게이트**다 | ✅ `scripts/check-merge-markers.sh` 신설(CI 연결은 Phase 0-F 진입점이 서면) |
 
-### Step 0-I. 죽은 코드 제거
+### Step 0-I. 죽은 코드 제거 — I-1·I-2 ✅ 완료(2026-07-31, `01505b66`), I-3~I-5 는 범위 밖 유지
 
 **§1.8 대로 범주를 갈라서 한다.**
 
 | # | 작업 |
 |---|---|
-| I-1 | **제거** — `sdk/adk/Main/shared/HCSonexFramework.{h,cpp}` 184줄(파일 전체 `#if 0`). **활성 클래스는 `adk/Main/ios/HCSonexFramework.h`(별개)** 이므로 이름이 같다고 함께 지우지 않는다 |
-| I-2 | **제거** — `HCSRIv22Filter.cpp:255`(82줄) · `:338`(52줄). 주석이 폐기 사유를 남겨 뒀다 |
+| I-1 | **제거** — `sdk/adk/Main/shared/HCSonexFramework.{h,cpp}` 184줄(파일 전체 `#if 0`). **활성 클래스는 `adk/Main/ios/HCSonexFramework.h`(별개)** 이므로 이름이 같다고 함께 지우지 않는다 — ✅ 완료, `SonexFramework.vcxitems` 참조도 함께 정리(안 하면 존재하지 않는 파일을 찾아 빌드가 깨짐) |
+| I-2 | **제거** — `HCSRIv22Filter.cpp:255`(82줄) · `:338`(52줄). 주석이 폐기 사유를 남겨 뒀다 — ✅ 완료 |
 | I-3 | **제거하지 않는다** — `HCSocketCommunicator.cpp` 13블록은 *"500C_DEBUG 로그 비활성화 — 성능 저하 원인"* 스위치다. **런타임 로그 레벨로 전환**하되, 그것은 이 단계의 범위가 아니므로 **항목으로만 기록**한다 |
 | I-4 | 나머지 4블록(`HCDataBaseController.cpp` · `HCLogger.h` 2벌 · `PatientInfoDb.cpp`) 개별 판정 |
 | I-5 | **빌드 산출물이 바뀌지 않아야 한다** — `#if 0` 제거는 정의상 컴파일 결과가 동일하다. [Phase 1](./phase1-regression-baseline.md) 이 서기 전이므로 **이 성질이 이 단계의 유일한 안전망**이고, 그래서 I-3 처럼 성격이 다른 것을 섞지 않는다 |
