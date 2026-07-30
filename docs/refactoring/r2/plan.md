@@ -292,7 +292,7 @@ graph LR
 
 - **Phase 4 가 분기점이다.** 여기서 에뮬레이터가 서면 그 뒤 작업(5~9)은 **개발 PC 에서 판정**된다. 그 전(0~3)은 **현행 출하본을 oracle 로 하는 패리티 대조**로 한다
 - **Phase 7 이 가장 위험**하므로 에뮬레이터·CI 가 선 뒤에 온다
-- Phase 4 산출물이 **[현재 r1 Phase 1](../r1/phase1-regression-baseline.md) 의 장비 축과 만난다** — 같은 HC 프로토콜 계약의 양쪽이다. client 트랙이 `sonex-framework` 로 바뀐 뒤에도 이 대칭은 유지된다 — 그쪽 문서가 이미 이 문서를 "장비 축의 짝 문서"로 인용한다([r1 phase1 §1.1·§8](../r1/phase1-regression-baseline.md))
+- Phase 4 산출물이 **[현재 r1 Phase 1](../r1/phase1-regression-baseline.md) 의 장비 축과 만난다** — 같은 HC 프로토콜 계약의 양쪽이다. client 트랙이 `sonex-framework` 로 바뀐 뒤에도 이 대칭은 유지된다 — 그쪽 문서가 이미 이 문서를 "장비 축의 짝 문서"로 인용한다([r1 phase1 §1.1·Step 1-H](../r1/phase1-regression-baseline.md))
 
 ---
 
@@ -304,7 +304,7 @@ graph LR
 
 - **0-A** `third_party/` 신설 — `strtk.hpp`(**2벌 → 1벌**, 24,293 절감) · `ne10_lib` · `psu_init.h` · `read_ddrc.c`
 - **0-B** `image_proc/lut_header/`(9,262) 를 **데이터**로 분리
-- **0-C** 죽은 것 제거 — `configs/300l`(도달 불가) · `_LINEAR_ARRAY`·`_MSPLIB_`(0회 사용) · `hcproc.img`(2021년 빌드 산출물 9.5MB)
+- **0-C** 죽은 것 정리 — `_LINEAR_ARRAY`·`_MSPLIB_`(0회 사용, 제거) · `hcproc.img`(2021년 빌드 산출물 9.5MB, 제거) · `configs/300l`(도달 불가, **보류** — Phase 9 런타임 변종에서 되살아날 수 있어 지금은 삭제하지 않는다)
 - **0-D** **HC 프로토콜 정본 도입** — `sonon/sonon_receive.h`(2,227, opcode 82개)의 자체 선언을 [legacy/proof/protocol-sot](../legacy/proof/protocol-sot/) 로 교체. **산출물은 이미 완성돼 있다**
 - **0-E** CRC 부재 기록 — `verify_packet_header_and_crc` 가 이름과 달리 검사하지 않는다. **고치지 않는다**(프로토콜 변경이므로 앱과 동시)
 
@@ -312,10 +312,11 @@ graph LR
 
 **있는 것을 잇는다**(§1.8). `lib/test/cf_ff_compare.c` 가 이미 "펌웨어 코드 자체를 호스트에서 검증" 한다.
 
-- **1-A** `lib/test/` 하니스를 **CI 에 올린다** — 드라이버·골든이 `NextDoppler` 에 있으므로 **범위 재판정이 선행**
-- **1-B** 같은 방식을 B·PW·M 으로 확장 — 각 모드의 처리 함수를 호스트 컴파일
-- **1-C** **HC 프로토콜 패킷 골든** — 장비가 내보내는 바이트. [legacy/proof/protocol-sot](../legacy/proof/protocol-sot/) 정본과 대조
-- **1-D** `make test-golden` + CI 1건 — **belle-fw 최초의 CI**
+- **1-A** `NextDoppler` 범위 재판정 — **선행 조건**(드라이버·골든이 그 저장소에 있음)
+- **1-B** `lib/test/` 하니스를 **CI 에 올린다** — `make test-golden` 진입점 연결. **belle-fw 최초의 회귀 테스트 CI**([r3 Phase 5](../r3/phase5-first-build-ci-sdk.md)의 빌드 CI 와는 별개 트랙 — 그쪽이 시간상 먼저 온다)
+- **1-C** 같은 방식을 B·PW·M 으로 확장 — 각 모드의 처리 함수를 호스트 컴파일
+- **1-D** **HC 프로토콜 패킷 골든** — 장비가 내보내는 바이트. [legacy/proof/protocol-sot](../legacy/proof/protocol-sot/) 정본과 대조
+- **1-E** `make` 인터페이스(`test-golden`·`golden-update`·`check-layers`) 확정
 
 > **한계**: 이 시점의 검증은 **함수 단위 호스트 실행**이다. 전 경로 실행은 Phase 4 뒤에 온다.
 
@@ -364,7 +365,7 @@ graph LR
 
 - **6-A** `features/<name>/{ports,domain,data}` 규약 + `domain` 유닛테스트 골격
 - **6-B** `device-config`(`bcd` 3,324) · **6-C** `power-battery`(`deviced` 2,991 + MSP430 + 퓨얼게이지) · **6-D** `diagnostics`(`aging.cpp` 712 + `tools/` 덤프) · **6-E** `probe` · **6-F** `info`·`network`(opcode 20개 중 해당분)
-- **6-G** **`domain` 에 `#ifdef` 0건**(ADR-011) — 검증 항목
+- **검증 항목** `domain` 에 `#ifdef` 0건(ADR-011) — phase6 문서의 lettered step 이 아니라 검증 항목 4.2. 신규 코드 한정, `probe` 의 기존 매크로 유지분은 예외
 
 ### Phase 7 — scan 분할 ★
 
@@ -391,10 +392,11 @@ graph LR
 [legacy/principles.md §8·§9](../legacy/principles.md). **`ginny-fw` 가 이미 그렇게 했다.**
 
 - **9-A** `_USING_500L_DEV_`(12파일 57곳) → `core/entities` 프로브 스펙 데이터
-- **9-B** `_ES3_DEV_`(2/7) → **시리얼 번호로 보드 리비전 판별**(ginny-fw 방식 복원)
-- **9-C** `_USING_SA_DEV_`(7/11) · `_CF_SAMPLE_40M_`(5/7) → 모델 스펙 속성
-- **9-D** `configs/{300l,500l}` 을 **런타임 로드**로
-- **9-E** `_USING_B_CONVEN_DEV_` — 비활성 코드. **되살릴지 지울지 힐세리온 판단**
+- **9-B** `_CF_SAMPLE_40M_`(5/7) → 모델 스펙 데이터
+- **9-C** `_USING_SA_DEV_`(7/11) → **전략 패턴** — 단순 데이터화가 아니다(수신 알고리즘 자체가 다르므로 ADR-011 대응은 strategy pattern). `_USING_B_CONVEN_DEV_`(비활성 코드) 되살릴지 지울지도 여기서 힐세리온 판단
+- **9-D** `_ES3_DEV_`(2/7) → **시리얼 번호로 보드 리비전 판별**(ginny-fw 방식 복원)
+- **9-E** `configs/{300l,500l}` 을 **런타임 로드**로 — Phase 0-C 에서 보류했던 `300l` 이 여기서 되살아날지 결정(단종 라인 실제 활성화는 힐세리온 판단)
+- **9-F** 단일 이미지 빌드 — Buildroot config 에서 모델별 빌드 변형 제거
 
 ---
 

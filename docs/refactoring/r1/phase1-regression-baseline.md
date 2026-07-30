@@ -494,7 +494,7 @@ make test-e2e TARGET=device    # 실장비 접근 확보 시([plan.md](./plan.md
 | **PBuffer 가 ANGLE 백엔드(D3D11/Metal/Vulkan)별로 지원 편차** | 1-C ② 가 막히면 **렌더 회귀 oracle 이 없어져 Phase 4 전체가 판정 불가** | **1-C 를 ①·②로 쪼갠 이유가 이것이다.** ① 필터 골든은 GL 없이 돌고, ② 는 `AngleProbe.mm:56` 선례부터 백엔드별로 확인 |
 | **`hc_ReadRenderedImage` 가 CI 플랫폼에 존재하지 않는다** | 1-C ② 를 headless·Android 에서 시작할 수 없다 | C-e 가 가드 정리를 **1-C 안에 포함**한다. 가드를 넓히는 것이지 알고리즘 변경이 아니므로 회귀 위험이 낮다 |
 | **CVIE 라이선스가 장비 바인딩** | mock 으로 CVIE 유효 경로를 못 만든다 | `HCInstructionSet500L.cpp:393` 이 장비정보 필드 31 에서 키를 읽고 `HCLiveController.cpp:3079` 가 `cvieValidation(serial, key)` 로 검증한다. **500L·500P·500C 해당.** mock 은 `cvieLicense=false` 경로만 덮는다 — CVIE 없는 경로(HNS·NLM·SRI 자체 필터)부터 자동화하고 **실장비 의존을 그대로 인지한다** |
-| **앱이 IP·포트를 6곳에 박아 뒀다** | 앱 레벨 e2e 가 mock 을 못 본다 | SDK 층 왕복(B-g)을 먼저 세운다. 앱 상수 분리는 앱 저장소 트랙([plan.md §7](./plan.md)) |
+| **앱이 IP·포트를 6곳에 박아 뒀다** | 앱 레벨 e2e 가 mock 을 못 본다 | SDK 층 왕복(B-g)을 먼저 세운다. 앱 상수 분리는 [Phase 8-F](./phase8-app-migration.md) 소관 |
 | **0-0 재배치 전이라 코드를 못 고친다** | 1-A·1-C·1-E 착수 불가 | `[선행 가능]` 3건(1-B·1-D·1-F)을 먼저 한다. `protocol-sot` 선례대로 **우리 루트 git 안에서 독립적으로** |
 | **힐세리온 CI 인프라가 없다**(31개 저장소 0건) | 1-E 지연 | 우리는 파이프라인 사양·스크립트만 제공. 인프라 선택은 힐세리온 결정 |
 | 필터 골든이 환경 의존(OpenCV 버전·부동소수·NEON) | 매일 깨진다 | 허용오차를 처음부터 명시. 골든 생성 환경을 **컨테이너로 고정** |

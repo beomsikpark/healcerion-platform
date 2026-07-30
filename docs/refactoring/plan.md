@@ -139,7 +139,7 @@ flowchart TB
 | 4-2 | **미지원 조합의 동작 정의** — 명확한 오류 반환 |
 | 4-3 | **샘플을 언어당 1벌로 채운다** — 배포가 한 패키지이므로 샘플도 하나이고, 그 안에서 SDK 섹션·ADK 섹션을 나눈다(현행 iOS·Android 샘플이 이미 탭 구조)([goal.md B5](goal.md)) |
 | 4-3a | **`SDK-only` 빌드 구성 추가 + CI 판정** — ADK 를 링크하지 않고 빌드가 통과하면 계약 분리가 성립한다는 증명이다. 샘플을 2벌 만드는 것이 아니라 **구성을 하나 더 두는 것**. 현재는 iOS 빌드 역방향(Phase 1-2) 때문에 불가 |
-| 4-3b | **Flutter — 제품에서 추출** — `sonex-app` 이 가장 완전한 참조 구현이다. **`SonexScanView` 위젯도 신규 작성이 아니라 이사** — `open_gl_view.dart` 265 · `native_view_widget.dart` 117 · `scan_controller.dart` 의 `hwnd` 116+61 이 위젯 내부로 들어간다([rendering-boundary.md §7.2](rendering-boundary.md)) |
+| 4-3b | **Flutter — 제품에서 추출** — `sonex-app` 이 가장 완전한 참조 구현이다. **`SonexScanView` 위젯도 신규 작성이 아니라 이사** — `open_gl_view.dart` 265 · `native_view_widget.dart` 117 · `scan_controller.dart` 의 `hwnd` 116+61 이 위젯 내부로 들어간다([rendering-boundary.md §7.2](rendering-boundary.md)). **`sonex-app` 저장소에 실제 반영하는 작업은 [r1 Phase 8](r1/phase8-app-migration.md)** — 이 phase 는 추출물을 `sample/flutter/` 에 세우는 것까지다 |
 | 4-3c | **Python — 코어(Qt 무의존) + `[qt]` 선택 패키지** — 바인딩도 샘플도 0인 유일한 백지. 코어는 프레임을 배열로 반환해 **렌더 경계 판정 시험**을 겸하고, GUI 는 **PySide6**(LGPLv3. PyQt6 는 GPL 이라 배제) |
 | 4-3d | **C++ — Qt6 우선** — 표시 컴포넌트를 `SonexScanWidget`(Qt6)로 낸다. `moana` 의 Qt 경험이 재사용되고 LGPLv3 로 비용이 없다. 헤더 정비(Phase 3-7) 선행 |
 | 4-4 | **통합 문서** — 시작하기·API 레퍼런스·마이그레이션 |

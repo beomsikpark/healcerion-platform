@@ -142,7 +142,7 @@ ubinize -o "${BINARIES_DIR}/hcproc.ubi.bin" "${BOARD_DIR}/ubinize.cfg"
 
 ### Step 4-D. `hcproc.sh` 오버레이 복사 방식 결정
 
-**이 phase 에서는 유지한다.** [device-firmware.md §3](../../review/device-firmware.md)의 "부팅 시 UBI 오버레이를 live rootfs 위로 복사" 메커니즘 자체는 A/B 롤백 가치가 있으므로 **정규 install 로 되돌리지 않는다.** 최종 결정은 [r2 Phase 8-D](../r2/phase8-feature-firmware-process.md)와 함께.
+**이 phase 에서는 유지한다.** [device-firmware.md §3](../../review/device-firmware.md)의 "부팅 시 UBI 오버레이를 live rootfs 위로 복사" 메커니즘 자체는 A/B 롤백 가치가 있으므로 **정규 install 로 되돌리지 않는다.** 이 결정은 **r3 자체 판단으로 확정한다** — [r2 Phase 8](../r2/phase8-feature-firmware-process.md) §1.2 는 오히려 이 배포 방식이 Buildroot 쪽(r3)에서 이미 정해져 있다는 것을 전제로 시작하므로, `r2 Phase 8-D`(belle_flask 웹서버 존치 여부, 무관한 주제)와 함께 판단할 사안이 아니다.
 
 ---
 

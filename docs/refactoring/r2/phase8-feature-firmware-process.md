@@ -4,7 +4,7 @@
 > **범위**: A/B 이중 뱅크 펌웨어 업그레이드를 feature 로. `apps/` 진입점 정리 + `app/composition`(CompositionRoot). `modules/webserver` 유지 여부 판단.
 > **선행**: [Phase 6](./phase6-feature-config-power-diagnostics.md) — 패턴 확립 후
 > **병렬**: [Phase 7](./phase7-feature-scan-split.md)
-> **후행**: [Phase 9](./phase9-runtime-variant.md)
+> **후행**: 명시적 의존 없음 — [Phase 9](./phase9-runtime-variant.md) 와는 독립 진행 가능(plan.md 의존 그래프에도 P8→P9 간선 없음)
 
 ---
 

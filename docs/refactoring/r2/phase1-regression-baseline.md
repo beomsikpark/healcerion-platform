@@ -38,7 +38,7 @@
 
 ### 1.3 목적
 
-1. `lib/test/` 하니스를 **CI 에 올린다** — belle-fw 최초의 CI
+1. `lib/test/` 하니스를 **CI 에 올린다** — belle-fw 최초의 **회귀 테스트** CI([r3 Phase 5](../r3/phase5-first-build-ci-sdk.md)의 빌드 CI 와는 별개 트랙)
 2. 같은 방식을 **B·PW·M 으로 확장**
 3. **HC 프로토콜 패킷 골든** — [Phase 0-D](./phase0-hygiene-protocol-sot.md) 정본과 대조
 4. Phase 2~9 의 모든 변경이 이 게이트를 통과하게 한다
@@ -76,7 +76,7 @@
 |---|---|
 | B-1 | `lib/test/build.sh` 를 `make test-golden` 진입점으로 |
 | B-2 | 골든 데이터를 저장소 안 `tests/fixtures/` 로 (또는 LFS·외부 참조 규약) |
-| B-3 | CI 1건 — 호스트 컴파일 + 하니스 실행 + 합격 기준 판정. **belle-fw 최초의 CI** |
+| B-3 | CI 1건 — 호스트 컴파일 + 하니스 실행 + 합격 기준 판정. **belle-fw 최초의 회귀 테스트 CI**([r3 Phase 5](../r3/phase5-first-build-ci-sdk.md)의 빌드 CI 가 시간상 먼저 온다) |
 | B-4 | 실패 시 수치 diff 를 아티팩트로 |
 
 ### Step 1-C. B · PW · M 확장

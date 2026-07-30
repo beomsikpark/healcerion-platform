@@ -64,8 +64,7 @@ desc: belle ultrasound device firmware
 
 external.mk:
 include $(sort $(wildcard \
-	$(BR2_EXTERNAL_HEALCERION_PATH)/package/*/*.mk \
-	$(BR2_EXTERNAL_HEALCERION_PATH)/package/*/*/*.mk))
+	$(BR2_EXTERNAL_HEALCERION_PATH)/package/*/*.mk))
 export LINUX_DIR
 export UBOOT_DIR
 

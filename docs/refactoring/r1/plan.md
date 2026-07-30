@@ -1,6 +1,6 @@
 # `sonex-framework` 렌더 경계 리팩토링 — r1 Plan
 
-> **범위**: 지금은 `client/legacy/sonex-framework`(read-only 미러) 기준. **Phase 0-0(저장소 재배치) 이후는 `client/sonex-framework` 작업 사본**이 대상이다(SDK+ADK). 앱 측(`sonex-app`)의 Dart wrapper 반영은 소비처 트랙이라 이 문서가 산출물을 만들지만 앱 저장소 수정은 범위 밖(§7).
+> **범위**: 지금은 `client/legacy/sonex-framework`(read-only 미러) 기준. **Phase 0-0(저장소 재배치) 이후는 `client/sonex-framework` 작업 사본**이 대상이다(SDK+ADK). **`sonex-app`(Dart) 이관은 [Phase 8](./phase8-app-migration.md)** 로 이 문서 범위 안에 들어온다 — 별도 저장소(`client/legacy/sonex-app`)라 Phase 8 자체의 저장소 재배치(8-0)를 갖는다.
 > **목표**: [rendering-boundary.md](../rendering-boundary.md) 의 목표 경계(§7)를 실제 코드 구조로 만든다.
 > **원칙**: 상위 [plan.md](../plan.md) 의 "검증할 수 없는 것은 고칠 수 없다"를 그대로 따른다. 이 저장소는 **CI 0건·실질 단위테스트 1파일**([../../review/sonex-framework.md §9](../../review/sonex-framework.md))이라 구조를 바꾸기 전에 회귀 판정 기준선부터 세운다 — **빌드·테스트·배포 자동화 보강이 렌더 경계 작업보다 먼저 온다.**
 > **현행 구조 SOT**: [../../review/sonex-framework.md](../../review/sonex-framework.md). **현재 상태 판정 SOT**: [../gap.md](../gap.md).
@@ -13,7 +13,7 @@
 
 ## 0. 전제 — 상위 계획과의 관계
 
-**이 문서는 [plan.md](../plan.md) 의 Phase 1(B1)·Phase 2(B2)·Phase 3·Phase 3.4·Phase 3.5 를 `sonex-framework` 저장소 수준에서 구체화한 실행 계획이다.** 새 요구를 추가하지 않는다.
+**이 문서는 [plan.md](../plan.md) 의 Phase 1(B1)·Phase 2(B2)·Phase 3·Phase 3.4·Phase 3.5 를 `sonex-framework` 저장소 수준에서 구체화한 실행 계획이다.** 새 요구를 추가하지 않는다 — **단, Phase 8(`sonex-app` 이관)은 예외다**: 상위 plan.md 가 산출물의 실제 소비처 반영을 다루지 않았던 공백을 메우는 신규 항목이다.
 
 | r1 Phase | 상위 [plan.md](../plan.md) 대응 |
 |---|---|
@@ -25,6 +25,7 @@
 | Phase 5 — 언어별 wrapper 정본화 | **Phase 3.5** |
 | Phase 6 — 샘플·문서·지원 경계 | Phase 4 (B5·B6) |
 | Phase 7(보류) — 펌웨어 프로토콜 이관 | Phase 3-9 |
+| **Phase 8 — `sonex-app` 이관** | **신규 — 상위 plan.md 에 대응 항목 없음.** Phase 4(B5·B6)가 산출물을 규정하지만 소비처 반영은 다루지 않았던 공백을 메운다 |
 
 ### 0.1 개발 플랫폼 전제 — Linux 가 주 개발 PC 다
 
@@ -177,14 +178,18 @@ flowchart LR
     p5[Phase 5 - 언어별 wrapper 정본화]
     p6[Phase 6 - 샘플 문서 지원경계]
     p7[Phase 7 - 펌웨어 프로토콜 이관 보류]
+    p8[Phase 8 - sonex-app 이관]
     p0 --> p1
     p1 --> p2
     p2 --> p3
     p3 --> p4
     p4 --> p5
     p5 --> p6
+    p6 --> p8
     p1 -.->|추가 전제 필요| p7
     p3 -.->|SDK-only 게이트 활성화 3-K| p2
+    p4 -.->|렌더 계약 소비| p8
+    p5 -.->|wrapper 소비| p8
 ```
 
 **Phase 1 이 분기점이다.** 여기서 mock 장치 서버와 헤드리스 렌더 골든이 서면 그 뒤(2~6)는 **개발 PC 에서 판정**된다. Phase 0~1 은 지금의 유일한 검증 수단인 힐세리온 로컬 머신·실장비를 oracle 로 패리티 대조한다.
@@ -205,6 +210,7 @@ flowchart LR
 | 5 — 언어별 wrapper 정본화 | [phase5-language-wrappers.md](./phase5-language-wrappers.md) |
 | 6 — 샘플·문서·지원 경계 | [phase6-samples-support.md](./phase6-samples-support.md) |
 | 7 — 펌웨어 프로토콜 이관 | **전용 문서 없음** — 보류이므로 §4 의 Phase 7 절이 전부다 |
+| 8 — `sonex-app` 이관 | [phase8-app-migration.md](./phase8-app-migration.md) |
 
 ### 3.2 테스트 케이스는 Phase 마다 선행 조건이다
 
@@ -284,7 +290,7 @@ flowchart LR
 | 항목 | 내용 |
 |---|---|
 | 2-A | **패키지 구성 확정** — [goal.md B2](../goal.md) 8구성(네이티브 바이너리·공개헤더·의존 서드파티·언어별 wrapper·샘플·문서·라이선스 고지·버전 메타)을 저장소 산출물 경로에 매핑. **CVIE `.cov`·`READMESDK.txt` 등 기밀 표기 문서는 제외 목록으로 명시**([gap.md §8.1](../gap.md)) |
-| 2-B `[선행 가능]` | **버전 스탬프 자동화 — 상수는 이미 있다. 연결이 없을 뿐이다.** `VERSION_SDK`(0.59.0)·`VERSION_ADK`(0.51.0)가 `constexpr` 로 존재하고 `VERSION_*` 이름이 **140개**다. 할 일은 **git↔상수↔산출물을 잇는 것**이지 버전 체계를 만드는 게 아니다. **스탬프 경로가 macOS 하나뿐**이라는 것이 실제 공백이다(iOS 는 `VERSION 1.0.0` 하드코딩, Windows `.rc` 0건, 커밋된 macOS `Info.plist` 의 `CFBundleVersion` 이 **빈 문자열**). 생성 스크립트는 플랫폼 무관이라 재배치 전에도 `ci/` 아래 독립 스크립트로 만들 수 있다 |
+| 2-B `[선행 가능]` | **버전 스탬프 자동화 — 상수는 이미 있다. 연결이 없을 뿐이다.** `VERSION_SDK`(0.59.0)·`VERSION_ADK`(0.51.0)가 `constexpr` 로 존재하고 `VERSION_*` 이름이 **42개**(부분 상수 7개를 빼면 35개 값)다. 할 일은 **git↔상수↔산출물을 잇는 것**이지 버전 체계를 만드는 게 아니다. **스탬프 경로가 macOS 하나뿐**이라는 것이 실제 공백이다(iOS 는 `VERSION 1.0.0` 하드코딩, Windows `.rc` 0건, 커밋된 macOS `Info.plist` 의 `CFBundleVersion` 이 **빈 문자열**). 생성 스크립트는 플랫폼 무관이라 재배치 전에도 `ci/` 아래 독립 스크립트로 만들 수 있다 |
 | 2-C | **태깅 규약 정상화 — 이름공간이 갈라져 있다.** 소스 상수 **0.59.0** vs 최신 태그 **`v3.0.2-Beta`** vs 앱 `pubspec` **3.0.6+1**. **master 가 최신 태그보다 119커밋 앞서고** 0.58·0.59 는 태그가 아예 없다. 여기에 플랫폼 접미사(`v1.0.0-macos`)·소급 태깅이 겹친다([gap.md §6](../gap.md)) |
 | 2-D | **앱↔SDK 호환 조합 선언** — 어느 앱 버전이 어느 SDK 빌드와 짝인지 저장소에서 선언(현재 버전 고정 장치 없음, [gap.md §6](../gap.md)) |
 | 2-E | **멀티플랫폼 빌드 매트릭스 자동화** — Windows·Android·iOS·macOS(+headless) 를 Phase 0 의 단일 진입점 위에서 병렬 빌드, 각 산출물을 표준 경로에 수집 |
@@ -300,13 +306,13 @@ flowchart LR
 
 | 항목 | 내용 |
 |---|---|
-| 3-A | **iOS 빌드 역방향 제거 — SDK 11건 + `common` 4건.** `sdk/sdk/Main/ios/CMakeLists.txt` 11건에 더해 **`sdk/common/ios/Common.iOS.xcodeproj` 가 `adk/library/openssl-1.1.1d_ios` 를 4건 참조**한다. `common` 은 공유 계층이라 **SDK 쪽만 고치면 3-K 게이트가 여전히 실패한다.** 또 **되돌릴 위치가 비어 있다** — 대상 4개 중 `angle_ios`·`freetype_ios`·`opencv_3.4.6_ios` **3개 부재**라 **Phase 0-C 선행 필수**([gap.md §4.1](../gap.md)) |
+| 3-A | **iOS 빌드 역방향 제거 — SDK 10건 + `common` 4건.** `sdk/sdk/Main/ios/CMakeLists.txt` 10건에 더해 **`sdk/common/ios/Common.iOS.xcodeproj` 가 `adk/library/openssl-1.1.1d_ios` 를 4건 참조**한다. `common` 은 공유 계층이라 **SDK 쪽만 고치면 3-K 게이트가 여전히 실패한다.** 또 **되돌릴 위치가 비어 있다** — 대상 4개 중 `angle_ios`·`freetype_ios`·`opencv_3.4.6_ios` **3개 부재**라 **Phase 0-C 선행 필수**([gap.md §4.1](../gap.md)) |
 | 3-B | **서드파티 배치 규약 통일** — `adk/library/` 안에 ANGLE·freetype·opencv·openssl 이 계층 구분 없이 섞인 것을 Phase 0-C 의 의존성 관리와 함께 정리 |
 | 3-C | **동명 심볼 해소** — `HC::DeviceManager`(SDK=물리스캐너 vs ADK=클라우드자산) 이름 분리, `HC::ResultCode` 재정의(`adk/Main/ios/HCSonexSDK_iOS.h`, 값 1 이 `PROGRESSING`/`NOT_CONNECTED` 로 충돌) 제거 |
 | 3-D | **iOS 중복 구현 정리** — `adk/Main/ios/HCSonexSDK_iOS.cpp` 의 raw socket 중복. **착수 전 런타임 실사용 여부 확인 선행**([gap.md §9](../gap.md) 미확인 — `sonex-app.md` 는 iOS 앱이 `SonexSDKBridge.mm` 을 쓴다고 기록해 잔재일 가능성) |
 | 3-E | **C ABI 타입 누수 정리 — 28건**(`sdk/include` + `Main` 실측). `hc_GetLatestRawFrame` 같은 단발이 아니라 **`hc_create*Instance` 계열 6모듈이 전부 `HC::클래스*` 를 반환**한다. opaque handle 로 교체 |
 | 3-F | **공개 헤더 정본화** — `sdk/include/`(27 심볼) 와 `sdk/sdk/Main/shared/`(54 심볼) 통합. **ADK 공개 헤더 신설**(`sdk/adk/Main/shared/HCSonexADKInterface.h` 25심볼을 `adk/include/` 로 승격) |
-| 3-G | **요청코드·스키마 정합 — "헤더에 없다"는 틀렸다.** `sdk/include/HCRequestCommands.h` 에 `REQUEST_*` 가 **186개** 있고 상당수가 JSON 스키마를 주석으로 갖는다. 실제 문제는 **3벌이 갈라진 것**이다 — 공개 186 vs `sdk/common/shared/` **128** vs 샘플 85. **여기선 공개본이 오히려 앞선다**(3-F 의 `HCSonexSDKInterface.h` 와 방향이 반대). 할 일은 노출이 아니라 **정본화 + 주석 스키마를 타입으로 승격** |
+| 3-G | **요청코드·스키마 정합 — "헤더에 없다"는 틀렸다.** `sdk/include/HCRequestCommands.h` 에 `REQUEST_*` 가 **175개** 있고 상당수가 JSON 스키마를 주석으로 갖는다. 실제 문제는 **3벌이 갈라진 것**이다 — 공개 175 vs `sdk/common/shared/` **119** vs 샘플 81. **여기선 공개본이 오히려 앞선다**(3-F 의 `HCSonexSDKInterface.h` 와 방향이 반대). 할 일은 노출이 아니라 **정본화 + 주석 스키마를 타입으로 승격** |
 | 3-H | **파사드 God class 분리** — `SonexSDK`(`HCSonexSDK.h`, public 35·private 52)·`SonexADK`(`HCSonexADK.h`, public 38·private 68)가 초기화·라이브러리 로딩·요청 디스패치·콜백·상태를 한 클래스에서 처리한다. 책임별로(초기화/디스패치/콜백) 내부 클래스 분리 — SRP |
 | 3-I | **거대 dispatcher 정리** — `LiveController::parseRequest`(`HCLiveController.cpp:70~`, **40-case**), `InstructionSet500{C,P}`(각 40+ case)를 lookup-table 또는 command-pattern 으로. 3-G(요청코드 정본화)와 함께 가야 요청 추가마다 switch 가 계속 자라는 걸 막는다 |
 | 3-J | **소켓 HAL 중복 제거 — 2벌이 아니라 3벌이다.** `HCCompSocket{Windows,Android,IOS}.cpp` 실질 줄 193/188/240 중 **Android-iOS 110줄(59%)·Android-Windows 94줄(50%)** 공통([../../review/sonex-framework.md §10.4](../../review/sonex-framework.md)). Windows 도 WinSock 차이를 빼면 같은 골격이다. 공통 유틸 추출 후 플랫폼별로는 차이만 남긴다 — §2.2 의 `platform/` 통합과 같은 방향 |
@@ -348,7 +354,7 @@ flowchart LR
 | 5-E | **생성/검증 자동화** — 공개 헤더를 입력으로 바인딩을 생성하거나, 최소한 헤더↔바인딩 불일치를 CI 가 판정(Phase 1-D 확장) |
 | 5-F | **2차 — JNI·ObjC++** — 표류 해소 후 정본화. Phase 4·5-B~D 뒤에는 추가 비용이 거의 없다 |
 
-**성공 판정**: `wrapper/` 아래 언어당 1벌. 앱이 부르는 심볼 중 구현에 없는 것 0건(전수, 지금은 확인된 3건뿐이고 32개 중 나머지 미조사).
+**성공 판정**: `wrapper/` 아래 언어당 1벌. 앱이 부르는 심볼 중 구현에 없는 것 0건(전수 — 108개 중 29개 부재, 코어 기준 31. 대소문자 오타 3건은 5-C 소관, 나머지 28건은 4-C·4-C2 구현 대상으로 이미 분류됨).
 
 ### Phase 6 — 샘플·문서·지원 경계 (B5·B6)
 
@@ -363,13 +369,35 @@ flowchart LR
 | **6-C** | **Python 샘플 신규 작성** — 바인딩·샘플 **둘 다 0**인 유일한 백지. `sonex` 코어 사용 스크립트(GUI 없이 연결→스캔→프레임 획득 — Phase 4 판정 시험 ②와 동일 코드가 겸한다) + `sonex[qt]` 사용 시나리오(PySide6 `SonexScanWidget`) 두 벌 |
 | 6-D | Flutter 샘플 — `sonex-app` 자체가 이미 SDK+ADK 를 함께 쓰는 참조 구현이다. Phase 5-D 의 `SonexScanView` 추출(이사)이 곧 샘플이라 **별도 신규 작성 없음** |
 | 6-E | 지원 매트릭스(모델×펌웨어×플랫폼) + 미지원 조합 오류 반환 |
-| 6-F | 지원 경계 문서화 — 음향출력(MI/TIB) 표시 책임은 통합자, **500C/500P 펌웨어 업그레이드는 ADK 필요**([goal.md B6](../goal.md)) |
+| 6-F | 지원 경계 문서화 — 음향출력(MI/TIB) 표시 책임은 통합자, **펌웨어 업그레이드는 전 계열이 ADK 필요** — 500L `startFirmwareUpdate` 도 `TODO` 껍데기라 500C/500P 만의 문제가 아니다([goal.md B6](../goal.md)) |
 
 ### Phase 7 — 펌웨어 프로토콜 이관 (보류)
 
 **착수하지 않는다.** [rendering-boundary.md §7.5](../rendering-boundary.md) 의 이유를 그대로 따른다 — 최근 500C/P 실장비 검증 커밋(2026-07-23 계열)을 무효화할 위험, 펌웨어 굽기 실패는 장비 손상, mock 장치 서버(Phase 1-B)로는 실장비 회귀를 대체할 수 없다.
 
 **전제**: Phase 0(빌드)·Phase 1(CI) 완료 + [plan.md Phase 2-5](../plan.md)(실장비 회귀 시나리오, 이 저장소 밖에서 별도 확보). 그때까지는 [goal.md B6](../goal.md) 에 "500C/500P 펌웨어 업그레이드는 ADK 필요"를 명시하는 것으로 갈음한다(Phase 6-F).
+
+### Phase 8 — `sonex-app` 이관
+
+**목표**: `sonex-app`(Flutter)이 Phase 2~6 산출물(정본 wrapper·새 렌더 계약·버전 고정)을 실제로 소비하도록 갈아끼운다. **Phase 0~7 이 만드는 것은 계약과 산출물이고, 이 phase 가 그것을 소비처에 적용해 실제 가치로 바꾼다** — 여기가 없으면 앞의 여섯 phase 는 "쓰이지 않는 정본"으로 남는다. 상세 = [phase8-app-migration.md](./phase8-app-migration.md).
+
+> **별도 저장소다.** `client/legacy/sonex-app` 이 read-only 미러이므로 Phase 0-0 과 같은 재배치가 이 phase 자체의 첫 항목이다(8-0).
+
+| 항목 | 내용 |
+|---|---|
+| 8-0 | **저장소 재배치** — `client/legacy/sonex-app` → `client/sonex-app` 작업 사본 |
+| 8-A | **Flutter wrapper 교체** — 자체 FFI 바인딩(`lib/services/sdk/` 3,732 LOC + `lib/services/adk/` 3,549 LOC)을 Phase 5-D 의 정본 `wrapper/flutter` 패키지로 대체 |
+| 8-B | **렌더 경로 전환** — `open_gl_view.dart`(265)·`native_view_widget.dart`(117) 를 `SonexScanView` 위젯으로, `scan_controller.dart` 의 `hwnd` 관리(116+61줄) 제거. Phase 4 의 `hc_CreateRenderTarget→textureId` 계약 전제 |
+| 8-C | **모듈 로드 목록 정리** — Windows DLL 15개·Android `.so` 나열을 Phase 3(모듈 로드 캡슐화)·Phase 2 F-4(바이너리 이름 정책) 결과에 맞춰 정리. 2026-05-29 ERROR 127 회귀([gap.md §7.1](../gap.md))의 재발 방지책이 이 항목이다 |
+| 8-D | **바인딩 오탐 정정** — 108개 중 29개(코어 기준 31개) 부재 심볼 호출을 실제로 고친다 |
+| 8-E | **리뷰 화면 조율 계층 제거** — `review_annotation_overlay.dart`+`review_sdk_measurement_coordinator.dart`+`review_measure_import.dart` = 1,273 LOC. Phase 4-C 가 재생 경로에도 프레임 반환을 열면 흡수된다([rendering-boundary.md §7.4](../rendering-boundary.md)) |
+| 8-F | **IP·포트 하드코딩 해소** — 6곳·4파일의 리터럴을 설정으로. [Phase 1-B mock 장치 서버](./phase1-regression-baseline.md)를 앱까지 붙이는 전제 |
+| 8-G | **클라우드 경로 단일화** — `http_manager.dart`(Dart 직접)과 `adk_network_service.dart`(ADK 경유) 중 운영 경로 확정([gap.md §9](../gap.md)) |
+| 8-H | **버전 고정 반영** — Phase 2-D 의 앱↔SDK 호환 조합 선언에 맞춰 `pubspec.yaml` 버전 고정 |
+
+**성공 판정**: 앱이 자체 FFI 바인딩 없이 정본 wrapper 만 참조, `hwnd` 참조 0건, 수동 로드 목록 0건, 부재 심볼 호출 0건, 리뷰 조율 계층 소멸, IP·포트 리터럴 0건.
+
+> **하지 않는 것**: 앱의 도메인 기능(워크리스트·측정·DICOM 등)은 바꾸지 않는다. 바뀌는 것은 **SDK/ADK 를 소비하는 배선**뿐이다.
 
 ## 5. 성공 판정 — 전체
 
@@ -411,7 +439,7 @@ flowchart LR
 | **힐세리온 CI 인프라 자체가 없음**(31개 저장소 CI 0건) | Phase 1-E·Phase 2 전체 지연 | 인프라 선택(GitHub Actions 등)은 힐세리온 결정 사항. 우리는 파이프라인 사양과 스크립트만 제공 |
 | `HC::ResultCode` 해소가 기존 iOS 앱 동작을 바꿈 | 회귀 | Phase 3-D 의 런타임 실사용 여부 확인이 3-C 보다 먼저 와야 한다 |
 | `SDK-only` 빌드 구성이 iOS 빌드 시스템 재작업 요구 | 2-G 는 만들었는데 통과하지 못하는 상태가 길어짐 | **구성 추가(2-G)와 게이트 활성화(3-K)를 분리**했다. 2-G 시점엔 실패해도 정상이며, 3-A 완료가 게이트를 켜는 조건이다 |
-| **PBuffer 가 ANGLE 백엔드(D3D11/Metal/Vulkan)별로 지원 편차** | 4-D 지연에 그치지 않는다 — **1-C(헤드리스 렌더 골든)가 막히면 렌더 회귀 oracle 자체가 없어져 Phase 4 전체가 판정 불가**가 된다 | 1-C 를 PBuffer 에만 걸지 않는다. **이미 구현된 FBO 경로(`g_cineFbo`)+`hc_ReadRenderedImage` 를 1차 경로로 쓰고 PBuffer 는 대안으로 둔다.** 픽셀 버퍼 readback 은 성능이 낮아도 골든 비교에는 충분하다([rendering-boundary.md §4.1](../rendering-boundary.md)의 "폴백" 원칙을 검증 경로에도 적용) |
+| **PBuffer 가 ANGLE 백엔드(D3D11/Metal/Vulkan)별로 지원 편차** | 4-D 지연에 그치지 않는다 — **1-C(헤드리스 렌더 골든)가 막히면 렌더 회귀 oracle 자체가 없어져 Phase 4 전체가 판정 불가**가 된다 | 1-C 를 렌더 골든 하나에 걸지 않는다 — **필터 골든(①, `HCDumpManager` stage0~3)은 오프스크린 컨텍스트 없이 이미 성립**해 회귀 감시가 끊기지 않는다. 렌더 골든(②)은 `g_cineFbo`(기존 GL 컨텍스트 전제, 헤드리스 아님)·`hc_ReadRenderedImage`(iOS 전용) 둘 다 CI 헤드리스에 못 쓰므로, **`AngleProbe.mm` 의 pbuffer 생성 선례를 출발점으로 오프스크린 EGL 컨텍스트를 신규 구현**한다([phase1-regression-baseline.md Step 1-C](./phase1-regression-baseline.md)) |
 | 병행 개발과 충돌 — **belle-fw(r2) 의 `production-fw-ver2.0` 만큼 크지 않다** | 병합 비용(제한적) | 실측상 master 가 주 개발선이고 diverge 는 `feature-apply_v1.23.4` **2커밋뿐**이다. 다만 그 2커밋이 SRI 필터라 `ImageFilter` 를 건드리므로 **0-J 에서 흡수 여부를 먼저 정한다.** 진짜 위험은 병행 브랜치가 아니라 **착수 후 힐세리온이 master 에 계속 커밋하는 것** — 0-0 재배치 시점의 반영 방식 합의(아래 행)로 관리 |
 | 신호처리·렌더 알고리즘을 "정리"하고 싶어짐(3-H·3-I·3-J·4-G 포함) | 화질·동작 회귀, 파일 분할이 회귀를 위장 | `ImageRenderer`·`DeviceManager`·파사드 도메인 로직은 **위치만** 이동(mechanical move). diff 에서 알고리즘 본문 변경 0줄 확인. 매 분할 직후 Phase 1 회귀 하니스로 즉시 판정 |
 | **재배치(0-0) 후 힐세리온 원본과의 반영 방식 미정** | 작업 사본과 힐세리온 원본이 갈라져 되돌릴 수 없어짐 | 0-0 착수 직후 fork-and-PR·브랜치 위임 등 반영 방식을 힐세리온과 확정. 정해지기 전에는 작업 사본을 원본에 강제 동기화하지 않는다 |
@@ -420,7 +448,6 @@ flowchart LR
 
 | 항목 | 판단 |
 |---|---|
-| `sonex-app`(Dart) 측 반영 | wrapper 산출물(Phase 5-D)을 앱이 실제로 소비하도록 바꾸는 작업은 앱 저장소 트랙. 별도 착수 필요 |
 | `moana` | 폐기 대상. 무관 |
 | `belle-fw`(장비) | [r2/plan.md](../r2/plan.md) |
 | Buildroot 도입 | [r3/plan.md](../r3/plan.md) |
@@ -456,3 +483,4 @@ flowchart LR
 - [../r2/plan.md](../r2/plan.md) — belle-fw. Phase 1-B 의 대칭 구조(`platforms/pc` 에뮬레이터)
 - [../legacy/precedent-cctv.md](../legacy/precedent-cctv.md) — §2.0 아키텍처 결정의 근거. feature-first clean architecture 실물, `make test-architecture`, `platforms/ubuntu24` 에뮬레이터, §2.3·§6 의 전이 안 되는 조건
 - [../legacy/README.md](../legacy/README.md) — 위탁 리팩토링 전제 셋(특히 전제 ② "작업자는 AI 에이전트다")
+- [phase8-app-migration.md](./phase8-app-migration.md) — `sonex-app` 이관. Phase 4·5 산출물의 실제 소비처

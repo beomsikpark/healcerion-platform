@@ -78,7 +78,7 @@
 
 ### 1.6 범위 한계와 미확인
 
-**하지 않는 것**: SDK 기능 추가, [Phase 7](./plan.md)(500C/500P 펌웨어 프로토콜 SDK 이관), 앱 저장소(`sonex-app`) 수정([plan.md §7](./plan.md)).
+**하지 않는 것**: SDK 기능 추가, [Phase 7](./plan.md)(500C/500P 펌웨어 프로토콜 SDK 이관), 앱 저장소(`sonex-app`) 실제 수정([Phase 8](./phase8-app-migration.md) 소관 — 이 phase 는 추출물까지만 낸다).
 
 **미확인** — 이 phase 착수 전에 답이 필요하다.
 
@@ -151,7 +151,7 @@ error: expected unqualified-id before '[' token                  // uint32_t[10]
 |---|---|
 | D-1 | 추출 대상 `[실측]` — `lib/modules/scan/open_gl_view.dart`(265) · `native_view_widget.dart`(117) · `native_view_controller.dart`(901) · `scan_controller.dart`(8,299) 중 `hwnd` 경로 |
 | D-2 | **앱의 Dart 층에 SDK/ADK 분리가 이미 있다** `[실측]` — `lib/services/sdk/NativeMethods.dart`(1,869) vs `lib/services/adk/adk_native_methods.dart`(346). **샘플의 SDK 섹션·ADK 섹션 경계를 이 분리에 그대로 대응시킨다** — 새로 가르는 것이 아니라 있는 선을 승계한다 |
-| D-3 | 앱 저장소 수정은 범위 밖([plan.md §7](./plan.md)). 이 phase 는 추출물을 `sample/flutter/` 에 세우는 것까지 |
+| D-3 | 앱 저장소 실제 수정은 [Phase 8](./phase8-app-migration.md) 소관. 이 phase 는 추출물을 `sample/flutter/` 에 세우는 것까지 |
 | D-4 | `test/services/adk/adk_native_methods_test.dart` 가 이미 있다 — 샘플 회귀 확인에 재사용할지 검토 |
 
 ### Step 6-E. 지원 매트릭스

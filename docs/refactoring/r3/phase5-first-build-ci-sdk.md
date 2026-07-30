@@ -135,7 +135,7 @@ flowchart LR
     r2p1["r2 Phase 1 회귀 기준선"]
     r2p4["r2 Phase 4 platforms pc 에뮬레이터"]
     r3done --> r2p0
-    r3done --> r2p1
+    r2p0 --> r2p1
     r2p1 --> r2p4
 ```
 

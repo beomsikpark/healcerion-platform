@@ -26,6 +26,8 @@ HLAB-2487(힐세리온 SW 리팩토링 검토)의 산출물이다. **미러 소�
 | **[change-cost.md](change-cost.md)** | **변경 1건의 실제 비용 실측** — 재작업·출하 지연·미도달 커밋. **다른 문서의 "효과" 주장은 전부 여기로 수렴한다.** 논지에 불리한 결과도 그대로 적었다 |
 | [belle-hardware.md](belle-hardware.md) | 보드·SoC·QSPI 파티션·PL 인터페이스·주변장치·MSP430 |
 | [device-firmware.md](device-firmware.md) | 펌웨어 구조 · 빌드/패키징 · 변종 선택 · HC 프로토콜 |
+| [500c-firmware.md](500c-firmware.md) | `500c-sn-fw`(Socionext 베어메탈, belle 비호환·단종 아님). **범위가 축별로 갈린다**: 펌웨어 축 제외 / 클라이언트 축 포함 — **500C·500P·500LS 세 SKU 공용 펌웨어**이며 이미 SoNex 확정 모델 범위에 포함됨([gap.md A2](../refactoring/gap.md)) |
+| [500c-hardware.md](500c-hardware.md) | `500c-sn-fw`·`charm-fpga` 실측 — **Efinix Titanium FPGA**(UDL 가속기) · SPI NOR 32MB 맵 · 프로브 3-SKU 가 공장 플래시 설정으로 갈리는 구조(자동인식 아님) |
 | [moana-app.md](moana-app.md) | **Qt 앱(SOT)** 구조 · 도메인 기능 · 호스트 SW 3종 대조 |
 | **[sonex-framework.md](sonex-framework.md)** | **SDK·ADK 코드베이스 실측** — 계층·공개계약·렌더링·장치통신·빌드·서드파티. **리팩토링 수정 대상의 SOT** |
 | [sonex-app.md](sonex-app.md) | **Flutter 재작성** 실측 — 타깃·결합 구조·완성도 · **전환 진척 시계열(§10)** |
@@ -48,7 +50,6 @@ HLAB-2487(힐세리온 SW 리팩토링 검토)의 산출물이다. **미러 소�
 |---|---|
 | [legacy/ginny-elsa-firmware.md](legacy/ginny-elsa-firmware.md) | 300 시리즈 펌웨어. **런타임 변종 선택 등 belle 보다 나은 설계가 여기 있다** |
 | [legacy/ginny-fpga.md](legacy/ginny-fpga.md) | Artix-7 기반 FPGA 계보(ginny·ash·fuji·charm) |
-| [legacy/500c-firmware.md](legacy/500c-firmware.md) | 500C. belle 비호환(Socionext 베어메탈). **단종이 아니다** — 범위가 축별로 갈린다: **펌웨어 축 제외 / 클라이언트 축 한정 포함**(`sonex-app` 존폐의 결정 인자) |
 | [legacy/misc-legacy-repos.md](legacy/misc-legacy-repos.md) | `cuattro-sdk` · `dicomcontroller` · `russia-server` |
 
 ## 문서 규약

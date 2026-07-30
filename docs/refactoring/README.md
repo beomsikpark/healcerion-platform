@@ -29,7 +29,7 @@
 
 | 트랙 | 문서 | 상태 |
 |---|---|---|
-| `sonex-framework`(client) — 렌더 경계를 코드 구조로 | [r1/plan.md](r1/plan.md) | 착수 전. [plan.md](plan.md) Phase 0(ANGLE 배치 회수) 선행 필요 |
+| `sonex-framework`(client) — 렌더 경계를 코드 구조로 | [r1/plan.md](r1/plan.md) | 착수 전. ANGLE 은 회수가 아니라 **자체 빌드**로 확보한다(r1 Phase 0-A) — 상위 [plan.md](plan.md) Phase 0-3(배치 회수) 전제는 r1 자체 실측으로 무효화됐다 |
 | `belle-fw`(device) | [r2/plan.md](r2/plan.md) | 앱 결정과 무관하게 유효(§아래) |
 | Buildroot 도입(device) | [r3/plan.md](r3/plan.md) | 앱 결정과 무관하게 유효(§아래) |
 

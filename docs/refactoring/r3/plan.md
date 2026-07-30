@@ -149,7 +149,7 @@ buildroot-healcerion/            ← 신설. BR2_EXTERNAL 트리
       belle-fw/                       ★ git-pinned cmake-package
       plif-driver/                    kernel-module
       zynqdma-driver/                 kernel-module
-      msp430-drv/                     kernel-module
+      msp430-i2c-driver/              kernel-module
   configs/
     belle_500l_defconfig
   script/
@@ -174,7 +174,7 @@ buildroot-healcerion/            ← 신설. BR2_EXTERNAL 트리
 | `belle-fw`(CMake 슈퍼프로젝트, sonon+bcd+deviced+watchdogd+lib+image_proc) | `package/app/belle-fw/belle-fw.mk` — **git SHA 하드 핀**, `cmake-package` | `package/app/ipc-app/ipc-app.mk` |
 | `belle-bsp/vivado-hw-xsa/*.bin`(비트스트림) | `package/soc/zynqmp/xilinx-bitstream/` — **local, INSTALL_STAGING 없이 이미지에 직접** | `package/soc/nt98566/nt98566-sdk/`(local, `generic-package`) |
 | `belle-bsp/vivado-hw-xsa/es3-pmu-*.elf` | `board/belle-500l/pmufw/` — `BR2_TARGET_UBOOT_ZYNQMP_PMUFW` | (cctv 에 대응 없음 — ZynqMP 고유) |
-| `modules/plif` · `zynqdma` · `msp430_drv` | `package/app/{plif,zynqdma,msp430}-driver/` — **Buildroot 코어 `kernel-module` 인프라** | (cctv 는 프리빌트라 대응 없음. Buildroot 코어 기능 직접 사용) |
+| `modules/plif` · `zynqdma` · `msp430_drv` | `package/app/{plif-driver,zynqdma-driver,msp430-i2c-driver}/` — **Buildroot 코어 `kernel-module` 인프라** | (cctv 는 프리빌트라 대응 없음. Buildroot 코어 기능 직접 사용) |
 | `belle-kernel`(linux-xlnx 포크) | Buildroot `BR2_LINUX_KERNEL_CUSTOM_GIT` — **git SHA 핀** | `linux-cctv.git`(태그 핀) |
 | `belle-u-boot` | Buildroot `BR2_TARGET_UBOOT_CUSTOM_GIT` | `u-boot-cctv.git`(태그 핀) |
 | `belle-bsp` 자체 | **소멸** — 역할이 `board/belle-500l/` + 각 패키지로 분산 | (cctv 에 BSP 프로젝트 자체가 없다 — Buildroot 가 그 역할) |
@@ -242,7 +242,7 @@ cctv 의 5원칙(`board/`·`package/{soc,app,lib,thirdparty,web}`·`configs/`·`
 - **4-A** `belle-fw.mk` — **git SHA 하드 핀**, `IPC_APP_GIT_SUBMODULES` 대응 여부 확인(belle-fw 는 서브모듈 없음 — 단순 `cmake-package`)
 - **4-B** `EXTERNALSRC_pn-sonon` 절대경로 제거 — 의존이 `DEPENDENCIES` 목록(Phase 2 커널 모듈 포함)으로 명시
 - **4-C** `post-image.sh` — `release_elsa.sh` 의 `sudo mkfs.ubifs`+`ubinize` 를 재현. mtd2/3(커널 A/B) · mtd4/5(앱 오버레이 A/B) 생성
-- **4-D** `hcproc.sh`(S95 오버레이 복사) 배치 방식 유지 여부 결정 — Buildroot 정규 install 로 바꿀지, 기존 방식을 보존할지는 [r2 Phase 8](../r2/phase8-feature-firmware-process.md)과 함께 판단
+- **4-D** `hcproc.sh`(S95 오버레이 복사) 배치 방식 유지 여부 결정 — Buildroot 정규 install 로 바꿀지, 기존 방식(A/B 롤백 가치)을 보존할지는 **r3 자체 판단으로 확정한다**. [r2 Phase 8](../r2/phase8-feature-firmware-process.md)은 이 배포 방식이 이미 정해져 있다는 것을 전제로 시작하므로 결정 주체는 r3 다
 
 ### Phase 5 — 첫 빌드 · CI · SDK
 

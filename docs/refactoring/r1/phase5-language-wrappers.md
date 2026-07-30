@@ -143,7 +143,7 @@ flowchart LR
 | 흩어진 27벌을 `wrapper/` 로 수집·정본화 | **부재 28건의 SDK 측 구현** — [Phase 4-C·4-C2](./phase4-render-boundary.md) |
 | 공개 ABI 대비 심볼 정합 | **공개 ABI 자체의 확정** — [Phase 3-F](./phase3-layer-boundary.md) |
 | 언어별 표시 컴포넌트 제공 | **샘플·문서** — [Phase 6](./phase6-samples-support.md) |
-| 오철자 교정과 별칭 | **앱(`sonex-app`)이 정본 wrapper 를 소비하도록 바꾸는 일** — 앱 저장소 트랙([plan.md §7](./plan.md)) |
+| 오철자 교정과 별칭 | **앱(`sonex-app`)이 정본 wrapper 를 소비하도록 바꾸는 일** — [Phase 8-A](./phase8-app-migration.md) 소관 |
 
 ---
 
@@ -320,7 +320,7 @@ flowchart TB
 | **[Phase 6](./phase6-samples-support.md) 이 성립한다** | 샘플은 wrapper 의 사용례다. 정본이 없으면 샘플이 어느 벌을 쓰는지 물을 수 없다 |
 | **[../goal.md B2](../goal.md) 8구성 중 "언어별 wrapper" 가 채워진다** | 지금 배포 산출물 0벌 |
 | **[../rendering-boundary.md §7](../rendering-boundary.md) 판정 시험 ②가 통과 가능해진다** | Python 에서 창 없이 동작 — Phase 4 가 경로를 만들고 5-D 가 소비 수단을 만든다 |
-| **앱 측 배관 1,273 + 901 + 116 LOC 의 회수 경로가 열린다** | [../rendering-boundary.md §5.3·§7.4](../rendering-boundary.md). 다만 **회수 자체는 앱 저장소 트랙**이며 이 phase 는 대체물을 낼 뿐이다 |
+| **앱 측 배관 1,273 + 901 + 116 LOC 의 회수 경로가 열린다** | [../rendering-boundary.md §5.3·§7.4](../rendering-boundary.md). 다만 **회수 자체는 [Phase 8](./phase8-app-migration.md) 소관**이며 이 phase 는 대체물을 낼 뿐이다 |
 | **다시 갈라지지 않는다** | 3.6·3.7 게이트. 27벌 표류의 원인이 이 장치의 부재였다 |
 
 **그리고 이 phase 가 끝나면 "SDK 를 외부에 제공한다"는 목적 1이 처음으로 판정 가능해진다** — 고객사가 받는 것이 헤더 27심볼과 정합하는 언어별 정본 1벌이고, 그 정합을 사람이 아니라 CI 가 보증하기 때문이다.

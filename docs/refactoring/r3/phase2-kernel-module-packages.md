@@ -10,7 +10,7 @@
 
 ## 1. 배경
 
-### 1.1 이미 90% 완성된 Makefile 이 있다
+### 1.1 이미 거의 완성된 Makefile 이 있다
 
 `modules/plif/readme.makefile`(belle-fw) 전문:
 
