@@ -66,6 +66,31 @@ Phase 0~2 로 **빌드·테스트·게이트가 서고 나서** 3-C·3-F·3-G �
 
 > **순서가 갈린다** — 결함 1 은 `sdk/include/` 정본화(3-F)와 같은 작업이고 지금 게이트가 이미 17건을 세고 있다. 결함 2 는 API 변경이라 §3.2 대로 **왕복 케이스가 먼저**이며, 그 케이스는 Windows·Android 에서만 돌 수 있다 — **Linux 에서는 이 API 자체가 없어 판정할 수 없다.**
 
+### 3-F-추가 — **사본 갈림은 위생이 아니라 ABI 문제다** `[실측 2026-08-02]`
+
+Phase 4 에서 렌더 코어를 오프스크린에 세우다 발견했다. **이것이 3-F 의 가장 무거운 근거다.**
+
+```
+sizeof(ImageRenderCore) = 3728   (-I sdk/sdk/ImageRenderer/shared 우선)
+sizeof(ImageRenderCore) = 3144   (-I sdk/include 우선)
+```
+
+**같은 클래스가 include 경로 순서에 따라 584바이트 다르다.** 이 객체를 스택에 두면 **생성자가 호출자 프레임을 넘어 쓴다** — AddressSanitizer 가 생성자에서 `stack-buffer-overflow`(WRITE of size 8)를 짚었고, 실행은 `*** stack smashing detected ***` 로 죽는다.
+
+원인은 `HCImageRenderCore.h` 가 include 하는 헤더 **8개**가 두 트리에서 md5 가 다르고, 그중 **멤버를 가진 클래스**가 레이아웃을 바꾸기 때문이다 — `HCRenderObject` · `HCScanCFConvex` · `HCScanCFLinear` · `HCScanSpectrum` · `HCScanSideRuler` · `HCScanPwCursor` · `HCGlslShader` · `glad/glad.h`.
+
+**전수 실측**: 공개 헤더 중 내부 동명이 있는 것 **121건** — 동일 71 · 전달 1 · **갈림 49**.
+
+| | 이전 판의 3-F 근거 | 이번 실측 |
+|---|---|---|
+| 성격 | 심볼 수가 다르다(27 vs 54) · 헤더가 컴파일되지 않는다 | **ABI 가 깨진다** |
+| 영향 | 고객사가 샘플을 못 짠다 | **고객사가 이 클래스를 스택에 두면 스택이 깨진다** |
+| 판정 | 헤더 단독 컴파일 | 위 + **사본 갈림 0** |
+
+> **전달 헤더는 갈린 것이 아니다.** [0-G](./phase0-build-reproducibility.md) 가 `HCCommon.h` 를 그렇게 만들었고 그것이 3-F 가 지향하는 상태다 — 실체는 하나이고 옛 경로가 그리로 넘긴다. 게이트(`scripts/check-header-copies.py`)가 둘을 구분한다.
+>
+> **완료 판정**: 이 게이트가 0 이 되면 `test/render/test_render_core_offscreen.cpp` 의 `DISABLED_` 를 뗄 수 있다. **3-F 가 끝났는지를 렌더 케이스가 판정하는 구조**다.
+
 ### 3-G — **통합이 무손실이다**
 
 `HCRequestCommands.h` 3벌의 상수가 **175 / 119 / 81** 로 다르다. 그러나 **사본 간 "같은 이름·다른 값" 이 0건**이다. `protocol-sot` 전수 대조에서 무손실 통합의 근거였던 것과 같은 판정이고 같은 방법으로 얻었다.
