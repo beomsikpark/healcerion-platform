@@ -1,6 +1,6 @@
 # Phase 4 — 렌더 서피스 HAL·출력 경계 계층화
 
-> **상태**: 진행 중 — **4-A(A-1·A-1a)·4-D 착수분 완료**(2026-08-02, 커밋 `8ae0b4ce`·`aef8407d`). 포트·mock·Linux offscreen 구현체가 서고 계약 케이스 **12건**이 두 구현체를 함께 판정한다. 코어에서 EGL 을 걷어내는 것(A-3)과 나머지 플랫폼 구현체(A-2)는 미시작
+> **상태**: 진행 중 — **4-A(A-1·A-1a·A-2·A-3·A-6)·4-D 완료**(2026-08-03, 커밋 `8ae0b4ce`·`aef8407d`·`de8787cb`·`0795d972`). **코어의 EGL 이 63 → 0** 이고, **창 핸들 없는 공개 API**(`hc_CreateRenderTarget`)가 선다. 렌더 케이스가 실제로 돌아 이 변경들을 판정한다. 남은 것은 A-4·A-5 와 4-B·4-C·4-E·4-F·4-G
 > **⚑ 판정 시험 ② 재정의(2026-08-02)**: 이전 판의 **"Python 이 창 없이"** 는 두 가지가 틀렸다 — ① **Python 에도 창은 있다**(PySide6 등, [../goal.md §5.3 ⚑](../goal.md)) ② 언어 범위가 Qt/C++ 1종으로 좁혀져(→[../goal.md §1 ⚑](../goal.md)) Python 이 판정 주체일 이유도 없어졌다. **헤드리스 요구 자체는 그대로 남는다** — 이유가 "언어 독립 증명" 에서 **"CI 가 렌더 회귀를 판정할 유일한 수단"** 으로 바뀐다(§3.2).
 > **범위**: `sonex-framework` 의 **렌더 출력 계약**. SDK 가 받는 것을 윈도우 핸들에서 렌더 타겟 크기로, 주는 것을 없음에서 완성 프레임으로 바꾼다. **`ImageRenderer` 의 알고리즘 본문은 건드리지 않는다.**
 > **선행**: [Phase 3](./phase3-layer-boundary.md) — 3-A(iOS 빌드 역방향)·3-E(C ABI 타입 누수)·3-F(공개 헤더 정본화)가 이 phase 의 API 작업이 설 바닥이다
@@ -127,7 +127,7 @@ flowchart LR
 
 **4-A 가 먼저인 이유** — 나머지 전부가 "서피스를 어디서 얻는가"에 걸린다. **4-G 가 마지막인 이유** — 앞 단계가 코어에서 EGL·플랫폼 분기를 이미 걷어내므로 남은 분할 대상이 줄고, 헤더를 건드리는 작업이라 [Phase 3-F](./phase3-layer-boundary.md)(공개 헤더 정본화) 완료가 전제다.
 
-### Step 4-A. 렌더 서피스 HAL 신설 — ✅ A-1·A-1a·A-2·A-3 완료(2026-08-03, `de8787cb`)
+### Step 4-A. 렌더 서피스 HAL 신설 — ✅ A-1·A-1a·A-2·A-3·A-6 완료(2026-08-03, `de8787cb`·`0795d972`)
 
 #### A-3 결과 — **코어에서 EGL 이 0 이다** `[2026-08-03]`
 
@@ -139,6 +139,30 @@ flowchart LR
 | `HCImageRenderCore.cpp` | 7,679줄 | 7,158줄 |
 
 **판정이 실제로 돌았다.** [3-F](./phase3-layer-boundary.md) 가 살려 낸 `test/render/test_render_core_offscreen.cpp` 가 이 변경을 통과 판정했다 — `initialize(nullptr, true)` 는 이제 `Adopted` 종류로 `EglRenderSurface` 를 거쳐 남의 컨텍스트를 채택한다(103/103). 판정 수단 없이 7,679줄 파일에서 63곳을 빼는 것은 검증이 아니라 기대다.
+
+#### A-6 결과 — **창 핸들이 필요 없는 길이 생겼다** `[2026-08-03]`
+
+```
+hc_CreateRenderTarget(width, height, useAppThread, streamIndex)
+hc_ResizeRenderTarget(width, height, streamIndex)
+```
+
+공개 심볼 **57 → 59**. `hc_PrepareRenderer` 는 계획대로 deprecated 로 남긴다.
+
+> **"핸들을 안 넘기는 길" 로는 부족하다.** 이미 `hc_PrepareRenderer(nullptr, ...)` 이 있었지만 그것은 **호출자가 이미 current 로 만들어 둔 컨텍스트를 채택**하는 경로(Adopted)라 호출자가 EGL 을 알아야 한다. 창을 안 넘길 뿐 GL 결합은 그대로다. A-6 은 **SDK 가 직접 서피스를 만드는 길**(Offscreen)을 낸다 — 그 차이가 [Phase 5](./phase5-language-wrappers.md) 의 Qt6 표시 컴포넌트가 창 핸들 없이 짜일 수 있는지를 가른다.
+
+케이스 7건이 **C ABI 로** 부른다 — 소비자가 보는 것이 그것이고, C++ 클래스로 부르면 고객이 실제로 쓰는 경로를 시험하지 않은 것이 된다.
+
+#### A-6 이 막혀 있던 이유 둘 — **둘 다 A-2 와 같은 형태였다** `[2026-08-03]`
+
+| # | 막던 것 | 성격 |
+|---|---|---|
+| 1 | **Linux 오디오 백엔드 부재로 `SonexSDK` 를 링크할 수 없다** | `libImageFilter.so` 가 `HC::createAudioPlayer()` 를 못 찾는다. 플랫폼 구현이 windows·android·ios 3벌뿐이었다 |
+| 2 | **모듈 로더 14벌에 Linux 가 없다** | `loadImageRendererLibrary` 등이 `#else return INVALID_PLATFORM` 으로 떨어진다. **같은 플랫폼 목록이 14곳에 흩어져 있고 한 곳만 고치면 나머지 13곳에서 같은 실패가 난다** |
+
+2번이 A-2 와 같은 형태라는 것이 요점이다. A-2 는 그 목록이 **3곳**이었고 r1 작업 중 두 번 죽였다. 여기서는 **14곳**이다. Linux 는 iOS/macOS 와 같은 갈래이므로(모듈을 `dlopen` 하지 않고 링커가 직접 잇는다) 14벌을 함께 고쳤다.
+
+1번은 `sdk/sdk/ImageFilter/linux/HCAudioPlayer_Linux.cpp` 로 냈다. **소리는 내지 않지만 조용히 성공하지도 않는다** — `onStart` 가 `NOT_IMPLEMENTED` 를 돌려주고 버려진 바이트를 세어 해제 시 보고한다. 성공을 반환하면 호출자는 소리가 나는 줄 알고 **그 오해는 실장비 시험까지 살아남는다.** 실제 백엔드(ALSA·PulseAudio·PipeWire) 선택은 `toolchain.json` 에 `pending` 으로 남아 있다 — 배포 대상 배포판이 정해져야 고를 수 있다.
 
 #### A-2 의 형태가 바뀌었다 — **플랫폼 클래스 5벌이 아니라 1벌**
 
