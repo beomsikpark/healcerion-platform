@@ -31,6 +31,22 @@ g++ -std=c++17 -fsyntax-only -Wall -Wextra -DPLATFORM=1 -D__ANDROID__ \
     -Isdk/include -Isdk/common/shared -Isdk/sdk/DeviceManager/shared ... <파일>
 ```
 
+### 1.1 반증 검증 (2026-08-02, 별도 세션)
+
+**이 문서를 승인하려는 관점이 아니라 반증하려는 관점으로 재검증했다.** 문서를 읽는 것이 아니라 **같은 코드를 다시 열어** 각 주장을 확인했다.
+
+| 항목 | 방법 | 결과 |
+|---|---|---|
+| SDK-01 | `putFloat` 구현 · 호출 9곳 · `moana` 대응 함수 | **성립.** 호출 지점 줄번호 9개 전부 일치 |
+| SDK-02 · 05 · 09 · 12 | `g++ -Wall -Wextra` 실제 실행 | **재현.** `-Wdelete-incomplete` 2 · `-Wunused-parameter` 3 · `memcpy` 미선언 3 · `-Wtype-limits` |
+| SDK-03 | 격리 프로그램 + **ASan** | **재현.** 음수 반환 2경로 · `new char[0]` · heap-buffer-overflow 확정 |
+| SDK-10 | 소켓 3벌 connect 완료 경로 | **성립.** Android `tv{0,10}`·Windows 동일 / iOS 만 `tv{2,0}`+`errorfds`+`SO_ERROR` |
+| SDK-11 · 13③ · 14 · 18 | 코드 판독 | **성립** |
+| MO-01 | `checkPacketHeaderInfo` · `setDataLen` · `read` 경로 · 버퍼 상수 | **성립.** 상한 검사 없음 확정 |
+| **정정 6건** | — | 아래 각 항목에 `반증 검증 정정` 으로 표기 |
+
+**미검증으로 남은 것**(승인도 부정도 하지 않았다): SDK-04 · 06 · 07 · 08 · 15 · 16 · 17 · 19 · 19b · 20 · MO-02 · MO-03 · MO-04. **26건 중 13건을 검증했고 나머지 13건은 문서 주장을 그대로 둔다.**
+
 ## 2. 결론
 
 | | 판정 |
@@ -76,9 +92,9 @@ flowchart LR
 |---|---|---|---|
 | **SDK-01** | **`putFloat`·`putDouble` 이 float 을 1바이트로 쓴다.** 본문이 `buffer.push_back(b ? 1 : 0)` — `putBoolean` 을 복사하고 타입만 바꿨다. **같은 클래스의 `getFloat`·`getDouble` 은 4·8바이트를 읽는다**(`:218-233`). 호출 지점 **9곳**(300C:1467 · 300L:876·970·1128·1263·1688 · 500C:1636 · 500L:1547 · 500P:1628) | `HCPacketData.cpp:151-161` | **치명** `코드 대조` |
 | **SDK-11** | **프레임 1장마다 `VariantMap` 이 샌다.** `case CMD_RECEIVE_FRAME` 이 함수 끝의 `delete data`(`:341-343`)로 가지 않고 `return` 한다. **SDK-02 때문에 그럴 수밖에 없다** — 지우면 소멸자가 참조계수를 무시하고 프레임을 해제한다. **결함 하나를 다른 결함으로 막고 있고 대가가 프레임당 누수**다. `REQUEST_GET_SCANNER_INFO`(`:269`)도 같다(연결당 1회라 경미) | `HCRxWorker.cpp:283-301` | **높음** `코드 판독` |
-| **SDK-12** | **헤더 검증이 죽은 조건이다 — 6벌 모두.** ① `size_t skip = current() - 2; if (skip < 0)` → **`-Wtype-limits` 항상 거짓**. 1바이트만 수신된 상태(TCP 분할 시 흔하다)에서 `skip = SIZE_MAX` 가 `outLength` 로 나가 `pop()` 이 거부되고 **그 바이트가 링에서 소비되지 않는다** ② `contentSize < 0` 도 `size_t` 라 항상 거짓 → **실질 검증이 `targetId != 2 \|\| sessionId != 0` 뿐**이다. 코드에 `// FIXME: Check header validation` 이 붙어 있다 | `InstructionSet{300C:274,295 · 300L:266,287 · 500C:265,290 · 500L:256,278 · 500P:272,294 · Default:104,125}` | **중간** `컴파일러` |
+| **SDK-12** | **헤더 검증이 죽은 조건이다 — 6벌 모두.** ① `size_t skip = current() - 2; if (skip < 0)` → **`-Wtype-limits` 항상 거짓**. 1바이트만 수신된 상태(TCP 분할 시 흔하다)에서 `skip = SIZE_MAX` 가 `outLength` 로 나가 `pop()` 이 거부되고 **그 바이트가 링에서 소비되지 않는다** ② **검사 5개 중 3개가 죽어 있어 실질 검증이 `targetId != 2 \|\| sessionId != 0` 뿐이다** — 다만 죽은 이유가 둘로 갈린다(2026-08-02 반증 검증 정정): `contentSize < 0` 은 **타입이 `size_t`** 라 죽었고(`-Wtype-limits` 가 여기서만 난다), `version < 0`·`packetType < 0` 은 **타입은 `int` 인데 값 범위가 죽였다** — `readHeaderInfo` 가 `getUint16`(0~65535)로 채우므로 음수가 될 수 없다. **컴파일러가 잡아 주는 것은 앞의 하나뿐**이라 나머지 둘은 경고 없이 남는다. 코드에 `// FIXME: Check header validation` 이 붙어 있다 | `InstructionSet{300C:274,295 · 300L:266,287 · 500C:265,290 · 500L:256,278 · 500P:272,294 · Default:104,125}` | **중간** `컴파일러`+`코드 판독` |
 | **SDK-13** | **읽기 경계 언더플로 3건.** ① `getString`: `size_t limit = size() - position - 1` 이 `position >= size()` 에서 언더플로 → `maxSize` 로 클램프 후 **최대 `maxSize` 바이트 힙 초과 읽기**(결과는 `nullptr` 로 버려지나 읽기는 일어난다) ② `getFloat`/`getDouble`: `position > size() - sizeof(float)` 의 **우변이 언더플로**해 4바이트 미만 버퍼에서 검사가 통과. 게다가 오류 반환이 `return false`(=0.0f)라 **정상 0.0 과 구분 불가** ③ `resetPosition`: `if (position < 0)` 항상 거짓 | `HCPacketData.cpp:288-315 · 218-233 · 194-199` | **중간** `컴파일러`+`코드 판독` |
-| **SDK-14** | **`clone()` 이 매번 샌다.** `new PacketData(createPacketRaw(), length())` — `createPacketRaw()` 의 `new char[]`(`:305-310`)를 아무도 잡지 않는다(헤더 주석도 `@param raw (destroy: caller)`). 호출 5곳 중 4곳이 송신 경로(`HCSocketCommunicator.cpp:1127·1248·1278·1333`)라 **명령마다** 발생 | `HCPacketData.cpp:38` | **중간** `코드 판독` |
+| **SDK-14** | **`clone()` 이 매번 샌다.** `new PacketData(createPacketRaw(), length())` — `createPacketRaw()`(`:319`)의 `new char[]` 를 아무도 잡지 않는다(헤더 주석도 `@param raw (destroy: caller)`). 호출 5곳 중 4곳이 송신 경로(`HCSocketCommunicator.cpp:1127·1248·1278·1333`)라 **명령마다** 발생 | `HCPacketData.cpp:40` | **중간** `코드 판독` |
 | **SDK-15** | **`version` 필드만 바이트 순서가 반대다.** `setVersion` 은 `buffer[2]=major` 로 **빅엔디언**, `readHeaderInfo` 는 `getUint16`(`memcpy` → 호스트 **리틀엔디언**)로 읽는다. 나머지 필드는 일관된다. 지금 무해한 이유는 **`version` 을 아무도 판정에 쓰지 않기 때문**(SDK-12 의 죽은 검사가 유일한 소비처)이고, 버전 분기를 넣는 순간 결함이 된다 | `HCPacketData.cpp:96-101` vs `:75-85,245-254` | **낮음** `코드 판독` |
 | **SDK-20** | **`int fullImageSize = scanlines * samples`** — `uint16*uint16` 최대 4.29e9 가 `INT_MAX` 를 넘겨 **부호 오버플로(UB)**. 지금은 `getBinary()` 의 `size_t` 변환이 우연히 막을 뿐 검사한 것이 아니다. 같은 함수의 `static int diagFrameCount`(`:1949`)는 인스턴스·세션 무관 전역 상태 | `HCInstructionSet500L.cpp:1924` | **낮음** `코드 판독` |
 
@@ -88,18 +104,22 @@ flowchart LR
 
 | | 주파수 인덱스 | 미사용 float | 페이로드 계 |
 |---|---|---|---|
-| **`moana`**(정본) `SononCtrlPacket.cpp:195-196` | `setParamByte` **1바이트** | `setParamFloat32(0.0)` **4바이트**(`BasePacket.cpp:304-316`, `memcpy FLOAT_SIZE`) | **5바이트** |
+| **`moana`**(정본) `SononCtrlPacket.cpp:215-216` | `setParamByte` **1바이트** | `setParamFloat32(0.0)` **4바이트**(`BasePacket.cpp:304-316`, `memcpy FLOAT_SIZE`) | **5바이트** |
 | **SDK** `HCInstructionSet500L.cpp:1546-1547` | `putUint16` **2바이트** | `putFloat(0)` **1바이트** | **3바이트** |
 
 **두 축이 동시에 어긋난다** — 필드 폭(1 vs 2)과 float 인코딩(4 vs 1). 값은 둘 다 0 이지만 **길이가 다르다.**
 
-> **장비측 영향은 미확인**(§8). 길이를 안 보고 앞에서부터 읽는 구조면 뒤 필드가 밀리고, 선언 길이로 자르면 조용히 무시된다. 어느 쪽이든 **두 앱이 다른 바이트를 보낸다는 사실은 변하지 않는다.**
+> **장비측 영향은 미확인**(§8). 길이를 안 보고 앞에서부터 읽는 구조면 뒤 필드가 밀리고, 선언 길이로 자르면 조용히 무시된다.
+>
+> **출시 대상에서는 "두 앱 불일치"가 아니라 "SDK 단독 결함"이다**(2026-08-02 반증 검증 정정). `moana` 는 **500C·500P 를 구동하지 못하므로**(capability table 0건, [../legacy/moana-vs-sonex.md §3.1](../legacy/moana-vs-sonex.md)) 그 두 모델에서는 비교 대상 자체가 없다. 두 앱이 같은 장비를 함께 겨냥하는 것은 공통 모델(300C·300L·500L)뿐이고 그중 **500L 은 출시 범위 밖**이다. **위 대조표가 500L 예시인 이유도 그것이다.**
+>
+> **그럼에도 치명 등급은 유지된다** — 출시 대상 `InstructionSet500C:1636`·`500P:1628` 을 직접 확인한 결과 **셋 다 `putUint16` + `putFloat(0)` 로 동일**했다. 즉 출시 대상에서도 **4바이트여야 할 자리에 1바이트가 나간다**는 사실은 그대로다. 바뀌는 것은 근거 문장이지 심각도가 아니다.
 
 ### 3.2 SDK-09 · SDK-10 — 링버퍼와 소켓 3벌
 
 | # | 결함 | 위치 | 등급 |
 |---|---|---|---|
-| **SDK-09** | **`RingBuffer` 3건.** ① `write()` 의 `appendable+insertable` 이 최대 `bufferSize` 라 **정확히 그만큼 쓰면 `tail==head` → `size()`==0** — 방금 받은 데이터 전체가 "빈 버퍼"가 된다. 용량을 `bufferSize-1` 로 잡거나 full 플래그가 있어야 한다. 수신 경로가 `recv(..., buffer->free(), 0)` 라 **커널 큐가 찬 순간 실제로 성립** ② `at(int i)` 의 `while (index < 0)` 이 **`-Wtype-limits` 항상 거짓**이고 `index > bufferSize` 도 `>=` 여야 해 **1바이트 힙 초과 읽기** ③ `memcpy` 를 쓰며 `<cstring>` 미include — **`error: 'memcpy' was not declared`** | `HCRingBuffer.cpp:84-107 · 113-122 · 45,79,96` | **높음** `컴파일러`+`코드 판독` |
+| **SDK-09** | **`RingBuffer` 3건.** ① `write()` 의 `appendable+insertable` 이 최대 `bufferSize` 라 **정확히 그만큼 쓰면 `tail==head` → `size()`==0** — 방금 받은 데이터 전체가 "빈 버퍼"가 된다. 용량을 `bufferSize-1` 로 잡거나 full 플래그가 있어야 한다. 수신 경로가 `recv(..., buffer->free(), 0)` 라 **커널 큐가 찬 순간 실제로 성립** ② `at(int i)` 의 `while (index < 0)` 이 **`-Wtype-limits` 항상 거짓**이고 `index > bufferSize` 도 `>=` 여야 해 **1바이트 힙 초과 읽기** ③ `memcpy` 를 쓰며 `<cstring>` 미include — g++ 13 에서 **`error: 'memcpy' was not declared`** 3건(45·79·96). **단 현행 출하 빌드(NDK·MSVC)는 통과한다** — 그 툴체인의 헤더 체인이 `<cstring>` 을 간접 포함하기 때문이다. **지금 빌드가 막혀 있다는 뜻이 아니라 이식성 결함**이며, Phase 0-G(`OS_LINUX` 신설)로 Linux 를 1급 플랫폼으로 올리는 순간 실제 차단 요인이 된다 | `HCRingBuffer.cpp:84-107 · 113-122 · 45,79,96` | **높음** `컴파일러`+`코드 판독` |
 | **SDK-10** | **소켓 HAL 3벌 — 같은 결함이 서로 다르게 남아 있다**(아래 표) | `HCCompSocket{Android,IOS,Windows}.cpp` | **높음** `코드 대조` |
 
 세 구현은 실질 줄 기준 50~59% 가 같은 코드다([../../review/sonex-framework.md §10.4](../../review/sonex-framework.md)). **결함도 같은 자리에 있는데 고쳐진 곳이 제각각이다.**
@@ -128,7 +148,7 @@ flowchart LR
 | **SDK-07** | **이벤트를 버릴 때 `obj` 를 놓친다 — 8곳.** `delete ev` 만 하고 `ev->obj` 를 건드리지 않으며 `ThreadEvent` 에는 소멸자가 없다(`HCThreadEvent.h:10-17`). `Log` 는 `obj` 에 `new String` 을 싣는다 → **종료·큐 초과·큐 비우기마다 대기 로그가 전부 샌다.** `release()`(`:178-181`)는 이미 정지 상태면 `removeAll()` 없이 반환해 **큐 전체**가 샌다 | `HCEventThread.cpp:77,90,112,130,141,150,165,171` | **중간** `코드 판독` |
 | **SDK-08** | **지연 초기화 싱글턴이 스레드 안전하지 않다.** `if (instance == nullptr) instance = new ...` 를 `StreamData::increase/decreaseReferenceCount()` 가 **모든 스레드에서** 부른다(`HCStreamData.h:90-102`). 경쟁하면 **관리자가 2개 생겨 `managedData`·`dataMutex` 가 갈라지고 참조계수 보호가 무너진다**(이중 해제 또는 누수). `reserveData`(`:29-34`)도 계수가 이미 0 인지 보지 않아 획득-사용 경쟁을 막지 못한다 | `HCStreamDataManager.cpp:11-16` · `HCLogger.cpp:91-96` | **중간** `코드 판독` |
 | **SDK-04** | **포매팅 임시 버퍼가 전역 공유다.** `String::charTemp`·`wcharTemp` 는 **static 멤버**인데 `formatted*` 4개가 여기 쓴다. RxWorker·렌더·필터·이벤트 스레드가 동시에 부른다 — 뮤텍스 없음 → **데이터 경쟁(UB)**. 종료 시 해제도 없다 | `HCString.cpp:10-12` | **중간** `코드 판독` |
-| **SDK-05** | **`contains`·`startsWith`·`endsWith`·`indexOf` 가 `caseSensitive` 를 무시한다** — `-Wunused-parameter`. 넷 다 인자를 받고 본문에서 한 번도 쓰지 않는다(`compare()` 만 제대로 구현). 실제로 `false` 를 넘기는 호출자가 있다 — `HCImageRenderCore.cpp:1116` 의 GL 확장 검색(`GL_OES_texture_npot`)이 의도와 달리 대소문자 구분으로 돌아, 드라이버 표기가 다르면 **NPOT 미지원으로 오판해 POT 경로로 강등**된다 | `HCString.cpp:82,86,90,94` | **중간** `컴파일러` |
+| **SDK-05** | **`contains`·`startsWith`·`endsWith`·`indexOf` 가 `caseSensitive` 를 무시한다.** 넷 다 동작상 인자를 반영하지 않으나 **`-Wunused-parameter` 는 3건만 난다**(`:82·90·94`) — `contains` 는 인자를 `indexOf` 로 **전달만** 하고 그 `indexOf` 가 무시하기 때문이다(2026-08-02 반증 검증 정정). **컴파일러로 4건을 다 잡을 수는 없다**는 뜻이라 `contains` 는 코드 판독으로만 드러난다(`compare()` 만 제대로 구현). 실제로 `false` 를 넘기는 호출자가 있다 — `HCImageRenderCore.cpp:1116` 의 GL 확장 검색(`GL_OES_texture_npot`)이 의도와 달리 대소문자 구분으로 돌아, 드라이버 표기가 다르면 **NPOT 미지원으로 오판해 POT 경로로 강등**된다 | `HCString.cpp:82,86,90,94` | **중간** `컴파일러` |
 | **SDK-18** | **콘솔 로그가 켜진 채 출하된다.** `#define CONSOLE_OUT true // Phase C 디버깅 임시 활성화` — 바로 위 주석이 *"프레임당 로그가 과도하여 메모리 누수/성능 저하 유발"* 이라 진단해 놓고 값은 `true` 다. 빌드 구성과 무관한 상수라 릴리스에도 간다. `Log` 의 `EventThread` 는 **기본 인자 `maxEventCount = -1`(무제한)** 이라 소비가 밀리면 큐가 **한계 없이 자란다** | `HCLogger.h:13` · `HCLogger.h:100` | **중간** `코드 판독` |
 
 ### 4.1 SDK-03 — 실행으로 확인한 유일한 힙 오버플로 경로
@@ -151,10 +171,28 @@ swprintf 잘림(버퍼 16, 출력 20)          ->  -1
 new char[(size_t)-1 + 1]                 ->  0 바이트
 ```
 
-- **경로 ①(잘림)**: `vswprintf` 는 잘릴 때 `-1` 을 반환한다(C 표준). 와이드 포맷 출력이 `tempSize` **8192** 를 넘으면 성립하며 **플랫폼 무관**이다.
-- **경로 ②(인코딩)**: `%ls`·`%s` 변환이 로케일에서 실패하면 `-1`. **SDK 전체에 `setlocale` 호출이 0건**이라 기본 `"C"` 로케일이고, 그 상태에서 비ASCII 와이드 문자는 변환에 실패한다. SDK 는 `%ls` 를 **경로·모델명·시리얼**에 쓴다.
+- **경로 ①(잘림)**: `vswprintf` 는 잘릴 때 `-1` 을 반환한다(C 표준). 와이드 포맷 출력이 `tempSize` **8192** 를 넘으면 성립한다. **`#else` 분기(Android·iOS·Linux)에 한정된다** — Windows·`PLATFORM==3` 은 `_vscprintf`·`vswprintf(nullptr, 0, …)` 로 **길이만 계산**하므로 잘림이 발생하지 않는다(2026-08-02 반증 검증 정정).
+- **경로 ②(인코딩)**: `%ls`·`%s` 변환이 로케일에서 실패하면 `-1`. **SDK 전체에 `setlocale` 호출이 0건**이라 기본 `"C"` 로케일이고, 그 상태에서 비ASCII 와이드 문자는 변환에 실패한다. SDK 는 `%ls` 를 **경로·모델명·시리얼**에 쓴다. **이 경로는 Windows 분기(`_vscprintf`)에도 해당한다.**
 
-> **플랫폼 구분을 지킨다**: 경로 ②는 **glibc 에서만 실측**했다. Android bionic 은 로케일과 무관하게 UTF-8 변환을 하는 것으로 알려져 해당하지 않을 수 있고 Apple libc 는 확인하지 않았다(§8). **경로 ①과 "음수 미검사" 자체는 플랫폼 무관하다.**
+> **플랫폼 구분을 지킨다**: 경로 ②는 **glibc 에서만 실측**했다. Android bionic 은 로케일과 무관하게 UTF-8 변환을 하는 것으로 알려져 해당하지 않을 수 있고 Apple libc 는 확인하지 않았다(§8). **"음수 미검사" 자체는 4개 오버로드·전 플랫폼 공통이다.**
+
+#### 터지는 지점 정정 (2026-08-02 반증 검증)
+
+**결함은 실재하나 위 코드 주석이 지목한 지점은 부정확하다.** ASan 으로 재현한 결과:
+
+| 줄 | 문서 기존 설명 | 실측 |
+|---|---|---|
+| `vsprintf(buffer.get(), …)` | "경계 없는 기록 → 0바이트 블록 오버플로" | **wchar 오버로드 2개는 오버플로가 나지 않는다** — 실제 코드가 `vswprintf(buffer.get(), res.length + 1, …)` 로 **크기 인자를 넘기므로** 0 크기에서 아무것도 쓰지 않고 `-1` 을 반환한다. char 오버로드(`vsprintf`, 크기 인자 없음)만 이론적으로 기록이 가능한데, **음수를 유발한 조건이 이 두 번째 호출도 똑같이 실패시킨다** |
+| `res.data.assign(buffer.get(), buffer.get() + res.length)` | 부기 | **여기가 확정적으로 터진다** — `buffer + SIZE_MAX` 범위를 읽는다. **4개 오버로드 전부 해당**한다 |
+
+```
+AddressSanitizer: heap-buffer-overflow ... READ of size 8
+  #2 std::string::assign<char*>(char*, char*)
+  #3 formatted(char const*, ...)
+0 bytes after 1-byte region  <- new char[(size_t)-1 + 1] == new char[0]
+```
+
+→ **분류가 "쓰기 오버플로"에서 "읽기 오버플로"로 바뀐다.** 심각도는 유지된다(힙 경계 밖 접근이고 그 결과가 `String` 내용으로 들어간다). **수정은 동일하다** — 반환값이 음수면 즉시 빠져나가는 검사 한 줄.
 
 여기에 **SDK-19b**(64비트 값을 `%d` 로 넘김, `.size()` 만 31건)가 겹치면 뒤따르는 인자가 밀려 **`%ls` 자리에 잘못된 포인터**가 들어간다.
 
@@ -175,7 +213,7 @@ new char[(size_t)-1 + 1]                 ->  0 바이트
 
 | # | 결함 | 위치(`service_QT693`) | 등급 |
 |---|---|---|---|
-| **MO-01** | **제어·데이터 채널이 선언된 본문 길이를 검사 없이 읽는다.** `checkPacketHeaderInfo()` 의 본문 크기 검사가 **`packet_body_size <= 0` 하나뿐**이고 상한이 없다. 그 값은 **전선에서 오는 `unsigned int`** 이며 제어 채널 버퍼는 **`헤더+1024`** 다. `setDataLen(getPacketBodySize())` → `read(getData(), dataLen)` — **헤더가 선언한 길이를 그대로 믿고 1KB 버퍼에 쓴다.** 데이터 채널도 같은 구조이고 분할 수신 경로는 `read(getData()+bodyReadPosition, ...)` 로 **누적 위치까지 전선 값을 따라간다.** `getPacketBodySize()` 가 `int` 라 실질 범위는 `(1024, 2^31)` — 그 안이면 **힙 버퍼 오버플로** | `BasePacket.cpp:743,759` · `SononPacket.h:32,122` · `SononCtrlPacket.cpp:1334,1347` · `SononDataPacket.cpp:774,789,815,829` | **치명** `코드 판독` |
+| **MO-01** | **제어·데이터 채널이 선언된 본문 길이를 검사 없이 읽는다.** `checkPacketHeaderInfo()` 의 본문 크기 검사가 **`packet_body_size <= 0` 하나뿐**이고 상한이 없다. **게다가 그 검사는 사실상 `== 0` 이다**(2026-08-02 반증 검증 보강) — `packet_body_size` 가 `unsigned int` 라 `<= 0` 의 음수 쪽이 성립할 수 없다. 그 값은 **전선에서 오는 `unsigned int`** 이며 제어 채널 버퍼는 **`헤더+1024`** 다. `setDataLen(getPacketBodySize())` → `read(getData(), dataLen)` — **헤더가 선언한 길이를 그대로 믿고 1KB 버퍼에 쓴다.** 데이터 채널도 같은 구조이고 분할 수신 경로는 `read(getData()+bodyReadPosition, ...)` 로 **누적 위치까지 전선 값을 따라간다.** `getPacketBodySize()` 가 `int` 라 실질 범위는 `(1024, 2^31)` — 그 안이면 **힙 버퍼 오버플로** | `BasePacket.cpp:743,759` · `SononPacket.h:32,122` · `SononCtrlPacket.cpp:1334,1347` · `SononDataPacket.cpp:774,789,815,829` | **치명** `코드 판독` |
 | **MO-02** | **`new[]` 를 `delete` 로 해제 2건** — 패킷 버퍼(`new quint8[max_pkt_len]:52` → `delete:112`)와 오디오 리샘플 버퍼(`new quint8[48000*4*2]:1114`(384KB) → `delete:1134`). 둘 다 장비 통신 계층의 핵심 자원이다 | `BasePacket.cpp:52,112` · `ScanManager.cpp:1114,1134` | **높음** `코드 판독` |
 | **MO-03** | **파서 상태가 함수 지역 `static` 이다** — `static bool readHead`·`static readStatus status`·`static int bodyReadPosition`. **인스턴스가 아니라 함수에 붙어 있어** ① 본문 수신 도중 연결이 끊기면 **다음 세션이 이전 세션의 `dataLen`·`bodyReadPosition` 으로 시작**해 프레임 정렬을 잃고 ② 채널 객체가 둘 이상이면 서로의 상태를 덮어쓴다 | `SononCtrlPacket.cpp:1310` · `SononDataPacket.cpp:729-730` | **높음** `코드 판독` |
 | **MO-04** | **읽기 경계가 "받은 만큼"이 아니라 "할당한 만큼"이다.** `getParam*` 전부가 `m_max_buff_len`(할당−헤더)로만 검사하고 **실제 수신 길이는 어디에도 반영되지 않는다** — `decodeDone()` 은 `m_data_len` 을 **읽은 만큼**으로 되쓰고 전선 헤더를 쓰는 줄은 주석 처리, `decodeHead()` 는 **본문이 통째로 빈 no-op** 다. 짧은 패킷의 없는 필드를 읽으면 **이전 패킷 잔류 바이트가 반환코드 0(성공)과 함께 나온다**(버퍼는 `Create()` 때 한 번만 0으로 민다) | `BasePacket.cpp:412~ · 177-192 · 57-60` | **중간** `코드 판독` |
