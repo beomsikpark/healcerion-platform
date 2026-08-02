@@ -92,6 +92,16 @@ app/Sources/Scan/ScanPlayer.cpp:4287                 dequeue 후 GLFrameView::up
 | D-3 | 프리셋 `viewDepth`(`CPresetItem::viewDepthCentimeter()`) 소비처를 정리 — `GLFrameB/CF/M/PW` 와 측정이 같은 소스를 쓰고 있었다 |
 | D-4 | **위젯 좌표 → 렌더 타겟 좌표 변환을 표시 컴포넌트 책임으로 명시**([r1 4-B1](../r1/phase4-render-boundary.md)) |
 
+### Step 3-T. 좌표 이관 단위테스트
+
+**[plan.md §2.6.3 ①](./plan.md) 의 나머지 절반이 이 phase 에서 생긴다** — Phase 2 가 프레임 좌표를 다뤘다면 여기는 **화면 좌표**다.
+
+| # | 작업 |
+|---|---|
+| T-1 | **`ppcm` 대체 경로 테스트** — SDK 가 주는 기하로 계산한 값이 기존 `contentHeight / (viewDepth/10)` 와 같은 물리량을 내는지. **[Phase 5](./phase5-measure-controls.md) 측정 이관의 전제라 여기서 먼저 고정한다** |
+| T-2 | **위젯 좌표 ↔ 렌더 타겟 좌표** 왕복 항등성 · 경계값(0·최대·리사이즈 후) |
+| T-3 | **[plan.md §2.4 A-5](./plan.md) 를 지킨다** — 변환을 `GLFrameView` 안에 인라인으로 넣지 않는다. 인라인이면 테스트가 붙지 않는다 |
+
 ---
 
 ## 3. 검증
@@ -106,6 +116,7 @@ app/Sources/Scan/ScanPlayer.cpp:4287                 dequeue 후 GLFrameView::up
 | 3.6 | 리사이즈 | 창 크기 변경 | 깨지지 않음 |
 | 3.7 | **QML 오버레이** | 영상 위 UI | 유지 |
 | 3.8 | 프레임레이트 | 실장비 스캔 | **Phase 1 수치와 대조.** 저하가 있으면 원인 특정 |
+| **3.9** | **좌표 단위테스트** | Step 3-T | **CI 통과.** 측정값에 직결되므로 자동 판정이 필수다 |
 
 > **3.8 이 이 phase 의 실장비 검증 지점이다.** 나머지는 재생 데이터로 판정할 수 있다.
 

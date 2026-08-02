@@ -63,6 +63,7 @@
 | A-4 | **CVIE 잔재 검사** — `HC_CVIE_SUPPORT`·`framework/ContextVision`·`.cov`·`cvie64`·`context_vision` 0건([Phase 5 B-3·B-4](./phase5-measure-controls.md)) |
 | A-5 | **QCustomPlot 잔재 검사** — `ENABLE_IMAGE_ANALYZER`·`CCustomPlotItem` 0건([Phase 0 B-3](./phase0-repo-scope-cut.md)) |
 | A-6 | **FFmpeg 구성 검사** — GPL 전용 코덱(x264·x265·xvid) 심볼이 링크되지 않는지. Qt Multimedia 백엔드와 벤더 `lib/` **양쪽** |
+| **A-7** | **단위테스트를 같은 파이프라인에 얹는다** — Phase 2·3·4·5 가 만든 테스트([plan.md §2.6](./plan.md))를 라이선스 게이트와 함께 돌린다. **`moana` 최초의 CI 이므로 둘을 따로 만들지 않는다** |
 
 ### Step 6-B. 빌드 진입점 정합
 
@@ -112,6 +113,7 @@
 | # | 항목 | 방법 | 기대 |
 |---|---|---|---|
 | 3.1 | **라이선스 게이트** | CI 가 금지 라이선스 링크를 판정 | 통과. **위반 시 빌드 실패** |
+| **3.1b** | **단위테스트** | 같은 파이프라인(A-7) | **전 Phase 분 통과.** 좌표·명령·프레임·상태·데이터·측정·펌웨어 |
 | 3.2 | Qt 모듈 화이트리스트 | `.pro` 의 `QT +=` 검사 | LGPLv3 범위 밖 **0건** |
 | 3.3 | CVIE·QCustomPlot 잔재 | grep | **0건** |
 | 3.4 | FFmpeg 구성 | 링크 심볼 | GPL 전용 코덱 **0건** |
