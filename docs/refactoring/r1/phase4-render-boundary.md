@@ -1,6 +1,6 @@
 # Phase 4 — 렌더 서피스 HAL·출력 경계 계층화
 
-> **상태**: 미시작
+> **상태**: 진행 중 — **4-A(A-1·A-1a)·4-D 착수분 완료**(2026-08-02, 커밋 `8ae0b4ce`·`aef8407d`). 포트·mock·Linux offscreen 구현체가 서고 계약 케이스 **12건**이 두 구현체를 함께 판정한다. 코어에서 EGL 을 걷어내는 것(A-3)과 나머지 플랫폼 구현체(A-2)는 미시작
 > **⚑ 판정 시험 ② 재정의(2026-08-02)**: 이전 판의 **"Python 이 창 없이"** 는 두 가지가 틀렸다 — ① **Python 에도 창은 있다**(PySide6 등, [../goal.md §5.3 ⚑](../goal.md)) ② 언어 범위가 Qt/C++ 1종으로 좁혀져(→[../goal.md §1 ⚑](../goal.md)) Python 이 판정 주체일 이유도 없어졌다. **헤드리스 요구 자체는 그대로 남는다** — 이유가 "언어 독립 증명" 에서 **"CI 가 렌더 회귀를 판정할 유일한 수단"** 으로 바뀐다(§3.2).
 > **범위**: `sonex-framework` 의 **렌더 출력 계약**. SDK 가 받는 것을 윈도우 핸들에서 렌더 타겟 크기로, 주는 것을 없음에서 완성 프레임으로 바꾼다. **`ImageRenderer` 의 알고리즘 본문은 건드리지 않는다.**
 > **선행**: [Phase 3](./phase3-layer-boundary.md) — 3-A(iOS 빌드 역방향)·3-E(C ABI 타입 누수)·3-F(공개 헤더 정본화)가 이 phase 의 API 작업이 설 바닥이다
@@ -127,7 +127,17 @@ flowchart LR
 
 **4-A 가 먼저인 이유** — 나머지 전부가 "서피스를 어디서 얻는가"에 걸린다. **4-G 가 마지막인 이유** — 앞 단계가 코어에서 EGL·플랫폼 분기를 이미 걷어내므로 남은 분할 대상이 줄고, 헤더를 건드리는 작업이라 [Phase 3-F](./phase3-layer-boundary.md)(공개 헤더 정본화) 완료가 전제다.
 
-### Step 4-A. 렌더 서피스 HAL 신설
+### Step 4-A. 렌더 서피스 HAL 신설 — ✅ A-1·A-1a 완료(2026-08-02, `8ae0b4ce`)
+
+> **`[실행 2026-08-02]` 포트와 mock 을 한 커밋에 냈다**(§2.3 AF-4 대로). 포트만 내면 그것을 소비하는 코드를 GL 없이 시험할 수단이 없어 `domain/` 단위테스트가 계속 실 EGL 을 기다린다.
+>
+> **서피스 종류를 셋으로 둔 근거가 코드에 이미 있다** — `HCImageRenderCore.cpp:888-893` 이 `nativeWindow != nullptr` 로 갈리고, 그 두 갈래가 `Window` 와 `Adopted` 다. 세 번째 `Offscreen` 은 [1-C](./phase1-regression-baseline.md) 가 이미 실물을 만들어 뒀다.
+>
+> **계약 케이스가 두 구현체를 함께 판정한다** — mock(GL 없음)과 Linux offscreen(실 EGL)에 **같은 케이스**를 돌린다. 포트가 생겼는데 mock 만 시험하면 *"인터페이스는 있으나 실물이 그대로 도는지는 모른다"* 가 된다. GL 이 없는 호스트에서는 실 구현체 쪽이 `GTEST_SKIP` 으로 빠진다.
+>
+> **남은 것은 A-2(플랫폼 구현체 5벌)·A-3(코어에서 EGL 제거)** 이고, A-3 이 이 Step 의 판정 기준이다 — `ImageRenderCore` 에서 `egl*` grep 0건.
+
+#### 원래 계획
 
 **대상**: `HCImageRenderCore.cpp` 의 플랫폼 분기 **21곳** · EGL 함수 **22종** → `sdk/platform/{windows,android,ios,macos,linux}/render_surface`([r1 plan.md §2.2](./plan.md) 폴더 구조). **창 없이 도는 것(headless)은 플랫폼이 아니라 서피스 종류 `offscreen` 이다**([plan.md §0.1.1](./plan.md)).
 
@@ -196,6 +206,10 @@ flowchart LR
 | # | 작업 |
 |---|---|
 | D-1 | **EGL config 에 `EGL_SURFACE_TYPE` 을 세운다** — 활성 config(`:914-920`)에 없다. `EGL_WINDOW_BIT \| EGL_PBUFFER_BIT` 를 명시하고, 주석 블록(`:900-912`)은 정리한다 |
+> **`[실행 2026-08-02]` D-2 는 4-A 와 함께 끝났다** — `HCOffscreenContextLinux` 가 `IRenderSurfacePort` 를 상속하고 `Window` 종류를 **거절**한다(조용히 offscreen 으로 바꾸면 호출자가 창을 기대했는데 화면에 아무것도 안 나오는, 가장 찾기 어려운 실패가 된다). 승격이 **기존 `create(width,height)` 계약을 건드리지 않았고**, 그래서 승격 전에 통과하던 케이스가 승격 후에도 그대로 통과한다 — 그것이 판정이다.
+>
+> **D-4(백엔드별 지원 편차)는 아직 하나만 안다** — 이 호스트는 **ANGLE 2.1.7258 / Mesa llvmpipe** 이고 surfaceless + FBO 가 된다. D3D11·Metal·Vulkan 은 미확인이며, 소프트웨어 래스터라이저라 **골든 재현성에는 오히려 유리**하다는 것이 부수 소득이다.
+
 | D-2 | **HAL 의 `offscreen` 서피스 구현**(4-A A-1 의 세 번째 종류) — pbuffer 또는 surfaceless 컨텍스트 생성. **이것이 "headless" 의 실체다** — 플랫폼이 아니라 서피스 종류이며, 플랫폼 구현 5벌 각각이 이 종류를 지원할 수 있다(Linux surfaceless 가 가장 깨끗) |
 | D-3 | **출발점 = `AngleProbe.mm:39,56`** — iOS 샘플이 `EGL_SURFACE_TYPE, EGL_PBUFFER_BIT` config 로 `eglCreatePbufferSurface` 를 성공시키는 선례다. 백지가 아니다 |
 | D-4 | **백엔드별 지원 편차 실측** — D3D11·D3D9·Metal·Vulkan·OpenGL 각각에서 pbuffer/surfaceless 가 되는지 확인하고, **헤드리스 전용 폴백 순서**를 별도로 둔다(창 있는 경로의 순서 `:774-793` 과 다를 수 있다) |
