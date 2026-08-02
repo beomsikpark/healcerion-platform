@@ -44,7 +44,7 @@
 | `docs/` | **우리 검토 산출물** — 루트 git 관리 | `docs/` |
 | `docs/review/` | **기존 코드 분석 정리** — 미러를 읽고 현행 구조를 정리하는 곳. 개발 환경 현황 = `dev-environment.md` | `docs/development/` |
 | `Makefile` | cross-repo 오케스트레이션 (아래 §표준 CLI) | `Makefile` |
-| `scripts/` | `clone-repos.sh` · `git-status.sh` · `pull-mirrors.sh` | `scripts/` |
+| `scripts/` | `work-repos.sh`(작업 저장소 SOT) · `clone-repos.sh` · `git-status.sh` · `push-work.sh` · `pull-mirrors.sh` | `scripts/` |
 | `tmp/` | 임시·핸드오프 (루트 git 비추적, 정식 문서 아님) | `tmp/` |
 | `client/` | **장비·클라우드에 붙는 호스트 SW** — 앱 + 그 SDK. 단일 코드베이스가 모바일·데스크톱을 함께 낸다 | `mobile/mobile-app` + `desktop/cms-app` (**축이 1:1 아님**) |
 | `web/` | 브라우저 관리자 콘솔 (장비 연결 없음) | `web/` |
@@ -82,15 +82,28 @@
 
 `make help` 가 진입점이다. **지금은 git 계열만 제공한다** — 빌드·배포 타겟은 트랙별 작업 사본이 실제로 생긴 뒤 필요에 따라 추가한다.
 
-> **IMPORTANT**: 루트와 미러는 **pull/push 의 의미가 정반대**라 타겟을 반드시 분리한다. 루트는 우리 작업물이라 절대 잃으면 안 되고(ff-only), 미러는 로컬 상태를 언제나 버린다(`reset --hard`). 한 타겟에 섞으면 루트 작업물이 날아간다.
+> **IMPORTANT**: 작업 저장소와 미러는 **pull/push 의 의미가 정반대**라 타겟을 반드시 분리한다. 작업 저장소는 우리 작업물이라 절대 잃으면 안 되고(ff-only), 미러는 로컬 상태를 언제나 버린다(`reset --hard`). 한 타겟에 섞으면 작업물이 날아간다.
+
+**작업 저장소 목록의 SOT 는 `scripts/work-repos.sh` 하나다** — `git-status.sh`·`push-work.sh` 가 같은 목록을 읽는다. 트랙별 Phase 0-0 으로 작업 사본이 생길 때마다 여기에 한 줄(`<경로>|<라벨>|<push remote>`)을 추가한다.
+
+| 라벨 | 경로 | push 대상 |
+|---|---|---|
+| `healcerion-platform` | `.` | `origin` = `beomsikpark/healcerion-platform` |
+| `sonex-platform` | `client/sonex-framework` (r1 작업 사본, `refactor/r1`) | **`ours`** — 우리 소유 remote. `origin` 은 힐세리온 Phabricator 원본이라 push 대상이 아니다 |
 
 | 대상 | 타겟 | 동작 |
 |---|---|---|
-| **루트** | `make git-status` | **working 저장소만** 표로 표시. 미러는 요약 한 줄이고 편집된 것만 이름이 뜬다 |
-| **루트** | `make git-pull` | origin 에서 **ff-only** pull. 미커밋 변경이 있으면 **거부** |
-| **루트** | `make git-push` | origin 으로 push (원격 = `beomsikpark/healcerion-platform`) |
+| **작업** | `make git-status` | 작업 저장소를 표로 표시. 미러는 요약 한 줄이고 편집된 것만 이름이 뜬다 |
+| **작업** | `make git-pull` | **루트만.** origin 에서 **ff-only** pull. 미커밋 변경이 있으면 **거부** |
+| **작업** | `make git-push` | 루트를 origin 으로 push |
+| **작업** | `make git-push-sonex` | `sonex-platform` 을 **`ours`** remote 로 push. remote 미설정이면 설정 방법을 안내하고 **거부** |
 | **미러** | `make git-clone` | 누락분 클론 (재실행 안전, 기존은 SKIP) |
 | **미러** | `make git-sync-legacy` | origin 으로 **강제 동기화**(`reset --hard`). `ARGS=--dry-run` · `--clean` · 경로 부분문자열 |
+
+> **IMPORTANT (작업 사본 push 안전장치)**: `push-work.sh` 는 **`work-repos.sh` 에 없는 저장소를 아예 push 하지 않고**, 대상 remote URL 이 `phab.healcerion.com` 을 가리키면 **하드 거부**한다. 힐세리온 원본에 대한 반영 방식(fork-and-PR·브랜치 위임)이 확정되기 전에는 원본에 우리 브랜치가 올라가면 안 되기 때문이다([r1 plan.md §위험](docs/refactoring/r1/plan.md)). `ours` remote 는 **사용자가 직접 추가**한다:
+> ```bash
+> git -C client/sonex-framework remote add ours <OUR-REMOTE-URL>
+> ```
 
 `git-status` 는 미러를 행으로 나열하지 않는다. read-only 미러는 어차피 강제 동기화로 버려지므로 "상태"가 의미를 갖지 않기 때문이다. 다만 오편집 감지는 남길 가치가 있어 요약 한 줄로 접었고, **편집된 미러가 있을 때만** 이름을 드러낸다.
 
@@ -100,7 +113,7 @@
 
 `pull-mirrors.sh` 는 저장소 목록을 **디스크에서 탐색**한다(하드코딩 배열 아님) — 경로 매핑의 SOT 는 `clone-repos.sh` 하나이고, 사본을 두면 어긋나기 때문이다. cctv 의 `pull-all.sh` 가 배열을 갖는 것과 다른 선택이다.
 
-> **알려진 제약**: `.claude/settings.json` 의 `deny` 에 `Bash(git push*)` 가 있어 **에이전트는 `make git-push` 를 실행할 수 없다.** 미러 보호용 규칙이 루트 push 까지 함께 막는다. `Bash(git -C * push*)` 만 남기면 해소된다. 같은 파일의 `git -C * reset*`·`rebase*` 도 복구 경로를 막는 오류이나 classifier 로 수정이 차단돼 있다.
+> **알려진 제약**: `.claude/settings.json` 의 `deny` 에 `Bash(git push*)`·`Bash(git -C * push*)` 가 있어 **에이전트는 push 를 실행할 수 없다.** push 경로는 `scripts/push-work.sh` 하나로 모였고 그 스크립트가 목록(`work-repos.sh`) 밖 저장소와 phabricator URL 을 거부하므로 **make 타겟으로는 미러를 밀 수 없다.** deny 규칙이 막는 것은 그 밖의 직접 `git push` 호출이다 — 다만 스크립트도 내부에서 `git -C ... push` 를 쓰므로 규칙을 좁힐 때 이 경로가 함께 막히지 않는지 확인한다. 같은 파일의 `git -C * reset*`·`rebase*` 도 복구 경로를 막는 오류이나 classifier 로 수정이 차단돼 있다.
 
 ### 저장소 목록
 

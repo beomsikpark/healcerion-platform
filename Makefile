@@ -9,7 +9,7 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help \
-        git-status git-clone git-pull git-push git-sync-legacy \
+        git-status git-clone git-pull git-push git-push-sonex git-sync-legacy \
         git-push-all git-commit \
         build test clean
 
@@ -18,22 +18,30 @@ ARGS ?=
 ## help: Show cross-repo orchestration targets
 help:
 	@printf '\nhealcerion-platform — root orchestration (NOT a build target)\n'
-	@printf 'All sub-repos are READ-ONLY mirrors of Healcerion sources.\n\n'
+	@printf 'Everything under <container>/legacy/ is a READ-ONLY mirror of Healcerion source.\n'
+	@printf 'Only the repos in scripts/work-repos.sh are ours to commit and push.\n\n'
 	@printf 'Usage: make <target> [ARGS=...]\n\n'
 	@printf 'Targets:\n'
 	@grep -E '^## [a-zA-Z0-9_.-]+:' $(MAKEFILE_LIST) | sed 's/## /  /' | column -t -s ':'
-	@printf '\nMirrors: '
-	@find . -mindepth 3 -maxdepth 4 -name .git -type d 2>/dev/null | wc -l | tr -d '\n'
+	@printf '\nWorking repos: '
+	@grep -c '^    "' scripts/work-repos.sh | tr -d '\n'
+	@printf ' (scripts/work-repos.sh) · Mirrors: '
+	@find . -mindepth 3 -maxdepth 4 -name .git -type d -path '*/legacy/*' 2>/dev/null | wc -l | tr -d '\n'
 	@printf ' cloned\n'
 	@printf 'Conventions: CLAUDE.md · Review docs: docs/review/\n\n'
 
-# ─── git: 루트 저장소 (우리 산출물) ────────────────────────────
-# 루트만 우리 것이고 나머지는 전부 미러다. 그래서 pull/push 의미가 정반대다.
-#   루트  : ff-only pull + push  (작업물을 절대 잃으면 안 된다)
+# ─── git: 작업 저장소 (우리 산출물) ────────────────────────────
+# 작업 저장소만 우리 것이고 나머지는 전부 미러다. 그래서 pull/push 의미가 정반대다.
+#   작업  : ff-only pull + push  (작업물을 절대 잃으면 안 된다)
 #   미러  : reset --hard 강제 동기화 (로컬 상태는 언제나 버린다)
-# 한 타겟에 섞으면 루트 작업물을 날릴 수 있어 타겟을 분리한다.
+# 한 타겟에 섞으면 작업물을 날릴 수 있어 타겟을 분리한다.
+#
+# 작업 저장소 목록의 SOT = scripts/work-repos.sh
+#   healcerion-platform  = .                       (검토 산출물, push -> origin)
+#   sonex-platform       = client/sonex-framework  (r1 작업 사본, push -> ours)
+# 작업 사본의 origin 은 힐세리온 Phabricator 원본이라 push 대상이 아니다.
 
-## git-status: Show git status across root + all mirrors (DIRTY mirror = accidental edit)
+## git-status: Show git status across working repos + mirror summary (DIRTY mirror = accidental edit)
 git-status:
 	scripts/git-status.sh
 
@@ -45,10 +53,13 @@ git-pull:
 		|| { echo "no upstream for '$$(git branch --show-current)' — run 'make git-push' first"; exit 1; }
 	git pull --ff-only
 
-## git-push: Push the ROOT repo to origin (mirrors can never be pushed)
+## git-push: Push the ROOT repo (healcerion-platform) to origin
 git-push:
-	@[ -n "$$(git remote)" ] || { echo "no remote configured on root"; exit 1; }
-	git push -u origin $$(git branch --show-current)
+	scripts/push-work.sh healcerion-platform
+
+## git-push-sonex: Push the sonex-platform work copy to OUR remote (never to Healcerion)
+git-push-sonex:
+	scripts/push-work.sh sonex-platform
 
 # ─── git: 미러 (read-only) ─────────────────────────────────────
 
