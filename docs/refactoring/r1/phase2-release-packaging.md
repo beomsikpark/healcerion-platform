@@ -210,7 +210,7 @@ Phase 0-F 의 단일 진입점 위에 올린다. **관측된 실패를 그대로
 
 | # | 작업 |
 |---|---|
-| E-1 | **매트릭스 확정** — Windows `Debug/Release × x86·x64·ARM·ARM64` · Android ABI(현재 `arm64-v8a` 단일이나 배포 스크립트는 **4종을 매핑**한다 — 어느 쪽이 정본인지 먼저 정한다) · iOS arm64 · macOS arm64 · headless(0-G). **macOS ADK 는 존재하지 않으므로 빈칸으로 명시**한다 |
+| E-1 | **매트릭스 확정** — Windows `Debug/Release × x86·x64·ARM·ARM64` · Android ABI(현재 `arm64-v8a` 단일이나 배포 스크립트는 **4종을 매핑**한다 — 어느 쪽이 정본인지 먼저 정한다) · iOS arm64 · macOS arm64 · **Linux x86_64**(0-G·0-L). **macOS ADK 는 존재하지 않으므로 빈칸으로 명시**한다 |
 | E-2 | **NuGet 복원 단계를 포함한다** — 관측된 `NETSDK1004` **2건**(`Framework_Sample_Windows`·`ADK_Sample_Test`, `project.assets.json` 부재). C# 프로젝트 빌드 앞에 복원을 명시적으로 넣지 않으면 **이 실패가 그대로 재현된다** |
 | E-3 | **모듈 링크 순서 확정** — 관측된 `ld: error: unable to find library -lSonexCommon` **3건**(ADK android 의 `DicomHandler`·`NetworkProcess`·`VideoEncoder`). `SonexCommon` 을 먼저 만들고 라이브러리 경로를 넘기는 의존 그래프를 빌드 시스템에 세운다 |
 | E-4 | **Android 진입점 이중화 해소** — `build_all_android.sh`(ndk-build, `Android.mk` 인라인 생성, **모듈 2개만** 빌드: `SonexCommon`·`DeviceManager`)와 `android.vcxproj` **14개**가 병존한다. **전자는 SDK 전체를 만들지 못한다** — 하나를 정본으로 정한다 |

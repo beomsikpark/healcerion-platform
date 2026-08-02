@@ -274,7 +274,7 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 | # | 작업 |
 |---|---|
 | E-1 | **앱부터 올린다** — `sonex-app` 은 지금도 `flutter test` 한 줄이면 Dart 10파일 2,692줄이 돈다. **프레임워크보다 앱이 먼저 CI 에 오른다** |
-| E-2 | Phase 0-F 의 단일 진입점 위에서 Android + headless(0-G) 커밋마다 빌드 |
+| E-2 | Phase 0-F 의 단일 진입점 위에서 **Linux**(0-G·0-L) + Android 커밋마다 빌드 — §0.1 의 주 개발축 둘이다 |
 | E-3 | 게이트 편성 — 빌드 매트릭스 · 1-A 단위테스트 · 1-B mock 왕복 · 1-C ① 필터 골든 · 1-D ① 선언 대조 |
 | E-4 | 실패 시 픽셀 diff·수치 diff 를 아티팩트로 |
 | E-5 | 인프라 선택(GitHub Actions 등)은 **힐세리온 결정 사항** — 31개 저장소 CI 0건이라 조직 표준 자체가 없다([../../review/dev-environment.md §2.2](../../review/dev-environment.md)) |
@@ -514,7 +514,7 @@ make test-e2e TARGET=device    # 실장비 접근 확보 시([plan.md](./plan.md
 |---|---|---|
 | **`NextSRI` 골든·참조 구현을 확보 못 한다** | `verify_v21_*.py` 424줄이 못 돈다 | 선행 조건 ④ — 현행 출하본으로 덤프를 새로 떠 **"이전 값"** 을 골든으로. |
 | **PBuffer 가 ANGLE 백엔드(D3D11/Metal/Vulkan)별로 지원 편차** | 1-C ② 가 막히면 **렌더 회귀 oracle 이 없어져 Phase 4 전체가 판정 불가** | **1-C 를 ①·②로 쪼갠 이유가 이것이다.** ① 필터 골든은 GL 없이 돌고, ② 는 `AngleProbe.mm:56` 선례부터 백엔드별로 확인 |
-| **`hc_ReadRenderedImage` 가 CI 플랫폼에 존재하지 않는다** | 1-C ② 를 headless·Android 에서 시작할 수 없다 | C-e 가 가드 정리를 **1-C 안에 포함**한다. 가드를 넓히는 것이지 알고리즘 변경이 아니므로 회귀 위험이 낮다 |
+| **`hc_ReadRenderedImage` 가 CI 플랫폼에 존재하지 않는다** | 1-C ② 를 Linux·Android 에서 시작할 수 없다 | C-e 가 가드 정리를 **1-C 안에 포함**한다. 가드를 넓히는 것이지 알고리즘 변경이 아니므로 회귀 위험이 낮다 |
 | **CVIE 라이선스가 장비 바인딩** | mock 으로 CVIE 유효 경로를 못 만든다 | `HCInstructionSet500L.cpp:393` 이 장비정보 필드 31 에서 키를 읽고 `HCLiveController.cpp:3079` 가 `cvieValidation(serial, key)` 로 검증한다. **500L·500P·500C 해당.** mock 은 `cvieLicense=false` 경로만 덮는다 — CVIE 없는 경로(HNS·NLM·SRI 자체 필터)부터 자동화하고 **실장비 의존을 그대로 인지한다** |
 | **앱이 IP·포트를 6곳에 박아 뒀다** | 앱 레벨 e2e 가 mock 을 못 본다 | SDK 층 왕복(B-g)을 먼저 세운다. 앱 상수 분리는 [Phase 8-F](./phase8-app-migration.md) 소관 |
 | **0-0 재배치 전이라 코드를 못 고친다** | 1-A·1-C·1-E 착수 불가 | `[선행 가능]` 3건(1-B·1-D·1-F)을 먼저 한다. `protocol-sot` 선례대로 **우리 루트 git 안에서 독립적으로** |

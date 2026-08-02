@@ -187,7 +187,7 @@ error: expected unqualified-id before '[' token                  // uint32_t[10]
 
 > **`500LS`·`L43K` 는 매트릭스에 넣지 않는다.** 버전 체커 분기에만 있고 `isSupportedModel()` 에는 어느 셋에도 없다 — 연결 자체가 성립하지 않는다. **이 어긋남을 드러내는 것이 6-E 의 부수 효과**다(→ E-5).
 
-**플랫폼 축** — Windows · Android · iOS · macOS 4종. Linux 는 SDK core 미지원(§6-B). headless 는 CI 용이지 제품 지원 선언이 아니다.
+**플랫폼 축** — **Linux** · Android · Windows · iOS · macOS **5종**([plan.md §0.1](./plan.md) 우선순위 순). 이전 판이 *"Linux 는 SDK core 미지원"* 이라 적은 것은 **Linux 1급화 이전 서술**이며 B-2 가 이미 정정했다 — 여기 문장만 남아 있었다(2026-08-02 정리).
 
 **전송 축은 하나다** `[실측]` — WiFi TCP 뿐이고 USB·BLE 코드가 0건이다. 장비가 자체 AP 이며 고정 IP `192.168.10.1`, 논리 채널 2개(CONTROL **1234** / DATA **1235**), `SOCKET_BUFFER_SIZE = 1MB`([../../review/sonex-framework.md §5](../../review/sonex-framework.md)).
 

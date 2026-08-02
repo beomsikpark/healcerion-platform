@@ -6,7 +6,7 @@
 
 > **기준일 2026-08-02.** 대상 = `sonex-framework` **ADK**(`sdk/adk/`, 실질 31,464 LOC) + `moana` **`framework/`**(44,007 LOC, `origin/service_QT693` = 최신 개발선).
 >
-> **범위 밖 둘** — ① **SDK 계층**(`sdk/sdk/`)은 별도 검토가 20건을 확인했고 SOT 는 [code-defects-sdk.md](./code-defects-sdk.md) 다. ② **`moana/app/`**(UI 91파일 + QML 174파일)은 **읽지 않았다** — [r2](../r2/plan.md) 가 살리는 계층이므로 **공백이다**(§10).
+> **범위 밖 둘** — ① **SDK 계층**(`sdk/sdk/`)은 별도 검토가 21건을 확인했고 SOT 는 [code-defects-sdk.md](./code-defects-sdk.md) 다. ② **`moana/app/`**(UI 91파일 + QML 174파일)은 **읽지 않았다** — [r2](../r2/plan.md) 가 살리는 계층이므로 **공백이다**(§10).
 
 ## 0. 왜 별도 문서인가
 
@@ -190,14 +190,14 @@ flowchart TB
 - **정적 판독이다.** 코드를 읽어 판정했을 뿐 **실행해 재현하지 않았다.** 빌드가 서지 않아([phase0](./phase0-build-reproducibility.md)) 실행 확인 수단이 아직 없다. X-5(회귀 케이스화)가 그 확인이다
 - **전수가 아니다.** ADK 는 주요 모듈 6개의 핵심 경로를 읽었고, `moana` 는 **ADK 대응 영역**(`framework/`의 Database·Network·Dicom·Record)과 위험 패턴 스캔에 한정했다. `moana` 44,007 LOC 전체 정독이 아니다
 - **`moana/app/` 을 읽지 않은 것이 가장 큰 공백이다.** 이 검토는 `framework/`(= r2 가 **폐기**하는 계층)만 봤고, **r2 가 살리는 `app/`(UI 91파일 + QML 174파일·85k LOC)은 한 줄도 보지 않았다.** 결함 판정의 무게가 정확히 반대로 실린 셈이다 — 없어질 코드는 검토했고 남을 코드는 안 했다. **`moana/app/` 결함 검토는 별도 과제로 남는다**
-- **`sdk/sdk/`(SDK 계층)는 범위 밖이다** — 별도 검토가 20건 확인, SOT = [code-defects-sdk.md](./code-defects-sdk.md)
+- **`sdk/sdk/`(SDK 계층)는 범위 밖이다** — 별도 검토가 21건 확인, SOT = [code-defects-sdk.md](./code-defects-sdk.md)
 - **미판정 9건**은 원본 대조를 하지 않은 것이다. 승계일 수도 신규일 수도 있으며, 그 사실을 그대로 남긴다
 - **심각도는 코드 경로 기준**이다. 실제 발생 빈도는 사용 패턴에 달렸고 그것은 측정하지 않았다
 
 ## 11. cross-reference
 
 - [plan.md](./plan.md) — r1 실행 계획. **§3.1b(축 `X`)** · §3.2(선행 케이스 규칙) · §7(다루지 않는 것) · §8(유지/변경 축)
-- [code-defects-sdk.md](./code-defects-sdk.md) — **SDK 계층 결함 20건.** 같은 축의 다른 절반이다
+- [code-defects-sdk.md](./code-defects-sdk.md) — **SDK 계층 결함 21건**(+ `moana` SDK 대응 계층 5건)**.** 같은 축의 다른 절반이다
 - [../r2/plan.md](../r2/plan.md) — `moana` UI → SDK/ADK 이관. **§2.3**(무엇이 남고 사라지는가) 이 `moana` 고유 3건의 처리 근거 · **Phase 4** 가 데이터 파괴 4건의 소비처
 - [../../review/client-database.md](../../review/client-database.md) — `moana`↔ADK DB DDL 대조. §9.3 의 단서(스키마가 아니라 쓰는 쪽이 틀렸다)가 여기에 걸린다
 - [phase0-build-reproducibility.md](./phase0-build-reproducibility.md) — Step 0-C-W(DB 암호화 엔진·fail-open 폴백)

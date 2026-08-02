@@ -122,14 +122,14 @@ flowchart LR
 
 ### Step 4-A. 렌더 서피스 HAL 신설
 
-**대상**: `HCImageRenderCore.cpp` 의 플랫폼 분기 **21곳** · EGL 함수 **22종** → `sdk/platform/{windows,android,ios,macos,headless}/render_surface`([r1 plan.md §2.2](./plan.md) 폴더 구조).
+**대상**: `HCImageRenderCore.cpp` 의 플랫폼 분기 **21곳** · EGL 함수 **22종** → `sdk/platform/{windows,android,ios,macos,linux}/render_surface`([r1 plan.md §2.2](./plan.md) 폴더 구조). **창 없이 도는 것(headless)은 플랫폼이 아니라 서피스 종류 `offscreen` 이다**([plan.md §0.1.1](./plan.md)).
 
 | # | 작업 |
 |---|---|
 | A-1 | **인터페이스 정의** — `sdk/features/ImageRenderer/ports/i_render_surface_port.h`([r1/plan.md §2.0·§2.2](./plan.md) feature-first 채택분). display 획득 · config 선택 · surface 생성 · context 생성/current · swap · resize · destroy. **surface 종류 3개**: `window`(현행) · `adopted`(호출자 컨텍스트 채택) · `offscreen`(4-D) |
 | **A-1a** | **`test/mocks/mock_render_surface.cpp` 를 A-1 과 같은 커밋에 낸다** — 호출을 기록만 하고 고정값을 반환하는 단위테스트 더블(1-B·1-C 의 실물 흉내 더블과는 다르다, [phase1 §2 Step 1-G G-4](./phase1-regression-baseline.md)). **[r1/plan.md §2.3 AF-4](./plan.md)** 가 이걸 CI 로 강제한다 — 포트만 내고 mock 을 안 내면 게이트 실패 |
 | **A-1b** | **`ImageRenderer` 의 `domain/` 단위테스트 착수 — A-1a 가 서는 즉시.** mock 렌더 서피스 위에서 스캔변환·좌표계·측정 계산을 GL 컨텍스트 없이 검증한다. 1-C(헤드리스 골든, 실 EGL)를 기다리지 않는다 — 이 항목이 [phase1 G-3](./phase1-regression-baseline.md) 의 "재개방" 표를 실행한다 |
-| A-2 | **플랫폼 구현 5벌** — windows(`GetDC`/HWND) · android(`ANativeWindow`) · ios/macos(ANGLE 정적링크 + `dlsym(RTLD_DEFAULT, ...)`) · headless([Phase 0-G](./plan.md) 타깃). 라이브러리 로딩 분기(`LoadLibrary`/`dlopen`/더미 핸들 `0x1`)가 전부 여기로 내려간다 |
+| A-2 | **플랫폼 구현 5벌** — windows(`GetDC`/HWND) · android(`ANativeWindow`) · ios/macos(ANGLE 정적링크 + `dlsym(RTLD_DEFAULT, ...)`) · **linux**(EGL 네이티브, [Phase 0-G·0-L](./phase0-build-reproducibility.md) 타깃). 라이브러리 로딩 분기(`LoadLibrary`/`dlopen`/더미 핸들 `0x1`)가 전부 여기로 내려간다 |
 | A-3 | **`ImageRenderCore` 에서 EGL 호출 전부 제거** — 코어는 HAL 이 준 컨텍스트 위에서 GL 만 부른다. `eglCreateWindowSurface`(`:1030`)·`GetDC`(`:767`)·백엔드 폴백 순서(`:774-793`)가 이동 대상 |
 | A-4 | **널 윈도우 분기 흡수** — `:888-893` 의 2갈래를 HAL 의 surface 종류로 재표현한다. `initCurrentDisplay`(`:708-754`)는 **`adopted` 모드로 보존한다**(iOS 브리지가 이 경로를 쓴다) |
 | A-5 | **`useAppThread` 를 계약으로 승격** — 지금은 인자 하나로 렌더 스레드 소유가 갈리고(`initialize`, `:669-706`) 호출처마다 값이 다르며 `start()` 는 빈 stub 이다(`:1956-1961`, 본문이 `// TODO: start render`). **소유를 명시 API 로 표현**하고 stub 을 없앤다 |
@@ -189,7 +189,7 @@ flowchart LR
 | # | 작업 |
 |---|---|
 | D-1 | **EGL config 에 `EGL_SURFACE_TYPE` 을 세운다** — 활성 config(`:914-920`)에 없다. `EGL_WINDOW_BIT \| EGL_PBUFFER_BIT` 를 명시하고, 주석 블록(`:900-912`)은 정리한다 |
-| D-2 | **HAL 의 `headless` 구현**(4-A A-1 의 `offscreen` 종류) — pbuffer 또는 surfaceless 컨텍스트 생성 |
+| D-2 | **HAL 의 `offscreen` 서피스 구현**(4-A A-1 의 세 번째 종류) — pbuffer 또는 surfaceless 컨텍스트 생성. **이것이 "headless" 의 실체다** — 플랫폼이 아니라 서피스 종류이며, 플랫폼 구현 5벌 각각이 이 종류를 지원할 수 있다(Linux surfaceless 가 가장 깨끗) |
 | D-3 | **출발점 = `AngleProbe.mm:39,56`** — iOS 샘플이 `EGL_SURFACE_TYPE, EGL_PBUFFER_BIT` config 로 `eglCreatePbufferSurface` 를 성공시키는 선례다. 백지가 아니다 |
 | D-4 | **백엔드별 지원 편차 실측** — D3D11·D3D9·Metal·Vulkan·OpenGL 각각에서 pbuffer/surfaceless 가 되는지 확인하고, **헤드리스 전용 폴백 순서**를 별도로 둔다(창 있는 경로의 순서 `:774-793` 과 다를 수 있다) |
 | D-5 | **[Phase 1-C](./plan.md)(헤드리스 렌더 골든)와 한 벌** — 1-C 가 검증용으로 먼저 세운 경로를 정식 API 로 승격한다. **두 번 구현하지 않는다** |
