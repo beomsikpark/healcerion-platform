@@ -240,20 +240,29 @@ SDK 바이너리에 서드파티가 포함돼 **고객사를 거쳐 최종 사�
 
 ### 5.3 렌더 출력 계층이 언어별로 갈린다
 
-**"윈도우 없이 프레임을 받는 경로"는 언어를 좁혀도 필수로 남는다** — 다만 **근거가 바뀐다.**
+**"윈도우 없이 프레임을 받는 경로"는 필수다.** 다만 **이전 판이 적은 근거는 사실이 아니었다.**
 
-| | 근거 |
-|---|---|
-| ~~이전~~ | ~~Python 에는 넘겨줄 네이티브 윈도우가 없으므로 `hc_PrepareRenderer(void* nativeWindow)` 가 성립하지 않는다~~ |
-| **현재** | **CI 가 렌더 회귀를 판정할 수단이 그것뿐이다.** 창 없이 못 돌면 [Phase 1-C](r1/phase1-regression-baseline.md)(헤드리스 렌더 골든)가 서지 않고, 그러면 [Phase 4-G](r1/phase4-render-boundary.md)(`HCImageRenderCore.cpp` 7,679 LOC 분할)의 픽셀 동등성을 판정할 수 없다 — **파일 분할이 회귀를 위장한다** |
+> **⚑ 오류 정정(2026-08-02)** — 이전 판은 *"Python 에는 넘겨줄 네이티브 윈도우가 없으므로 `hc_PrepareRenderer(void* nativeWindow)` 계약이 성립하지 않는다"* 고 적었다. **틀린 문장이다.**
+>
+> | | |
+> |---|---|
+> | **Python 에도 창은 있다** | PySide6·PyQt6·GLFW 어느 쪽이든 네이티브 핸들이 나온다. `QWidget::winId()` 는 언어와 무관하다 |
+> | **이 문서 자신이 그 반례를 갖고 있었다** | [Phase 6-C](r1/phase6-samples-support.md) 가 **선택 패키지 `sonex[qt]` — PySide6 `SonexScanWidget`** 을 계획한다. 같은 문서 안에서 *"Python 엔 창이 없다"* 와 *"Python 에서 Qt 위젯을 만든다"* 가 공존했다 |
+> | **정확한 진술** | 창이 **없는** 것이 아니라 **창 없이도 돌아야 한다** — Python 의 주 쓰임이 검증·자동화·CI 이기 때문이다. **요구사항이지 불가능이 아니다** |
+>
+> **원인**: 언어 특성(창을 못 만든다)과 사용 맥락(창을 띄우고 싶지 않다)을 뭉갰다. 아래 표의 *"③은 무의미"* 는 맥락 기준이라 맞고, 본문의 *"창이 없다"* 만 틀렸다.
 
-**Qt 만 지원해도 헤드리스는 그대로 필요하다.** Qt 에는 창이 있으므로 "Qt 가 되면 됐다" 로 좁히면 CI 판정 수단을 잃는다. [Phase 4 위험표](r1/phase4-render-boundary.md)가 같은 것을 적었다 — *"Phase 1-C 가 막히면 렌더 회귀 oracle 자체가 없어져 이 phase 전체가 판정 불가"*. → [rendering-boundary.md](rendering-boundary.md).
+**그리고 근거가 바뀌어도 요구는 남는다.** 언어 범위가 Qt/C++ 1종으로 좁혀졌지만(§1 ⚑) 헤드리스는 그대로 필요하다 — **이번엔 이유가 CI 다.**
+
+> 창 없이 못 돌면 [Phase 1-C](r1/phase1-regression-baseline.md)(헤드리스 렌더 골든)가 서지 않고, 그러면 [Phase 4-G](r1/phase4-render-boundary.md)(`HCImageRenderCore.cpp` 7,679 LOC 분할)의 픽셀 동등성을 판정할 수 없다 — **파일 분할이 회귀를 위장한다.** [Phase 4 위험표](r1/phase4-render-boundary.md)가 같은 것을 적었다: *"Phase 1-C 가 막히면 렌더 회귀 oracle 자체가 없어져 이 phase 전체가 판정 불가"*.
+
+**Qt 에는 창이 있으므로 "Qt 가 되면 됐다" 로 좁히면 CI 판정 수단을 잃는다.** → [rendering-boundary.md](rendering-boundary.md).
 
 | 언어 | 필요한 출력 계층 |
 |---|---|
 | C++ | ①·②·③ 전부 가능 |
 | C# | **②** (WPF·WinForms·MAUI 로 갈리므로 ③은 수렴 안 함) |
-| **Python** | **①·② 만.** ③은 무의미 |
+| **Python** | **①·② 만.** ③은 **무의미**(불가능이 아니라 — 위 ⚑). 주 쓰임이 검증·자동화라 창을 띄울 이유가 없다 |
 | Flutter | **②** (현재 ③ 때문에 Windows 901줄) |
 | JNI · ObjC++ | ②·③ 둘 다. **②가 서면 현재 코드의 서피스 배관이 크게 줄어든다** |
 
