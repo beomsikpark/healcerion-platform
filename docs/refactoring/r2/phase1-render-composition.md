@@ -103,6 +103,7 @@ r1 Phase 4 §5 가 목표를 이렇게 적었다 — *"모든 UI 프레임워크
 | E-3 | **재생 경로가 `framework/Record`·`ScanManager` 에 있다** — 걷어낼 대상이므로 ADK `BackupReadWriter` 로 갈아타야 완전해진다([Phase 4](./phase4-data-layer.md)). 이 phase 에서 기존 경로를 임시로 써도 되나 **그 사실을 기록한다** |
 | E-4 | **[r1 Phase 1-B](../r1/phase1-regression-baseline.md) mock 장치 서버를 확보한다** — r1 이 `[선행 가능]` 으로 표시한 항목이라 **r1 진행과 무관하게 지금 만들 수 있다.** 없으면 [Phase 2 T-7](./phase2-sdk-adk-adapter.md) 의 배선 판정이 성립하지 않는다 |
 | E-5 | **이관 전 명령열을 먼저 녹화한다** — 현행 `moana` 로 대표 시나리오를 돌려 mock 서버가 받은 명령열을 **기준선으로 저장**한다. **Phase 2 가 시작되면 이 기준선을 만들 수 없다** — 그때는 이미 바뀐 코드다 |
+| E-5a | **mock 을 `192.168.10.1` 로 띄운다** — 현행 `moana` 는 주소가 인자가 아니라 상수다(`framework/ScanManager/FrameworkWrapper.cpp:77` `setConnectInfo("192.168.10.1", 1234, 1235, 0)` · `framework/Include/SononCommon.h:219`). **기준선 빌드는 손대지 않는 것이 조건이므로**, 코드를 고치는 대신 로컬 인터페이스 별칭으로 mock 을 그 주소에 바인딩한다 — 코드 수정 0 |
 
 ---
 

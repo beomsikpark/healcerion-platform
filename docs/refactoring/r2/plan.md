@@ -315,6 +315,12 @@ flowchart TB
 >
 > **실행처**: 확보 = [Phase 1 E-4](./phase1-render-composition.md) · **이관 전 명령열 녹화 = [Phase 1 E-5](./phase1-render-composition.md)** · 판정 = [Phase 2 T-7](./phase2-sdk-adk-adapter.md).
 >
+> **아키텍처 없이 성립한다** — 이 계획은 [§2.4](#) 에서 아키텍처를 도입하지 않기로 했으나 ②는 영향받지 않는다. **치환점이 객체가 아니라 프로세스이기 때문이다.** 장치는 TCP 서버(1234/1235)이고 앱이 클라이언트라(`framework/SononClient/BaseSocket.cpp:55`), mock 은 그 포트를 여는 별도 프로세스다 — 앱 안에 인터페이스·DI·계층이 하나도 없어도 된다. 아키텍처를 요구하는 mock 은 *객체를 런타임에 갈아끼우는* 종류인데 이건 그것이 아니다.
+>
+> **리팩토링 후 앱은 주소가 이미 인자다** — SDK `connectDevice(String ip, controlPort, dataPort, ...)`(`sdk/sdk/DeviceManager/shared/HCDeviceManager.h:66`). Phase 2 이후 앱을 mock 으로 돌리는 데 **코드 수정이 0**이다.
+>
+> **⑦ 펌웨어도 같은 mock 하나로 덮인다** — `HCFirmwareController.cpp:148` 이 *"500C/500P/500LS: Socionext 소켓 청크 방식 (FTP 아님)"*. FTP 경로(`:180` 이하)는 500L·L43K·300계 전용이라 **[Phase 0](./phase0-repo-scope-cut.md) 절단 대상이다.** mock 이 FTP 서버를 흉내낼 필요가 없다.
+>
 > **E-5 의 순서가 이 판정의 성립 조건이다** — ②는 "이관 전후 명령열이 같은가" 이므로 **기준선을 코드 변경 전에 떠야 한다.** Phase 2 가 시작된 뒤에는 뜰 수 없다.
 
 #### 2.5.4 그래서 절단 계획을 하나 고친다
