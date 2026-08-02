@@ -127,7 +127,38 @@ flowchart LR
 
 **4-A 가 먼저인 이유** — 나머지 전부가 "서피스를 어디서 얻는가"에 걸린다. **4-G 가 마지막인 이유** — 앞 단계가 코어에서 EGL·플랫폼 분기를 이미 걷어내므로 남은 분할 대상이 줄고, 헤더를 건드리는 작업이라 [Phase 3-F](./phase3-layer-boundary.md)(공개 헤더 정본화) 완료가 전제다.
 
-### Step 4-A. 렌더 서피스 HAL 신설 — ✅ A-1·A-1a 완료 · A-2 착수(2026-08-02, `8ae0b4ce`·`fa5c0f1c`)
+### Step 4-A. 렌더 서피스 HAL 신설 — ✅ A-1·A-1a·A-2·A-3 완료(2026-08-03, `de8787cb`)
+
+#### A-3 결과 — **코어에서 EGL 이 0 이다** `[2026-08-03]`
+
+| | 옮기기 전 | 후 |
+|---|---:|---:|
+| EGL 호출 | 63건 | **0** |
+| EGL 상수 | 124건 | **0** |
+| EGL 타입 | 30건 | **0** |
+| `HCImageRenderCore.cpp` | 7,679줄 | 7,158줄 |
+
+**판정이 실제로 돌았다.** [3-F](./phase3-layer-boundary.md) 가 살려 낸 `test/render/test_render_core_offscreen.cpp` 가 이 변경을 통과 판정했다 — `initialize(nullptr, true)` 는 이제 `Adopted` 종류로 `EglRenderSurface` 를 거쳐 남의 컨텍스트를 채택한다(103/103). 판정 수단 없이 7,679줄 파일에서 63곳을 빼는 것은 검증이 아니라 기대다.
+
+#### A-2 의 형태가 바뀌었다 — **플랫폼 클래스 5벌이 아니라 1벌**
+
+계획은 A-2 를 *"플랫폼 구현 5벌"* 로 잡았다. 옮기려고 실측하니 **플랫폼이 갈리는 지점은 셋뿐**이고 나머지 EGL 흐름은 전부 같다.
+
+| # | 갈리는 것 | 갈래 |
+|---|---|---|
+| 1 | 라이브러리 확보 | `LoadLibrary` / `dlopen` / 정적 링크(더미 핸들 `0x1`) |
+| 2 | 진입점 탐색 | `GetProcAddress` / `dlsym(핸들)` / `dlsym(RTLD_DEFAULT)` |
+| 3 | ANGLE 백엔드 순서 | D3D11→D3D9→Vulkan→GL / Metal→Vulkan→GL / Vulkan→GL |
+
+같은 흐름을 5벌 복제하면 그 사본들이 다시 갈라진다 — **그 비용은 3-F 가 실측했다**(같은 클래스가 include 순서에 따라 584바이트 달랐다). 그래서 `sdk/sdk/ImageRenderer/platform/HCEglRenderSurface` 한 벌에 그 셋만 `#if` 로 둔다.
+
+> **이 클래스가 존재해야 하는 진짜 이유는 코드 정리가 아니다.** 옮기기 전에는 같은 플랫폼 목록이 **세 곳에 따로** 적혀 있었고(`initEGL`·`getProcAddressWithFallback`·`initGLES`), **하나만 넓히면 나머지가 다른 갈래로 떨어져 죽었다.** r1 작업 중 이 실수를 두 번 재현했다 — 사람이 조심해서 될 일이 아니라 **한 곳에 있어야 하는 일**이다.
+
+**부수 효과로 소유권이 명시됐다.** 예전 `releaseEGL` 은 `Adopted` 로 채택한 남의 컨텍스트도 `eglDestroyContext` 했다(iOS 브리지가 쓰는 경로). 서피스가 소유 여부를 들고 있으므로 이제 그러지 않는다.
+
+**게이트**: `scripts/check-render-boundary.py`. EGL 만 보지 않는다 — 코어가 알면 안 되는 것은 **창을 얻는 방법 전부**다(`GetDC`·`HWND`·`ANativeWindow`·`dlopen`·`dlsym`·`LoadLibrary`). EGL 만 막으면 `GetDC` 가 남아 Windows 만 특별 취급하는 코드가 코어에 계속 있게 된다. 주석 안의 낱말은 위반으로 세지 않는다 — "EGL 컨텍스트 활성 시점" 같은 설명은 남아 있는 것이 정확하다.
+
+> **포트는 아직 공개 계약이 아니다.** 코어 공개 헤더에 포트를 `#include` 했더니 내부 헤더가 공개 트리로 딸려 나가 자기완결성이 깨졌고 `check-public-headers.py` 가 잡았다. 포인터 멤버는 전방선언으로 충분하다. 고객이 서피스를 직접 만들게 되는 것은 **A-6** 의 일이다.
 
 #### A-2-실측. `[2026-08-02]` 코어를 오프스크린에 올리자 분기 결함 3건이 드러났다
 
