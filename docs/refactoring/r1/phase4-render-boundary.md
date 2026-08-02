@@ -36,11 +36,17 @@
 | API | 정의 | 플랫폼 | 성격 |
 |---|---|---|---|
 | `hc_GetBufferRenderedFrameAt` | `HCSonexSDKInterface.cpp:430-471` | **가드 없음(전 플랫폼)** | ScanBuffer `[frameIdx]` 를 **SDK 렌더 파이프라인에 다시 넣어** RGBA 로 반환. **티어 ②의 실동작 원형** |
-| `hc_renderCineFrameFromGray` | `HCImageRenderer.cpp:1047-1054` | 가드 없음 | 위의 하위 위임. **공개 헤더 `sdk/include/HCImageRenderer.h:206` 에 있는 유일한 프레임 반환 경로** |
+| `hc_renderCineFrameFromGray` | `HCImageRenderer.cpp:1047-1054` | **`#if OS_WINDOWS`**(`[정정 2026-08-02]`, 이전 판 "가드 없음") | 위의 하위 위임. 공개 헤더 `sdk/include/HCImageRenderer.h:206` 는 **무조건 선언**하는데 구현은 Windows 전용이다 |
 | `hc_GetBufferRawFrameAt` | `HCSonexSDKInterface.cpp:378` | 가드 없음 | raw grayscale — 티어 ① 성격. 위가 실패하면 앱이 이쪽으로 폴백 |
 | `hc_ReadRenderedImage` | `HCSonexSDKInterface.cpp:331-339` | **`#if OS_IOS`** | 현재 바인드된 프레임버퍼 readback |
 
 **호출 사슬이 이미 이어져 있다** — `hc_GetBufferRenderedFrameAt` → `SonexSDK::renderCineFrame`(`HCSonexSDK.cpp:1111-1140`, `GetProcAddress`/`dlsym` 로 ImageRenderer export lookup) → `hc_renderCineFrameFromGray` → `cine::submitCineJobExternal`(`HCImageRenderCore.cpp:357`) → 렌더 스레드 잡 큐(`:2559`·`:2571`) → `processOneCineJobGL` → `ensureCineFbo`(`:303`) → `renderScanB->render`(`:2757`) → `glReadPixels`(`:2760`).
+
+> **`[정정 2026-08-02 — 실빌드로 확인]`** 이전 판은 `hc_renderCineFrameFromGray` 를 *"가드 없음(전 플랫폼)"* 으로 적었으나 **틀렸다.** `HCImageRenderer.cpp:1021` 이 `#if OS_WINDOWS` 를 열고 그 안에 이 함수와 `hc_setCineZoom`·`hc_resetCineZoom`·`hc_getCineZoomScale` 이 함께 들어 있다. Linux 빌드의 `libImageRenderer.so` 에 **해당 심볼이 하나도 없다**(`nm -D` 확인).
+>
+> **4-C 의 전제가 좁아진다** — *"작동하는 완성프레임 반환 경로가 이미 하나 돈다"* 는 **Windows 에서만 참**이다. `hc_GetBufferRenderedFrameAt`(파사드, `SonexSDK` 가 export)은 여전히 전 플랫폼이므로 사슬 전체가 끊긴 것은 아니나, **그 사슬의 하위 위임이 Windows 전용**이라 다른 플랫폼에서는 이 경로가 무엇을 하는지 확인되지 않았다.
+>
+> **이 정정의 성격도 §1.2 와 같다** — 헤더 선언을 구현 존재로 읽었다. §1.2 가 *"선언은 존재의 증거가 아니다"* 라고 적은 바로 그 오류를 같은 문서 안에서 한 번 더 한 것이고, 이번에는 **빌드가 그것을 판정했다.**
 
 **한계 셋이 그대로 4-C 의 작업 항목이 된다.**
 
