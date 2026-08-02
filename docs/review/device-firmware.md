@@ -1,7 +1,7 @@
 # device 그룹 — belle 펌웨어 구조
 
 > **범위**: HLAB-2487 검토 대상은 **belle 계열**이다. 300 시리즈(ginny·elsa 세대)는 단종 모델이므로 범위 밖이며 참조 기록은 [legacy/ginny-elsa-firmware.md](legacy/ginny-elsa-firmware.md) 에 있다.
-> **근거**: `belle-fw` **`origin/production-fw-ver2.0`**(HEAD 2026-07-01) · `belle-bsp` `master`+`origin/production-fw` 코드 직접 읽기(2026-07-27).
+> **근거**: `belle-fw` **`origin/production-fw-ver2.0`**(HEAD 2026-07-01) · `belle-bsp` `master`+`origin/production-fw` 코드 직접 읽기(2026-07-27). **§6.1·§6.3·§6.6~§6.8 은 2026-08-01 에 같은 브랜치·`belle-bsp`에서 추가 실측**(스레드 전수·커맨드 파이프라인·Web/BLE 서비스 계통).
 > **⚠ master 를 보면 안 된다** — `belle-fw` master 는 2021-09 에 멈춰 있고 실제 개발은 `production-fw-ver2.0` 에서 이어진다.
 
 ## 1. 한눈에
@@ -126,16 +126,108 @@ add_definitions(-D_MSPLIB_)           # MSP430 micom 연동
 
 ## 6. 애플리케이션 구조
 
+### 6.0 전체 구조 `[신규 실측 2026-08-01]`
+
+```mermaid
+flowchart TB
+    subgraph external
+        mobileapp[모바일 앱 - moana 또는 sonex]
+        browser[웹 브라우저]
+    end
+    subgraph rcS_processes
+        sonon[sonon 스캔 엔진]
+        bcd[bcd 설정 브로커]
+        deviced[deviced I2C 폴링]
+        watchdogd[watchdogd 생존 감시]
+    end
+    subgraph sonon_pipeline
+        dispatch[커맨드 dispatch - sonon_receive]
+        modechange[모드 전환 - sonon_mode_change_proc]
+        beamform[빔포밍 - image_proc b_sa]
+        doppler[Color Flow 자기상관 plus Power Doppler 적분 - lib cf_doppler]
+        pwm[PW M 처리 - sonon_pw_m_proc]
+        scanconv[스캔 컨버전]
+    end
+    subgraph rc5_processes
+        ble[ble-adv ble-btgatt-server]
+        flask[belle_flask 웹 대시보드]
+        stream[belle_stream_server]
+    end
+    ghandle[(전역 상태 Handle 구조체)]
+    hw[FPGA AFE 펄서 - EBI SPI]
+
+    mobileapp -->|HC 프로토콜 TCP 1234 1235| sonon
+    browser -->|HTTP 포트80| flask
+    mobileapp -.->|BLE 프로비저닝| ble
+
+    sonon --> dispatch
+    dispatch --> modechange
+    modechange --> beamform
+    modechange --> doppler
+    modechange --> pwm
+    beamform --> scanconv
+    doppler --> scanconv
+    pwm --> scanconv
+    scanconv --> sonon
+
+    dispatch -.-> ghandle
+    modechange -.-> ghandle
+    sonon -.-> ghandle
+
+    sonon --> hw
+    deviced --> hw
+    flask --> hw
+    bcd -.-> sonon
+    watchdogd -.-> sonon
+
+    sonon -.->|R_scv 공유플래그| stream
+```
+
+**중심에 캡슐화 없는 전역 상태 하나가 있다.** `Handle`(`lib/common.h:430`, **166줄, 필드 150개 이상**)이 `g_handle` 전역 포인터 하나로 `sonon` 전체·`sonon_receive`·`sonon_mode_change_proc`·`lib/fpga*` 가 공유하는 유일한 상태 저장소다. 내용은 크게 셋으로 갈린다.
+
+| 범주 | 예 |
+|---|---|
+| 장치 상태 | `device_type`·`power_fpga`·`power_scan`·`ebi_fd`·`reg_base`(FPGA mmap 주소) |
+| **동기화 프리미티브 5개** | `transmit_mutex`·`neon_mutex`·`fpga_write_mutex`·`fpga_read_mutex`·`power_onoff_mutex` |
+| **교정/설정 테이블 30여 종** | MAX2082 레지스터 테이블(tx/rx 별도)·depth 테이블(512/1024)·frequency/nco 테이블(3계열)·TGC·DTGC 테이블·pulser delay 테이블(B/B-SA/B-LD 별도)·시퀀스 테이블(`seq_b`·`seq_b_sa`·`seq_b_ld`·`seq_c`)·PRF interleave·doppler preset(`std::map`) |
+
+이 테이블들이 사실상 **장비의 초음파 교정 데이터베이스**다 — 별도 설정 파일이나 DB 가 아니라 C++ 구조체 리터럴/벡터로 소스에 박혀 있다.
+
+**모드 전환은 별도 상태기계다** — `sonon_mode_change_proc.cpp`(879줄)가 모드별 파라미터 setter 4개(`lib_b_mode_param_set`·`lib_cf_mode_param_set`·`lib_pw_mode_param_set`·`lib_m_mode_param_set`)와 공용 진입/종료(`lib_current_mode_stop`/`lib_current_mode_start`)를 갖는다. §6.1.1 의 PW/M 전용 스레드가 생성·해제되는 시점이 바로 여기다.
+
+**모듈 결합도는 예상보다 깨끗하다** — 직접 확인 전엔 `image_proc`이 `lib`/`Handle`에 결합돼 있을 것으로 예상했으나, **`image_proc/b_sa.{h,cpp}`는 `Handle`을 전혀 참조하지 않는다.** 자체 I/Q 샘플 타입(`t_complex_data`)과 LUT(`Rx_apo_LUT.h`·`Tx_dly_LUT_delta.h` 등)만으로 동작하고, `sonon`이 원시 샘플 배열을 넘겨주고 처리 결과를 받아가는 구조다. 계층은 `sonon`(오케스트레이션+프로토콜, `Handle` 유일 소유자) → `image_proc`(정적 라이브러리, 순수 신호처리, **`b_sa.cpp` 단 하나만 컴파일**·`b_conventional.cpp`는 `add_library` 호출에서 아예 빠짐 — §5 결정과 정확히 일치) → `lib`(정적 라이브러리, HAL: fpga/afe/pulser/cf-doppler) → 하드웨어(EBI/mmap) 순이다.
+
+**죽은 병렬 경로 하나 발견** — `b_sa.cpp`는 빔포밍을 스레드 2개(`MAX_DDF_THREAD_NUM`)로 병렬화하는 `DDF_THREAD` 코드 경로를 갖고 있으나, 활성화 매크로가 `//#define DDF_THREAD`로 **주석 처리돼 비활성**이다(`:40`) — 현재는 단일 스레드로 처리된다.
+
 ### 6.1 프로세스
 
 | 실행물 | 역할 | IPC |
 |---|---|---|
-| `sonon` | 실시간 스캔 엔진. pthread 5개(`ctrl`·`data`·`mgmt`·`btn`·`pipe`) | **TCP 2채널**(1234/1235), 커스텀 바이너리 |
+| `sonon` | 실시간 스캔 엔진. **pthread 최소 8개 상시 + 모드별 최대 5개 동적**(§6.1.1) | **TCP 2채널**(1234/1235), 커스텀 바이너리 |
 | `bcd` | Board Config Daemon — 설정 브로커 | **SysV 메시지 큐** |
 | `deviced` | I2C 온도·배터리 폴링 | SysV 메시지 큐 |
 | `watchdogd` | 프로세스 생존 감시 + HW 워치독 | **Unix 도메인 소켓** |
 
 IPC 방식이 셋 다 다르다.
+
+#### 6.1.1 `sonon` 스레드 전수 — `[신규 실측 2026-08-01]` "5개 고정"이 아니다
+
+`sonon/sonon.cpp`(3,522줄) `main()`을 직접 읽으면 상시 스레드가 5개가 아니라 **8개**이고, 그중 2개(`t_ctrl_message_from_client`·`t_data_message_to_client`)는 접속·모드에 따라 **추가로 스레드를 더 만든다.**
+
+| 스레드 | 생성 시점 | 역할(코드 확인) |
+|---|---|---|
+| `t_ctrl_message_from_client` | 상시 | `CTRL_PORT`(1234) accept 루프. 접속마다 `t_ctrl_process` 신규 생성. **동일 IP 재접속이 아니면 세션 1개로 강제**(`sonon.cpp:2141-2236`) |
+| `t_ctrl_process` | 클라이언트 접속마다 | DATA 세션 연결을 500ms 대기 후 커맨드 패킷 루프 진입 |
+| `t_data_message_to_client` | 상시 | `DATA_PORT`(1235) accept 루프. 접속 시 `t_data_process` 생성, **그 시점 모드가 PW/M이면 추가 스레드까지 함께 생성** |
+| `t_data_process` | 클라이언트 접속마다 | 실제 프레임 생산 루프 — freeze/live 상태·multifocus·도플러 파라미터·프레임 번호 관리, `R_scv` 플래그 처리(§6.8) 포함 |
+| `t_pwtransmit_process`·`t_pwdata_process`·`t_pwpostdata_process`·`t_pwsnddata_process` | **PW 모드 진입 시에만** | PW 4단계 파이프라인(송신→수집→후처리→전송)을 스레드로 분리 |
+| `t_mdata_process` | **M 모드 진입 시에만** | M-mode 전용 데이터 처리 |
+| `t_management` | 상시 | 온도 2단계·배터리 2단계·팬고장 감시, deep-sleep 타임아웃, "alive" 카운터 — 주기적 헬스체크 |
+| `t_button` | 상시, **단 `_USING_500L_DEV_` 빌드에서 `#if` 로 컴파일 자체가 제외**(`sonon.cpp:3492`) | 물리 버튼(freeze 등) 이벤트 처리. **500L 은 이 스레드가 존재하지 않는다** |
+| `t_upgrade_process` | 상시, 평소 대기 | `pthread_cond_wait` 로 대기하다 업그레이드 명령 시 깨어나 `/sbin/upgrade.sh` 실행 후 재부팅 |
+| `t_pipe_process` | 상시 | 이름과 달리 영상 파이프가 아니라 **named pipe 기반 텍스트 커맨드 콘솔**(`sonon_pipe.cpp`, `command_scan_fn`·`command_dump_fn`) — 엔지니어링 디버그 인터페이스로 보임 |
+
+→ 접속·모드 조합에 따라 **동시 스레드 수가 8~13개 사이에서 변한다.** 리소스·경합 분석을 "고정 5스레드" 전제로 하면 틀린다.
 
 ### 6.2 CMake 그래프
 
@@ -148,6 +240,19 @@ IPC 방식이 셋 다 다르다.
 `lib/`(정적 라이브러리 `fpga`)와 `sonon/`·`image_proc/` 에 초음파 체인이 들어 있다 — AFE·펄서·컬러 도플러·PW·M-mode. 빌드 플래그도 이에 맞춰져 있다(`-D__NEON_ASSEM__`, `-ffast-math -ftree-vectorize`, ARM NE10 SIMD).
 
 **`image_proc` 는 belle 세대에 추가된 것**이다(ginny 에는 없었다) — 영상 형성의 일부가 장비 쪽으로 옮겨왔다.
+
+`[신규 실측 2026-08-01]` 파일 줄수로 무게중심을 보면 **FPGA 커맨드 wrapper 가 메인 오케스트레이션보다 크다.**
+
+| 파일 | 줄수 | 역할 |
+|---|---:|---|
+| `sonon/sonon_receive_fpga.cpp` | **4,048** | FPGA 커맨드 wrapper 전체 |
+| `sonon/sonon.cpp` | 3,522 | 메인 오케스트레이션(스레드·소켓·세션) |
+| `lib/cf-doppler.c` | 1,585 | **Color Flow(CF)** 자기상관 본체 + **Power Doppler**(`pd_en` 분기·`cf_power_integrate()`) 적분 경로(ARM NEON). "CF"는 `lib/fpga_ebi.cpp:469` 주석 `//color flow` 로 확정 — Power Doppler 는 CF 와 별개 기능이나 같은 파일에 곁다리로 구현돼 있다 |
+| `image_proc/b_sa.cpp` | 1,376 | SA(합성개구) 빔포밍·B-mode 영상 형성 — 현재 컴파일되는 유일한 B-mode 경로(§5) |
+| `sonon/sonon_scanconversion.cpp` | 1,278 | 극좌표→직교좌표 스캔 컨버전 |
+| `sonon/sonon_pw_m_proc.cpp` | 977 | PW/M-mode 처리 |
+| `sonon/sonon_receive.cpp` | 950 | 프로토콜 dispatch(§6.6) |
+| `sonon/sonon_b_sa.cpp` / `sonon_b_conventional.cpp` | 358 / 183 | SA/재래식 빔포밍 시퀀스 제어(후자는 빌드 제외 상태) |
 
 ### 6.4 HAL 은 규약이 아니라 선택지다
 
@@ -174,6 +279,89 @@ IPC 방식이 셋 다 다르다.
 정량 합격 기준이 문서에 있다 — `recall=1.0(device 보존)` · `scatter=0` · `v21 far ≥ v20 far` · **골든 검출마스크 일치 ≥0.95**. 드라이버(`run_fw_v21_compare.py`)와 골든 데이터는 **`nextdoppler` 저장소**에 있고, 그것은 루트 `CLAUDE.md` 가 범위에서 뺀 78 NextDoppler 다 — **범위 제외 판단이 in-scope 출하 펌웨어의 검증 의존물을 잘랐다.**
 
 → belle 장비 축을 "회귀 판정 수단이 구조적으로 없는 곳"으로 인용하면 사실과 다르다. 없는 것은 **CI**(0건)이고, 하니스는 사람이 손으로 돌린다. 상세 = [change-cost.md §3.2](change-cost.md).
+
+### 6.6 커맨드 처리 파이프라인 — `[신규 실측 2026-08-01]`
+
+`sonon_receive.cpp`(950줄)가 진입점이다.
+
+```
+클라이언트 패킷 → wrapper_packet_process()
+                     → verify_packet_header_and_crc()   ※ 이름과 달리 실제 CRC 검사 없음(§7)
+                     → packet_type 분기:
+                         FPGA_* → wrapper_rx_fpga_command()    (272줄 — AFE/FPGA 레지스터급 명령)
+                         DEVICE_* → wrapper_rx_device_command() (701줄 — 모드 전환·스캔 파라미터 설정)
+```
+
+### 6.7 Web·BLE 서비스 계통 — `sonon` 과 별개 부팅 계통이다 `[신규 실측 2026-08-01]`
+
+§6.2 가 "`modules/`(Flask 웹서버)는 CMake 그래프에 없다"고 이미 밝혔는데, **부팅 순서까지 완전히 분리돼 있다.** §2 다이어그램의 `hcproc`→`sonon` 흐름은 **SysV `rcS.d`**(시스템 초기화) 계통이고, Web·BLE 는 **`rc5.d`**(런레벨 5, 초기화 이후 일반 런레벨) 계통이다 — `sonon` 이 죽어도 이쪽은 계속 살아 있을 수 있다.
+
+```mermaid
+flowchart TB
+    subgraph rcS_phase
+        hcproc[S95 hcproc.sh - UBI 오버레이 mtd4 mtd5 마운트]
+        initrun[S99 init-run - sonon deviced tcpsvd watchdogd 기동]
+    end
+    subgraph rc5_phase
+        bleinit[S99ble - ble_init.sh]
+        bleadv[sbin ble-adv 광고 데몬]
+        blegatt[sbin ble-btgatt-server]
+        blescript[sbin ble - wifi ssid key serial 광고 루프]
+        flask[belle_flask.py - 팩토리 웹 대시보드 포트80]
+        stream[belle_stream_server.py - mjpeg 스캔 프리뷰]
+    end
+    sonon[sonon 프로세스]
+    hwlibs[libafe libpulser libreg libfuel libtemper libprobe - HW 직접 접근]
+    theapp[모바일 앱 moana 또는 sonex]
+
+    hcproc --> initrun
+    initrun --> sonon
+    rcS_phase --> rc5_phase
+    bleinit --> bleadv
+    bleinit --> blegatt
+    bleinit --> blescript
+    bleinit --> flask
+    bleinit --> stream
+    flask --> hwlibs
+    stream --> hwlibs
+    blescript -.->|wifi 자격증명 전달| theapp
+    flask -.->|http 192.168.10.1 포트80| theapp
+```
+
+**설치 규칙**(`CMakeLists.txt`, `origin/production-fw-ver2.0`):
+
+| 소스 | 설치 위치 | 비고 |
+|---|---|---|
+| `scripts/ble_init.sh` | `/etc/rc5.d/S99ble` | 부팅 시 BLE + Web 을 함께 기동 |
+| `modules/ble/ad` | `/sbin/ble-adv` | **prebuilt 바이너리, 소스 없음** |
+| `modules/ble/btgatt-server` | `/sbin/ble-btgatt-server` | **prebuilt 바이너리, 소스 없음** |
+| `scripts/ble.sh` | `/sbin/ble` | WiFi SSID·키·기기명 광고 루프(쉘 스크립트, 소스 있음) |
+| `modules/webserver/belle_flask/` | `/root/belle_flask`(hcproc 오버레이 경유 재복사) | Flask 팩토리 대시보드 |
+
+**Web**: `belle_flask.py` 끝의 `app.run(host='192.168.10.1', port=80)` — 장비 자체 WiFi AP IP·포트80. 라우트는 `/device_monitoring`·`/device_control`·`/device_status`·`/aging_config`·`/aging_result`·`/probe`·`/login`·`/logout`(구버전 `modules/python/belle_flask/` 경로엔 `/afe/read`·`/pulser/write`·`/fpga/write`·`/uploadfpga`·`/upload_upgrade` 같은 **레지스터 직접 read/write·펌웨어 업로드** 라우트도 있었다). `libreg.so`·`libafe.so`·`libpulser.so`·`libtemper.so`·`libfuel.so`·`libprobe.so`를 Python `ctypes`로 직접 로드한다 — **`sonon`의 C++ HAL(`lib/`)을 거치지 않는, 완전히 독립된 두 번째 하드웨어 접근 스택**이다.
+
+**BLE**: `ble.sh`의 `get_config()`가 `bcc`(설정 저장소)에서 `wlan_ssid`·`wlan_key`·`device_name`·`dev_serial`을 읽는다 — **기기명·WiFi 자격증명을 BLE로 광고해 앱이 기기를 찾고 WiFi 설정을 넘겨받는 프로비저닝 용도**로 보인다(추론, GATT 서비스/캐릭터리스틱 자체는 미확인 — §12). 실제 스캔 영상은 여전히 WiFi 위 HC 프로토콜(TCP 1234/1235)이다.
+
+**발견된 불일치**: `ble_init.sh stop`은 `killall ble-ad`를 호출하는데 실제 설치 바이너리명은 `ble-adv`(`RENAME ble-adv`) — 이름이 어긋나 stop 이 이 프로세스를 못 잡을 가능성이 있다(코드상 확인, 실제 동작은 미검증).
+
+### 6.8 `sonon` ↔ Web 의 유일한 접점 — `R_scv` 플래그 `[신규 실측 2026-08-01]`
+
+§6.7 은 두 계통이 "완전히 독립"이라고 했지만, **영상 프리뷰 기능 하나는 파일시스템을 매개로 실제로 연결돼 있다.**
+
+`sonon.cpp:1951-1964`(`t_data_process` 안):
+```
+if (config_get_uint8("R_scv") == 1) {
+    // 현재 스캔 버퍼를 raw dump
+    fopen("/tmp/upload/scv.dat", "wb")
+    system("rawtopgm /tmp/upload/scv.dat /tmp/upload/scv.dat.pgm -x 512 -y 512")
+    system("cjpeg-static /tmp/upload/scv.dat.pgm > /tmp/upload/scv.jpeg")
+    config_set_uint("R_scv", 0)   // 완료 신호
+}
+```
+
+`belle_stream_server.py`의 `gen_frames()`가 `libmessage.so`(SysV 메시지큐 래퍼)로 같은 `R_scv` 플래그를 1로 세팅하고 `sonon`이 0으로 내릴 때까지 폴링한 뒤 `/tmp/upload/scv.jpeg`를 읽어 MJPEG(`multipart/x-mixed-replace`)로 스트리밍한다.
+
+**정식 IPC가 아니라 공유 설정플래그(`libmessage.so`) + 임시파일 + 외부 셸 파이프라인(`rawtopgm`·`cjpeg-static`)을 조합한 구조**다 — `sonon`이 C++ 코드에서 직접 JPEG 인코딩을 하지 않고, 매 프레임마다 프로세스 2개(`rawtopgm`, `cjpeg-static`)를 `system()`으로 fork/exec 한다.
 
 ## 7. 외부 통신 — HC 프로토콜
 
@@ -252,9 +440,17 @@ TI **MSP430FR2433**, TI CCS 10.0.0. 초음파가 아니라 **전원·부팅 감�
 | FSBL·PMU·Vivado 프로젝트 부재(§9) | 하드웨어 변경 대응 불가. **저장소가 아니라 개발자 머신에 있을 가능성** |
 | 개발이 알고리즘·OEM 대응에만 집중(§10) | 플랫폼 개선 여력이 조직에 배정돼 있지 않다 |
 | **CI 0건 · 검증 하니스 1건**(§6.5) | 판정 수단이 없는 게 아니라 **자동으로 돌리는 계통이 없다.** 규제 검토의 공백은 후자다 |
+| `sonon` 스레드가 8~13개로 가변, "5개 고정" 아님(§6.1.1) | 회귀·부하 분석을 스레드 수 고정 전제로 하면 틀린다. **모드 전환 시점의 스레드 생성/해제 경합**이 검토 필요 지점 |
+| **하드웨어 접근 경로가 이중**(§6.7) — `sonon`(C++ `lib/` HAL) vs `belle_flask`(Python ctypes `.so` 직접 로드) | 동시 접근 시 레이스 가능성이 **구조적으로 존재**. Web 이 켜져 있는 동안 `sonon`과 레지스터를 동시에 건드릴 수 있다 |
+| `sonon`(rcS.d)과 Web·BLE(rc5.d)가 별개 부팅 계통(§6.7) | `sonon` 장애가 Web·BLE 가용성에 영향 없음 — **진단 목적엔 유리하나 상태 불일치 위험**(예: `sonon` 이 죽었는데 웹 대시보드는 "정상"으로 보일 수 있음) |
+| BLE 바이너리 3종 중 2종(`ble-adv`·`ble-btgatt-server`) 소스 없음(§6.7) | `belle-msp`(§8)와 같은 **SOUP-무출처 패턴**이 반복. 리비전·펌웨어 출처 불명은 규제 관점에서도 공백 |
+| `sonon`↔Web 연결이 공유플래그+임시파일+외부프로세스(§6.8) | 정식 IPC 로 교체하면 **프레임당 fork/exec 2회**(`rawtopgm`·`cjpeg-static`) 오버헤드를 없앨 수 있음 — 성능·신뢰성 개선 여지 |
 
 ## 12. 미확인
 
 - `belle-fw` `production-fw-ver2.0`(2026-07)과 `production-fw`(2026-06)의 관계 — 실제 출하 브랜치
 - PetaLinux 릴리스 버전 — `layer.conf` 의 `zeus` 가 단서
 - `image_proc` 도입으로 영상 형성 경계가 어디까지 옮겨왔는지
+- **BLE GATT 서비스/캐릭터리스틱 UUID·페이로드 포맷**(§6.7) — `ble-adv`·`ble-btgatt-server` 가 prebuilt 라 소스로 확인 불가. 앱(`moana`/`sonex`) 쪽에서 이 GATT 를 실제로 소비하는 코드가 있는지도 미확인
+- **`belle_flask` 로그인(`/login`) 인증 강도**(§6.7) — 코드 미확인. 하드코딩 자격증명 여부는 `cybersecurity.md` 관점의 별도 확인 필요
+- `ble_init.sh stop`의 `killall ble-ad` vs 실제 설치명 `ble-adv` 불일치(§6.7)가 **실제로 프로세스 정리 실패로 이어지는지** — 코드는 확인, 실기 동작은 미검증
