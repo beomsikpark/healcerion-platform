@@ -204,6 +204,50 @@ flowchart TB
 | `app/Sources/{PatientList,WorkList,Setting,Main,Cloud,DeviceControl}` | **이식** — ADK/SDK 위로 재배선 | 91파일 |
 | QML 174파일 | **이식** — 스캔 뷰만 교체 | 85k LOC |
 
+### 2.4 아키텍처 — 전면 도입하지 않는다
+
+[r1 §2.0](../r1/plan.md) 은 feature-first clean architecture 를 명시적으로 채택하고 `test-architecture` 로 CI 강제까지 건다. **r2 는 그렇게 하지 않는다.**
+
+| 근거 | |
+|---|---|
+| **이 계획의 원칙과 충돌한다** | [Phase 3 §1.4](./phase3-render-path.md)(`ScanPlayer` 분해는 범위 밖) · [Phase 6 §1.1](./phase6-build-packaging.md)(qmake 유지)이 이미 같은 이유를 적었다 — **구조 개선과 계층 교체를 동시에 하면 회귀 원인을 가를 수 없다** |
+| **안전망이 없다** | `moana` 는 자동 테스트 **0** · CI **0**([../../review/moana-app.md §8](../../review/moana-app.md)). r1 은 Phase 1(회귀 기준선)을 세운 뒤 구조를 바꾸지만, 이 계획엔 그럴 구간이 없다 |
+| **일정** | 4주 안에 계층 교체 + 구조 개편은 들어가지 않는다 |
+
+#### 그런데 이 계획 자체가 구조 부채를 줄인다 `[실측 2026-08-02]`
+
+`moana` app 계층의 대표 부채는 **`Common` 허브 유입 248건(64%) · 순환 12쌍**이다([../legacy/moana-vs-sonex.md §3](../legacy/moana-vs-sonex.md)).
+
+`app/Sources` → `Common/` include 유입을 다시 재면 **181건**이고, 그중 이 계획이 걷어내는 계층에서 나오는 것이 이렇다.
+
+| 출처 | 유입 | 이 계획의 처리 |
+|---|---:|---|
+| `Scan/` | **71** | **부분 제거** — 렌더 코어 13.8k LOC 는 사라지나 `ScanPlayer`(7,526줄) 등 UI 로직은 남는다 |
+| `Ambulance/` | **22** | **전량 제거**([Phase 0 B-1](./phase0-repo-scope-cut.md)) |
+| `Measure/` | 1 | 대부분 제거([Phase 5 A-2](./phase5-measure-controls.md)) |
+| 합계 | **94 (52%)** | |
+
+**확실히 줄어드는 것은 23건이고, `Scan/` 잔존분에 따라 최대 94건까지 줄어든다.** 정확한 값은 Phase 3·5 완료 후에야 나오므로 **여기서 단정하지 않는다.** 다만 방향은 분명하다 — **구조 작업을 따로 하지 않아도 허브 유입이 눈에 띄게 줄고, 순환 12쌍 중 일부는 한쪽 끝이 사라져 저절로 풀린다.**
+
+#### 대신 새로 만드는 것에만 규약 넷을 건다
+
+**기존 코드를 재배치하지 않는다. 이 계획이 신설하는 것**(어댑터 계층·표시 컴포넌트)**에만 적용한다.**
+
+| # | 규약 | 이유 |
+|---|---|---|
+| A-1 | **어댑터를 `Common/` 에 두지 않는다** — 별도 디렉토리에 신설 | 허브 유입 248건을 줄이는 계획에서 새 코드가 그 허브를 다시 키우면 안 된다 |
+| A-2 | **의존은 단방향** — QML·뷰컨트롤러 → 어댑터 → SDK/ADK. **역방향 금지** | `moana` 의 역의존 6건이 생긴 방식이 이것이다([../../review/moana-app.md §0](../../review/moana-app.md)) |
+| A-3 | **SDK/ADK 타입이 UI 계층으로 새지 않게 한다** — `HC::StreamData` 등은 어댑터 경계에서 멈춘다 | 585개소를 다시 만들지 않기 위해서다. [Phase 2 C-1](./phase2-sdk-adk-adapter.md) 의 어댑터가 그 경계다 |
+| A-4 | **`ScanContext` 같은 공유 상태 구조체를 새로 만들지 않는다** | 397개 직접 접근이 그렇게 생겼다 |
+
+**넷 다 "무엇을 하라"가 아니라 "무엇을 반복하지 마라"다.** 강제 장치를 새로 만들지 않으므로 비용이 없고, 지키지 않으면 이 계획이 없애는 부채를 같은 자리에 다시 쌓는다.
+
+#### 재개 입력은 이미 있다
+
+`moana` 에 feature-first 를 넣는 설계는 **[legacy/r1](../legacy/r1/) 이 Phase 2~9 로 이미 해 뒀다** — 계층 경계(phase2) · `core/`(phase3) · composition root·presentations(phase4) · feature 별 분리(phase5~9, worklist·settings·patient·dicom·cloud·measure·scan·ambulance·ble).
+
+당시 전제(`moana` 단독 리팩토링)는 폐기됐지만 **`app/` 계층 구조 분석과 feature 경계 판정은 그대로 유효하다.** 구조 작업을 재개한다면 그 문서가 입력이고, **이 계획이 트리를 절반으로 줄여 놓은 상태에서 시작하므로 그때 더 싸다.**
+
 ---
 
 ## 3. Phase 구성
@@ -373,6 +417,7 @@ flowchart LR
 | 500L·300 계열 지원 | **출시 범위 밖** |
 | 장비 펌웨어 | `500c-sn-fw` — [../../review/500c-firmware.md](../../review/500c-firmware.md). 펌웨어 축 리팩토링 계획은 없다 |
 | 빌드 시스템 qmake → CMake 교체 | 6-1 대로 범위 밖 |
+| **`app/` 구조 개편(feature-first)** | **범위 밖**(§2.4). 설계는 [legacy/r1](../legacy/r1/) Phase 2~9 에 이미 있고, 이 계획이 트리를 줄여 놓은 뒤 재개하면 더 싸다 |
 | `sonex-app`(Flutter) 처리 | 이 계획이 성립하면 대체된다. 존폐는 제품 결정 |
 | 사이버보안 신규개발 | [../cybersecurity.md](../cybersecurity.md) §3 |
 

@@ -1,6 +1,7 @@
 # Phase 5 — 언어별 wrapper 정본화
 
 > **상태**: 미시작
+> **⚑ 범위 축소(2026-08-02)**: **이번 실행 범위는 `C++`/Qt6 표시 컴포넌트 1벌**이다. C#·Python·Flutter·JNI·ObjC++ **5종은 연기**한다 — 출시 대상이 500C·500P 로 좁혀지고 UI 가 [r2](../r2/plan.md)(Qt) 하나로 정해졌기 때문이다. **폐기가 아니다**([../goal.md §1 ⚑·§5.2](../goal.md)). 아래 27벌 실측·정본화 방법론은 **재개 시점에 그대로 쓰인다.**
 > **범위**: `sonex-framework` 작업 사본의 `wrapper/`. **바인딩을 새로 발명하지 않는다 — 27벌 14,363 LOC 를 정본 1벌씩으로 수렴시키고 그 정합을 CI 가 판정하게 한다.** 산출물은 언어별 **표시 컴포넌트**이지 심볼 목록이 아니다([../rendering-boundary.md §7.2](../rendering-boundary.md)).
 > **선행**: [Phase 4](./phase4-render-boundary.md) — 순서를 뒤집으면 지금의 서피스 결합 4갈래가 언어 수만큼 곱해진다
 > **후행**: [Phase 6](./phase6-samples-support.md)

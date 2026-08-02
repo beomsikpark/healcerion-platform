@@ -404,6 +404,8 @@ flowchart LR
 
 **Phase 4 선행.** 순서를 뒤집으면 지금의 결합 4갈래가 언어 수만큼 곱해진다([rendering-boundary.md §8](../rendering-boundary.md)).
 
+> **⚑ 범위 축소(2026-08-02)** — **이번 실행은 5-D 의 `C++`(`SonexScanWidget`, Qt6) 1벌만** 한다. C#·Python·Flutter(5-D 나머지)와 JNI·ObjC++(5-F)는 **연기**다([../goal.md §1 ⚑](../goal.md)). **5-A~5-C·5-E 는 축소하지 않는다** — 정본 위치·전수 대조·부재 심볼 해소·CI 판정은 Qt 1벌에도 그대로 필요하고, 그것이 나머지 언어의 재개 비용을 낮춘다.
+
 | 항목 | 내용 |
 |---|---|
 | 5-A | **`wrapper/` 신설** — 27벌 약 14,400 LOC 가 샘플·앱 안에 흩어진 것을 정본 위치로 수집 |
@@ -413,7 +415,7 @@ flowchart LR
 | 5-E | **생성/검증 자동화** — 공개 헤더를 입력으로 바인딩을 생성하거나, 최소한 헤더↔바인딩 불일치를 CI 가 판정(Phase 1-D 확장) |
 | 5-F | **2차 — JNI·ObjC++** — 표류 해소 후 정본화. Phase 4·5-B~D 뒤에는 추가 비용이 거의 없다 |
 
-**성공 판정**: `wrapper/` 아래 언어당 1벌. 앱이 부르는 심볼 중 구현에 없는 것 0건(전수 — 108개 중 29개 부재, 코어 기준 31. 대소문자 오타 3건은 5-C 소관, 나머지 28건은 4-C·4-C2 구현 대상으로 이미 분류됨).
+**성공 판정**: `wrapper/` 아래 **Qt/C++ 1벌**(전체 목표는 언어당 1벌). 앱이 부르는 심볼 중 구현에 없는 것 0건(전수 — 108개 중 29개 부재, 코어 기준 31. 대소문자 오타 3건은 5-C 소관, 나머지 28건은 4-C·4-C2 구현 대상으로 이미 분류됨).
 
 ### Phase 6 — 샘플·문서·지원 경계 (B5·B6)
 
@@ -421,11 +423,14 @@ flowchart LR
 
 **언어별로 성격이 다르다**([goal.md B5](../goal.md)) — C#·JNI·ObjC++ 는 기존 샘플을 재편하면 되지만, **C++·Python 은 참조 구현 자체가 0 이라 신규 작성이다.** 재편과 신규를 하나로 뭉치면 후자의 비용이 가려진다.
 
+> **⚑ 범위 축소(2026-08-02)** — **이번 실행은 6-B(C++/Qt6 샘플) 1벌만** 한다. 6-A(C#·JNI·ObjC++ 재편)·6-C(Python)·6-D(Flutter)는 **연기**다([../goal.md §1 ⚑](../goal.md)).
+> **6-E(지원 매트릭스)·6-F(지원 경계)는 축소하지 않는다** — 출시 제품이 그것을 필요로 한다. 특히 6-F 의 펌웨어 경계는 500C/500P 굽기 경로에 직접 걸린다([r2 Phase 5-D](../r2/phase5-measure-controls.md)).
+
 | 항목 | 내용 |
 |---|---|
 | 6-A | **기존 샘플 재편** — C#(`SDK_Sample_Windows` 외 2벌·`Framework_Sample_Windows`·`ADK_Sample_Test`)·JNI(`SDK_Sample_Android`·`Android_SampleApp`)·ObjC++(`SDK_Sample_iOS`·`iOS_SampleApp`)를 `sample/` 아래 언어당 1벌, SDK 섹션+ADK 섹션 구조로 통합 |
 | **6-B** | **C++ 샘플 신규 작성** — 지금 SDK 내부 코드와 iOS 브리지 조각뿐이고 **외부 소비자 관점 샘플이 0**. Phase 5-D 의 `SonexScanWidget`(Qt6)을 쓰는 대표 시나리오(연결→스캔→렌더→저장)를 새로 짠다. Phase 3-F(공개 헤더 정본화) 선행 |
-| **6-C** | **Python 샘플 신규 작성** — 바인딩·샘플 **둘 다 0**인 유일한 백지. `sonex` 코어 사용 스크립트(GUI 없이 연결→스캔→프레임 획득 — Phase 4 판정 시험 ②와 동일 코드가 겸한다) + `sonex[qt]` 사용 시나리오(PySide6 `SonexScanWidget`) 두 벌 |
+| 6-C | **Python 샘플 신규 작성 — 연기.** 바인딩·샘플 **둘 다 0**인 유일한 백지. `sonex` 코어 + `sonex[qt]`(PySide6) 두 벌. **Phase 4 판정 시험 ②를 이것이 겸하던 구도는 해소됐다** — 판정 주체가 Python 샘플에서 **CI 헤드리스 하니스**로 바뀌었다([phase4 §3.2](./phase4-render-boundary.md)) |
 | 6-D | Flutter 샘플 — `sonex-app` 자체가 이미 SDK+ADK 를 함께 쓰는 참조 구현이다. Phase 5-D 의 `SonexScanView` 추출(이사)이 곧 샘플이라 **별도 신규 작성 없음** |
 | 6-E | 지원 매트릭스(모델×펌웨어×플랫폼) + 미지원 조합 오류 반환 |
 | 6-F | 지원 경계 문서화 — 음향출력(MI/TIB) 표시 책임은 통합자, **펌웨어 업그레이드는 전 계열이 ADK 필요** — 500L `startFirmwareUpdate` 도 `TODO` 껍데기라 500C/500P 만의 문제가 아니다([goal.md B6](../goal.md)) |

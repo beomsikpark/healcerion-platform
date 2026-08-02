@@ -1,6 +1,7 @@
 # Phase 4 — 렌더 서피스 HAL·출력 경계 계층화
 
 > **상태**: 미시작
+> **⚑ 판정 시험 ② 재정의(2026-08-02)**: 언어 범위가 Qt/C++ 1종으로 좁혀지면서(→[../goal.md §1 ⚑](../goal.md)) **"Python 이 창 없이"** 라는 표현이 근거를 잃었다. **헤드리스 요구 자체는 그대로 남는다** — 이유가 "언어 독립 증명" 에서 **"CI 가 렌더 회귀를 판정할 유일한 수단"** 으로 바뀐다(§3.2).
 > **범위**: `sonex-framework` 의 **렌더 출력 계약**. SDK 가 받는 것을 윈도우 핸들에서 렌더 타겟 크기로, 주는 것을 없음에서 완성 프레임으로 바꾼다. **`ImageRenderer` 의 알고리즘 본문은 건드리지 않는다.**
 > **선행**: [Phase 3](./phase3-layer-boundary.md) — 3-A(iOS 빌드 역방향)·3-E(C ABI 타입 누수)·3-F(공개 헤더 정본화)가 이 phase 의 API 작업이 설 바닥이다
 > **후행**: [Phase 5](./phase5-language-wrappers.md) — 순서를 뒤집으면 지금의 결합 4갈래가 언어 수만큼 곱해진다([rendering-boundary.md §8](../rendering-boundary.md))
@@ -195,7 +196,7 @@ flowchart LR
 | D-5 | **[Phase 1-C](./plan.md)(헤드리스 렌더 골든)와 한 벌** — 1-C 가 검증용으로 먼저 세운 경로를 정식 API 로 승격한다. **두 번 구현하지 않는다** |
 | D-6 | 렌더 스레드 소유 정리 — 헤드리스에서는 잡 큐를 도는 `worker()`(`:5226`) 대신 **동기 호출**이 자연스럽다. A-5 의 계약이 두 모드를 함께 표현해야 한다 |
 
-> **판정 시험 ②가 여기서 성립한다** — Python 에는 넘겨줄 창이 없다. 4-D 없이는 §3.2 를 통과할 수 없다.
+> **판정 시험 ②가 여기서 성립한다** — 4-D 없이는 §3.2 를 통과할 수 없고, 그러면 [Phase 1-C](./phase1-regression-baseline.md)(헤드리스 렌더 골든)도 서지 않는다.
 
 ### Step 4-E. 공유 서피스 반환 추가
 
@@ -254,7 +255,7 @@ flowchart LR
 | # | 항목 | 방법 | 기대 |
 |---|---|---|---|
 | 3.1 | **판정 시험 ①** | SDK 단독 샘플을 ADK 없이 빌드 | 성공 ([Phase 3-A·3-K](./phase3-layer-boundary.md) 전제). **타깃 구분 없음** — 컴파일·링크 시점 속성이라 실장비 유무가 결과에 영향 없다 |
-| 3.2 | **판정 시험 ②** | **Python 에서 창 없이** 연결 → 스캔 → 프레임 획득 — [phase1 Step 1-H](./phase1-regression-baseline.md)의 `sdk-connect-scan-render` 와 **동일 시나리오**, `TARGET=mock`(mock 장치 서버, Phase 1-B)·`TARGET=device`(실장비) 둘 다 | **둘 다** 성공. **이 phase 의 최종 판정** |
+| 3.2 | **판정 시험 ②** | **CI 가 창 없이** 연결 → 스캔 → 프레임 획득 — [phase1 Step 1-H](./phase1-regression-baseline.md)의 `sdk-connect-scan-render` 와 **동일 시나리오**, `TARGET=mock`(mock 장치 서버, Phase 1-B)·`TARGET=device`(실장비) 둘 다. 드라이버 언어는 무관하다 | **둘 다** 성공. **이 phase 의 최종 판정** |
 | 3.3 | **알고리즘 본문 불변** | `git diff` — `objects/`·`measure/`·`shader/` 및 스캔변환·graymap·도플러 함수 본문 | **변경 0줄** |
 | 3.4 | 픽셀 동등성 | 4-A·4-G 전후 헤드리스 골든(Phase 1-C) 대조 | 바이트 일치 |
 | 3.5 | 플랫폼 분기 제거 | `ImageRenderCore` 에서 `OS_WINDOWS\|OS_ANDROID\|OS_IOS\|OS_MACOS` grep | **0건** (현재 21) |
@@ -271,7 +272,7 @@ flowchart LR
 | 3.16 | 성능 | 공유 서피스 경로 fps vs 픽셀 버퍼 폴백 | 폴백 저하폭을 수치로 기록 |
 | **3.17** | **`domain/` 단위테스트 커버리지**(A-1a·A-1b) | `mock_render_surface` 위에서 도는 gtest 스위트 | **존재하고 CI(`make test-unit`)에서 통과** (현재 0 — `ImageRenderer` 전체가 1-C 통합테스트로만 판정됨) |
 
-> **3.2 가 진짜 게이트다.** 나머지가 전부 통과해도 Python 이 창 없이 돌지 않으면 경계가 선 것이 아니다. 반대로 3.2 가 통과하면 다른 언어 wrapper 도 따라 수렴한다.
+> **3.2 가 진짜 게이트다.** 나머지가 전부 통과해도 **창 없이 돌지 않으면 CI 가 렌더 회귀를 판정할 수단이 없다** — [Phase 1-C](./phase1-regression-baseline.md) 헤드리스 골든이 여기 걸리고, 그것이 없으면 4-G(코어 7,679 LOC 분할)의 픽셀 동등성(§3.4)을 확인할 수 없어 **파일 분할이 회귀를 위장한다.** 부수 효과로 다른 언어 wrapper 도 이 경계 위에서 수렴한다 — **그것은 이번 범위가 아니지만 경계는 같다.**
 
 ---
 
@@ -319,7 +320,7 @@ flowchart TB
 
 **[Phase 5](./phase5-language-wrappers.md) 가 여기서 비로소 수렴한다.** 지금 wrapper 를 쓰면 그 일이 `언어 × UI프레임워크 × 플랫폼` 으로 불어나지만, 티어 ②가 서면 **모든 UI 프레임워크가 이미 갖고 있는 표준 이미지 경로**(Flutter `Texture` · WPF `D3DImage` · Android `SurfaceTexture` · Apple `CVPixelBuffer`/`MTLTexture`)에 얹는 일로 줄어든다.
 
-그리고 **[Phase 6](./plan.md) 의 Python·C++ 샘플이 성립한다** — Python 은 창이 없어 4-D 없이는 샘플 자체를 쓸 수 없고, 판정 시험 ②와 같은 코드가 그대로 샘플이 된다.
+그리고 **[Phase 6](./plan.md) 의 Qt6/C++ 샘플이 성립한다.** 판정 시험 ②와 같은 코드가 CI 회귀 하니스로 그대로 쓰인다.
 
 **남는 것은 그대로 남는다** — `ImageRenderer` 의 도메인 가치(스캔변환·graymap·도플러 합성·좌표계·눈금·측정 텍스트), ANGLE(내부 구현 상세로), freetype(기본 폰트 동봉으로 부담만 제거), `HCTouchRecognizer`(조작 소유).
 
