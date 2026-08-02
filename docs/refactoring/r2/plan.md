@@ -13,6 +13,8 @@
 
 > **IMPORTANT — 일정 제약**: **포팅과 검증을 합쳐 4주 안에 끝나야 한다**(주어진 제약). 이 문서는 관행대로 phase 별 시간을 추정하지 않는다. 대신 **일정을 지배하는 항목을 §5 에 따로 표시**한다 — 그것이 줄지 않으면 총량도 줄지 않는다.
 
+> **IMPORTANT — 라이선스 제약**: **LGPLv3 를 넘어가는 것은 쓰지 않는다.** 신규 채택 금지에 그치지 않고 **현재 쓰고 있는 상용·GPL 의존도 전부 대체 대상**이다. 실측 결과 대체 대상은 **셋**(상용 Qt · CVIE · QCustomPlot)이고, 그중 **CVIE 대체는 화질 재검증을 부르므로 일정에 직접 걸린다.** 상세 = §0.4, CI 게이트 = [Phase 6](./phase6-build-packaging.md).
+
 ---
 
 ## 0. 전제 — 왜 이 안인가
@@ -36,6 +38,45 @@
 ### 0.3 Qt5→Qt6 이행이 아니다
 
 `moana` 는 **이미 Qt 6.6.3 으로 빌드된다**([../../review/moana-app.md §2](../../review/moana-app.md)). 이 계획에 Qt 메이저 이행은 포함되지 않는다. `service_QT693` 브랜치가 진행 중인 6.6.3 → 6.9.3 이행은 **이 계획과 독립**이며, 충돌 관리는 §5 에 있다.
+
+### 0.4 라이선스 — 대체 대상이 셋이다 `[실측 2026-08-02]`
+
+**출시 조건은 LGPLv3 이하이고, 신규 채택 금지에 그치지 않는다** — 현재 쓰는 상용·GPL 도 대체한다.
+
+**통과하는 것**
+
+| 축 | 실측 |
+|---|---|
+| **Qt 모듈 선언** | `app.pro:1` `quick qml sql network multimedia concurrent positioning quickcontrols2` · `:496,1143` `widgets printsupport` · `:640` `androidextras` · `framework.pro:1` 동류. **전부 LGPLv3 제공 모듈** |
+| **GPL 전용 Qt 애드온** | Charts·Data Visualization·Virtual Keyboard·Quick 3D·MQTT·HTTP Server·Lottie·Wayland — **전 `.pro` 전수에서 0건**([../legacy/licensing.md §2](../legacy/licensing.md)) |
+| 나머지 서드파티 | OpenCV(BSD-3) · DCMTK · OpenSSL · TFLite(Apache-2.0) 등 |
+
+**대체 대상 셋**
+
+| # | 대상 | 현재 | 대체 | 난이도 |
+|---|---|---|---|---|
+| **①** | **상용 Qt** | **Android 프로덕션이 `~/QtCommercial/5.15.2/android`**(`build.py:16`) | **오픈소스 Qt6 LGPLv3.** 기술적 차단 없음 — 같은 소스·같은 바이너리이고 기능·API 차이가 없다([../legacy/licensing.md §3](../legacy/licensing.md)) | **낮음.** 단 §아래 두 부작용 |
+| **②** | **CVIE**(ContextVision, 상용) | `framework/ContextVision/` + `HC_CVIE_SUPPORT` **85곳/14파일**. `.cov` 라이선스 파일 2개가 저장소에 있고 CVLM(라이선스 매니저) 초기화가 선행된다 | **NextSRI/HNS** — `framework/ImageProc/HCNextSRIFilter`(OpenCV 단독, BSD-3) 또는 SDK 의 `HCSRIv*` 필터군 | **중간 — 코드가 아니라 화질 판정이 비용이다**(아래) |
+| **③** | **QCustomPlot**(GPLv3) | 데스크톱 블록에 컴파일. 출하 기능 아님 | **제거** — `app.pro:74` `#DEFINES += ENABLE_IMAGE_ANALYZER` 스위치가 이미 있다 | **낮음.** [Phase 0 B-3](./phase0-repo-scope-cut.md) |
+
+**②가 이 계획의 라이선스 항목 중 유일하게 일정에 걸린다.**
+
+대체 코드는 **이미 출하 코드 안에 있고 런타임 배타 분기까지 배선돼 있다** — `ImageProc.cpp:1229-1235` 가 `cvieActive = (getCvieSetting() >= 0)` 으로 CVIE 와 NextSRI 를 배타 처리한다. 즉 **"만들어야 하는" 것이 아니라 "기본값을 바꾸는" 것**이다.
+
+> **그러나 등가성은 미검증이다.** 커밋 메시지의 *"byte-identical 검증"* 은 **Python 레퍼런스와의 일치**이지 **CVIE 와의 화질 등가가 아니다.** 그리고 **라이선스가 있으면 CVIE 가 기본값**이라는 것은 그들이 더 낫다고 판단하고 있다는 뜻이다([../legacy/moana-vs-sonex.md §1.2](../legacy/moana-vs-sonex.md)).
+>
+> **따라서 ②는 사람 검증 항목이다**(§5) — 임상 화질 비교가 필요하고, 의료기기 관점에서 영상 처리 경로 변경은 재검증 대상이다.
+
+**①의 부작용 둘** `[../legacy/licensing.md §3]`
+
+| # | 내용 |
+|---|---|
+| 1 | **LTS 접근 상실** — `Qt 6.8.5 LTS 는 상용 전용`이다. 오픈소스는 feature release(6.9.x·6.10)만 받는다. **Android 16KB 페이지 대응 해법으로 그들이 지목한 것이 6.8.5 LTS 였다** — 대안 경로를 정해야 한다 |
+| 2 | **오프라인 인스톨러 상실** — 빌드 환경 재현성이 나빠진다. 이미 빌드머신 Qt 설치본을 **손으로 9건 개조**(ffmpeg 플러그인·`libav*` `.bak` 처리·dependencies XML 편집)하고 있어 부담이 겹친다 |
+
+**FFmpeg — LGPL 전용 구성으로 고정한다.** Qt Multimedia 백엔드와 벤더 `lib/` 양쪽에 있다. GPL 전용 코덱(x264·x265·xvid) 배제([r1 Phase 0-C-6](../r1/phase0-build-reproducibility.md) 과 같은 판단).
+
+**LGPLv3 이행 의무는 현재 0/4 다** `[../legacy/licensing.md §4]` — 전문 동봉 · 사용 사실 고지 · 소스 취득 경로 · 재링크 수단이 전부 없다. **iOS 는 정적 링크라 §4(d)(0) 에 따라 앱 오브젝트 파일 아카이브를 산출·제공하는 릴리스 단계가 필요하다**(정적 링크는 상용 라이선스라도 동일하다). 전부 [Phase 6](./phase6-build-packaging.md) 소관.
 
 ---
 
@@ -176,7 +217,7 @@ flowchart LR
     p2[Phase 2 - SDK ADK 어댑터]
     p3[Phase 3 - 렌더 경로 교체]
     p4[Phase 4 - 데이터 계층 이관]
-    p5[Phase 5 - 측정과 500C 컨트롤]
+    p5[Phase 5 - 측정 필터 500C 컨트롤]
     p6[Phase 6 - 빌드와 패키징]
     p0 --> p1
     p1 --> p2
@@ -185,6 +226,18 @@ flowchart LR
     p4 --> p5
     p5 --> p6
 ```
+
+### 상세 문서
+
+| Phase | 문서 |
+|---|---|
+| 0 | [phase0-repo-scope-cut.md](./phase0-repo-scope-cut.md) |
+| **1 ★** | [phase1-render-composition.md](./phase1-render-composition.md) |
+| 2 | [phase2-sdk-adk-adapter.md](./phase2-sdk-adk-adapter.md) |
+| 3 | [phase3-render-path.md](./phase3-render-path.md) |
+| 4 | [phase4-data-layer.md](./phase4-data-layer.md) |
+| 5 | [phase5-measure-controls.md](./phase5-measure-controls.md) |
+| 6 | [phase6-build-packaging.md](./phase6-build-packaging.md) |
 
 ### Phase 0 — 저장소 재배치 · 범위 절단
 
@@ -247,11 +300,12 @@ flowchart LR
 | 4-3 | DICOM·PACS·MWL·클라우드를 ADK 호출로 교체 |
 | 4-4 | **기존 출하 DB 호환을 확인한다** — `moana` 와 ADK 의 DDL 대조는 [../../review/client-database.md](../../review/client-database.md) 가 SOT 다 |
 
-### Phase 5 — 측정 이관 · 500C/P 컨트롤
+### Phase 5 — 측정 이관 · 필터 대체 · 500C/P 컨트롤
 
 | # | 작업 |
 |---|---|
 | 5-1 | `app/Sources/Measure/` 를 SDK 측정으로 교체(§2.2). **결과 표시·리포트 UI 는 남긴다** |
+| 5-1b | **CVIE(상용) 제거 + 오픈소스 필터로 대체**(§0.4 ②). 코드는 런타임 배타 분기가 이미 있어 작으나, **화질 등가성 판정이 사람 검증 항목**이다 |
 | 5-2 | 캘리퍼 조작을 SDK `HCTouchRecognizer` 로 위임. 앱은 렌더 타겟 좌표만 넘긴다([r1 4-B1](../r1/phase4-render-boundary.md)) |
 | 5-3 | **Harmonic·Spatial Compound 토글 신설** — SDK 가 주는 `harmonicSupported` 힌트로 조건부 표시(§1.6) |
 | 5-4 | 펌웨어 굽기를 ADK `HCFirmwareController` 로 재배선. **화면 형태는 같다**(파일 선택 → 진행률 → 완료) — `moana` 의 500L 전용 `FirmwareUpdater.cpp` 121줄은 폐기 |
