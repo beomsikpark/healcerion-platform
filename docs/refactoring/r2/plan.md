@@ -312,6 +312,10 @@ flowchart TB
 **②가 이 계획의 실질 안전망이다.** `SONON_CMD_*` 505개소를 SDK 명령으로 바꾸는 작업([Phase 2-A](./phase2-sdk-adk-adapter.md))에서 **어느 파라미터가 조용히 안 넘어갔는지**는 사람이 화면을 봐서는 잡히지 않는다 — mock 서버가 받은 것을 기록해야 잡힌다. **통짜 구조체를 개별 request 로 분해하는 작업이라 특히 그렇다**([Phase 2 §1.2](./phase2-sdk-adk-adapter.md)).
 
 > **mock 서버는 이미 계획에 있고 선행 가능하다** — [r1 Phase 1-B](../r1/phase1-regression-baseline.md) 가 *"재배치 전에도 우리 루트 git 안에서 독립적으로 지금 만들 수 있다"* 로 표시한 항목이다. **r2 가 그 첫 소비처가 된다.**
+>
+> **실행처**: 확보 = [Phase 1 E-4](./phase1-render-composition.md) · **이관 전 명령열 녹화 = [Phase 1 E-5](./phase1-render-composition.md)** · 판정 = [Phase 2 T-7](./phase2-sdk-adk-adapter.md).
+>
+> **E-5 의 순서가 이 판정의 성립 조건이다** — ②는 "이관 전후 명령열이 같은가" 이므로 **기준선을 코드 변경 전에 떠야 한다.** Phase 2 가 시작된 뒤에는 뜰 수 없다.
 
 #### 2.5.4 그래서 절단 계획을 하나 고친다
 

@@ -101,7 +101,8 @@ r1 Phase 4 §5 가 목표를 이렇게 적었다 — *"모든 UI 프레임워크
 | E-1 | **`DummyPlayer`(275줄)·`ScanAutoTestController`(267줄)** — `app/` 에 있어 살아남는다. SDK 프레임 경로 위에서 그대로 도는지 확인 |
 | E-2 | **`AgingTestController`(552줄)** — [Phase 0 B-2](./phase0-repo-scope-cut.md) 가 보류로 돌린 자산. 500C/P 에 의미가 있는지, 자동 구동 뼈대로 쓸 수 있는지 판정 |
 | E-3 | **재생 경로가 `framework/Record`·`ScanManager` 에 있다** — 걷어낼 대상이므로 ADK `BackupReadWriter` 로 갈아타야 완전해진다([Phase 4](./phase4-data-layer.md)). 이 phase 에서 기존 경로를 임시로 써도 되나 **그 사실을 기록한다** |
-| E-4 | **[r1 Phase 1-B](../r1/phase1-regression-baseline.md) mock 장치 서버 착수 여부 확인** — [plan.md §2.5.3](./plan.md) 의 배선 판정이 여기 걸린다. **선행 가능 항목이라 r1 진행과 무관하게 지금 만들 수 있다** |
+| E-4 | **[r1 Phase 1-B](../r1/phase1-regression-baseline.md) mock 장치 서버를 확보한다** — r1 이 `[선행 가능]` 으로 표시한 항목이라 **r1 진행과 무관하게 지금 만들 수 있다.** 없으면 [Phase 2 T-7](./phase2-sdk-adk-adapter.md) 의 배선 판정이 성립하지 않는다 |
+| E-5 | **이관 전 명령열을 먼저 녹화한다** — 현행 `moana` 로 대표 시나리오를 돌려 mock 서버가 받은 명령열을 **기준선으로 저장**한다. **Phase 2 가 시작되면 이 기준선을 만들 수 없다** — 그때는 이미 바뀐 코드다 |
 
 ---
 
@@ -109,6 +110,8 @@ r1 Phase 4 §5 가 목표를 이렇게 적었다 — *"모든 UI 프레임워크
 
 | # | 항목 | 방법 | 기대 |
 |---|---|---|---|
+| **3.0** | **빌드 게이트** | 매 Step 후 빌드 | 성공. **[plan.md §2.5.3 ①](./plan.md) — Phase 0~2 구간에서 상시 도는 판정** |
+| **3.0b** | **이관 전 기준선 확보** | E-5 — 현행 `moana` 명령열 녹화본 | **존재.** 없으면 [Phase 2 T-7](./phase2-sdk-adk-adapter.md) 배선 판정이 성립하지 않으며 **이후 되돌려 뜰 수 없다** |
 | 3.1 | 영상 표시 | 재생 데이터로 스캔 화면 | 성공 |
 | 3.2 | **QML 오버레이** | 영상 위 QML 요소 | **정상 합성** — 씬그래프 안이므로 z-order 가 Qt 규칙을 따른다 |
 | 3.3 | 합성 범위 | CF · Spectrum · 눈금 · 측정이 한 프레임에 | **전부 포함**([r1 4-C1](../r1/phase4-render-boundary.md) 산출물) |
