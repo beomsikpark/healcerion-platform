@@ -213,7 +213,7 @@ flowchart TB
 ```mermaid
 flowchart LR
     p0[Phase 0 - 재배치와 범위 절단]
-    p1[Phase 1 - 렌더 합성 실증]
+    p1[Phase 1 - 표시 컴포넌트 렌더 계약 접속]
     p2[Phase 2 - SDK ADK 어댑터]
     p3[Phase 3 - 렌더 경로 교체]
     p4[Phase 4 - 데이터 계층 이관]
@@ -232,7 +232,7 @@ flowchart LR
 | Phase | 문서 |
 |---|---|
 | 0 | [phase0-repo-scope-cut.md](./phase0-repo-scope-cut.md) |
-| **1 ★** | [phase1-render-composition.md](./phase1-render-composition.md) |
+| 1 | [phase1-render-composition.md](./phase1-render-composition.md) |
 | 2 | [phase2-sdk-adk-adapter.md](./phase2-sdk-adk-adapter.md) |
 | 3 | [phase3-render-path.md](./phase3-render-path.md) |
 | 4 | [phase4-data-layer.md](./phase4-data-layer.md) |
@@ -249,27 +249,21 @@ flowchart LR
 | 0-4 | 벤더 `lib/`(6.56G) 처리 판단 — SDK/ADK 로 대체되는 것(DCMTK·OpenCV·FFmpeg·wxSQLite3)이 대부분이다. 제거 범위를 여기서 정한다 |
 | 0-5 | 힐세리온 원본 반영 방식은 **미정이어도 비차단** — 별도 브랜치에서만 작업한다([r1 Phase 0-4](../r1/phase0-build-reproducibility.md) 와 같은 원칙) |
 
-### Phase 1 — 렌더 합성 실증 ★ **이 계획의 첫 관문**
+### Phase 1 — 표시 컴포넌트 · 렌더 계약 접속
 
-**여기가 서지 않으면 이하 전부가 무의미하다.** 실장비 없이 확인 가능하므로 가장 먼저 친다.
+**선행 = [r1 Phase 4](../r1/phase4-render-boundary.md) 완료.** 그 phase 가 SDK 의 렌더 계약을 **윈도우 핸들에서 렌더 타겟 크기로, 없음에서 완성 프레임으로** 바꾼다. 이 계획은 그 상태를 전제하므로 **컨텍스트 소유 문제는 여기서 다루지 않는다** — SDK 가 창을 요구하지 않으면 다툴 일이 없다.
 
-문제는 이것이다 — `moana` 는 QtQuick 씬그래프가 GL 컨텍스트를 소유하고(`QQuickFramebufferObject`), SDK 는 **자체 EGL 컨텍스트와 자체 렌더 스레드**를 소유한다(`HCImageRenderCore.h` `initEGL()`·`std::thread renderThread`). 둘을 한 화면에 합성하는 경로를 확정해야 한다.
-
-| # | 후보 경로 | 전제 |
-|---|---|---|
-| 1-A | **완성 프레임 수신 → `QSGTexture`** | [r1 Phase 4](../r1/phase4-render-boundary.md) 의 `hc_CreateRenderTarget(w,h)` + 프레임 반환 계약. **본선** |
-| 1-B | **`adopted` 컨텍스트** — Qt 가 만든 GL 컨텍스트를 SDK 가 채택 | `initCurrentDisplay()`(현행 코드에 존재, iOS 브리지가 쓰는 경로) |
-| 1-C | **네이티브 자식 창** — `QWidget::winId()` 를 `prepareRender` 에 전달 | 현행 SDK 로 즉시 가능하나 **QML 오버레이가 그 위에 못 얹힌다**(Flutter 가 겪는 문제와 동일) |
-| 1-D | **오프스크린 FBO → readback → 텍스처 업로드** | 복사 비용. cine 용 offscreen FBO 코드가 이미 있다(`HCImageRenderCore.h:66-69`) |
+**접속 지점이 이미 맞다** — `moana` 의 `GLFrameView` 는 `QQuickFramebufferObject`(`GLFrameView.h:42,524`), 즉 *"GL 로 그린 결과를 QtQuick 씬그래프에 넣는 자리"* 다. r1 Phase 4 §5 가 목표로 적은 *"UI 프레임워크의 표준 이미지 경로"* 의 Qt 대응물이 정확히 이것이다.
 
 | # | 작업 |
 |---|---|
-| 1-1 | 네 경로를 **실측으로 가른다** — 최소 Qt6 앱에서 500C 재생 데이터로 프레임을 띄운다 |
-| 1-2 | **프레임레이트·지연을 수치로 남긴다.** 1-D 는 성립하더라도 복사 비용이 실사용에 맞는지가 별건이다 |
-| 1-3 | **r1 Phase 4 의존 여부를 확정한다** — 1-A 가 본선이면 이 계획은 r1 Phase 4 완료에 걸린다. 걸리지 않는 폴백(1-B·1-D)이 성립하는지를 같은 시험에서 판정한다 |
-| 1-4 | 결과를 **계약으로 문서화** — 픽셀 포맷·원점·스트라이드·버퍼 소유. [r1 4-C7](../r1/phase4-render-boundary.md) 과 같은 항목이다 |
+| 1-1 | **표시 컴포넌트 구현** — 공유 서피스(제로카피)와 픽셀 버퍼 두 반환 형태를 `QSGTexture` 로 받는다. 폴백을 만드는 게 아니라 **[r1 4-E4](../r1/phase4-render-boundary.md) 의 계약이 그렇다** |
+| 1-2 | **모드별 4벌을 1벌로** — SDK 가 모드를 알고 합성하므로 표시 컴포넌트는 모드를 모른다 |
+| 1-3 | **계약 세부 확정** — 픽셀 원점·스트라이드·버퍼 소유([r1 4-C7](../r1/phase4-render-boundary.md)) · **프레임 갱신 감지 방식** · 앱 생명주기. 뒤 둘은 r1 이 미확정으로 남긴 항목이라 **이 phase 가 요구를 낸다** |
+| 1-4 | **좌표 변환 계약** — 위젯 좌표 → 렌더 타겟 좌표([r1 4-B1](../r1/phase4-render-boundary.md)). `moana` 의 `ppcm` 계산이 여기서 대체된다 |
+| 1-5 | **성능 확인** — 반환 형태별 프레임레이트. 저하가 크면 **표시 컴포넌트에서 우회하지 않고 r1 에 되돌린다** |
 
-> **1-3 이 이 계획의 일정 리스크를 가른다.** 1-A 만 성립하면 r1 Phase 0~4 가 선행이라 총량이 커진다. 폴백이 성립하면 두 계획을 병행할 수 있다.
+> **실장비가 필요 없다** — 재생 데이터로 판정한다. 그래서 r1 Phase 4 완료 직후 바로 칠 수 있다.
 
 ### Phase 2 — SDK/ADK 어댑터 계층
 
@@ -286,7 +280,7 @@ flowchart LR
 
 | # | 작업 |
 |---|---|
-| 3-1 | `GLFrameView` 내부를 Phase 1 에서 확정한 경로로 교체 |
+| 3-1 | `GLFrameView` 내부를 Phase 1 의 표시 컴포넌트로 교체 |
 | 3-2 | `app/Sources/Scan/` 렌더 코어 **13.8k LOC 제거** — 스캔컨버전 정점 메시·셰이더·텍스처 업로드·`FrameProcessorPWM` |
 | 3-3 | 프리셋 `viewDepth` → SDK 좌표계 연결. `ppcm` 계산이 app 에 있던 근거가 사라지므로 **SDK 가 주는 기하를 쓴다** |
 | 3-4 | 모드 전환(B/M/CF/PW/PD)을 SDK 계약으로 재배선 |
@@ -359,8 +353,8 @@ flowchart LR
 
 | 위험 | 영향 | 대응 |
 |---|---|---|
-| **Phase 1 에서 어느 합성 경로도 성립하지 않는다** | **계획 전체가 무효** | 가장 먼저 친다. 실장비 없이 판정 가능하므로 조기에 드러난다. 네 경로를 병렬로 시험한다 |
-| **1-A(본선)가 r1 Phase 4 에 걸린다** | r1 선행분(Phase 0~3)까지 일정에 들어온다 | 1-3 에서 폴백(1-B·1-D) 성립 여부를 같은 시험으로 판정. 성립하면 병행 가능 |
+| **r1 Phase 4 가 늦어진다** | Phase 1 이 시작되지 않고, 그 뒤 전부가 밀린다 | **이 계획의 최대 일정 의존이다.** r1 Phase 4 의 선행(Phase 0~3)까지 포함해 진척을 함께 본다 — [r1 plan](../r1/plan.md) |
+| 렌더 계약 세부(원점·갱신 감지)가 미확정으로 남는다 | 표시 컴포넌트가 추측으로 구현된다 | Phase 1-3 이 **요구를 r1 에 낸다.** 표시 컴포넌트에서 우회하지 않는다 |
 | **`ScanContext` 397개소 이전(2-3)이 회귀를 낸다** | 원인 특정 불가 | 필드 단위로 끊어 진행. 이 계획에서 가장 위험한 항목으로 표시 |
 | **SDK 공개 헤더가 컴파일되지 않는다** | Phase 2 착수 즉시 막힘 | r1 Phase 3-F 소관. **다만 C++ 소비자라 첫날 전부 드러나는 것은 이득**이다 — 숨은 부채가 남지 않는다 |
 | **회귀 판정 수단이 없다** | 바꿨는지 확인 불가 | `moana` 는 자동 테스트 0·CI 0 이다([../../review/moana-app.md §8](../../review/moana-app.md)). **출하 중인 동작이 oracle** 이나 그것은 사람이 본다 — §5 의 병목이 여기서 나온다. 자동화 훅 4종(`ScanAutoTestController`·`AgingTestController`·`DummyPlayer`·`Record`)의 재사용 가능성을 Phase 1 에서 함께 본다 |
@@ -375,7 +369,7 @@ flowchart LR
 
 | 항목 | 소관 |
 |---|---|
-| SDK/ADK 자체 리팩토링 | [r1](../r1/plan.md) — 특히 Phase 4(렌더 경계)가 이 계획의 Phase 1 본선 전제 |
+| SDK/ADK 자체 리팩토링 | [r1](../r1/plan.md) — 특히 **Phase 4(렌더 경계)는 이 계획 Phase 1 의 선행 조건**이다 |
 | 500L·300 계열 지원 | **출시 범위 밖** |
 | 장비 펌웨어 | `500c-sn-fw` — [../../review/500c-firmware.md](../../review/500c-firmware.md). 펌웨어 축 리팩토링 계획은 없다 |
 | 빌드 시스템 qmake → CMake 교체 | 6-1 대로 범위 밖 |
@@ -388,7 +382,7 @@ flowchart LR
 
 - [../README.md](../README.md) — 상위 논제, r2·r3(belle) 삭제 경위
 - [../r1/plan.md](../r1/plan.md) — **SDK/ADK 축.** 이 계획의 공급자
-- [../r1/phase4-render-boundary.md](../r1/phase4-render-boundary.md) — Phase 1 본선(1-A)의 전제 계약
+- [../r1/phase4-render-boundary.md](../r1/phase4-render-boundary.md) — **Phase 1 의 선행이자 계약 정의**
 - [../rendering-boundary.md](../rendering-boundary.md) — 렌더 경계 사양서
 - [../legacy/moana-vs-sonex.md](../legacy/moana-vs-sonex.md) — `moana`/`sonex-app` 대조. §2.1 의 저장소 3분할이 이 계획의 출발점
 - [../../review/moana-app.md](../../review/moana-app.md) — `moana` 현행 구조 SOT

@@ -2,7 +2,7 @@
 
 > **상태**: 미시작
 > **범위**: `moana` 의 스캔 화면 렌더링을 SDK 로 넘긴다. **`GLFrameView` 의 자리는 유지하고 내용을 바꾸며**, 그 아래 스캔컨버전·GL 업로드 계통 **약 13,800 LOC 를 제거**한다.
-> **선행**: [Phase 1](./phase1-render-composition.md)(합성 경로 확정) · [Phase 2](./phase2-sdk-adk-adapter.md)(프레임이 SDK 에서 온다)
+> **선행**: [Phase 1](./phase1-render-composition.md)(표시 컴포넌트·계약 확정) · [Phase 2](./phase2-sdk-adk-adapter.md)(프레임이 SDK 에서 온다)
 > **후행**: [Phase 4](./phase4-data-layer.md) · [Phase 5](./phase5-measure-controls.md)
 > **근거**: [plan.md §1.3·§2.3](./plan.md)
 > **실측 기준**: `moana` `origin/service_QT693`. 줄번호는 2026-08-01 직접 확인분이다.
@@ -26,7 +26,7 @@
 
 ### 1.2 `GLFrameView` 만 남기는 이유
 
-`QQuickFramebufferObject` 는 **"GL 로 뭔가 그려서 QtQuick 씬그래프에 넣는" 자리**다. [Phase 1](./phase1-render-composition.md) 이 확정한 경로가 무엇이든 그 결과를 씬그래프에 넣어야 하므로, **이 자리 자체는 필요하다.** 바뀌는 것은 "무엇을 그리느냐"이지 "어디에 넣느냐"가 아니다.
+`QQuickFramebufferObject` 는 **"GL 로 그린 결과를 QtQuick 씬그래프에 넣는" 자리**다. [Phase 1](./phase1-render-composition.md) 이 그 자리에 SDK 완성 프레임을 받는 표시 컴포넌트를 세웠으므로, **이 phase 는 그 아래 남은 자체 렌더 코드를 걷어낸다.** 바뀌는 것은 "무엇을 그리느냐"이지 "어디에 넣느냐"가 아니다.
 
 ### 1.3 프레임 전달 경로가 app 쪽에 있다 `[실측]`
 
@@ -60,8 +60,8 @@ app/Sources/Scan/ScanPlayer.cpp:4287                 dequeue 후 GLFrameView::up
 
 | # | 작업 |
 |---|---|
-| A-1 | `GLFrameView::Renderer` 내부를 [Phase 1 F-4](./phase1-render-composition.md) 가 확정한 계약으로 교체 — 완성 프레임 수신 또는 `adopted` 컨텍스트 위임 |
-| A-2 | 리사이즈를 SDK 계약으로 연결 — `onSurfaceChanged(w,h)` 또는 `hc_ResizeRenderTarget` |
+| A-1 | `GLFrameView::Renderer` 내부를 [Phase 1](./phase1-render-composition.md) 의 표시 컴포넌트로 교체 |
+| A-2 | 리사이즈를 `hc_ResizeRenderTarget` 으로 연결 |
 | A-3 | **모드별 4벌(`GLFrameB`·`GLFrameCF`·`GLFrameM`·`GLFramePW`)을 1벌로 합친다** — SDK 가 모드를 알고 그리므로 표시 컴포넌트는 모드를 몰라도 된다 |
 | A-4 | 프레임 갱신 감지 방식을 정한다 — SDK 콜백 vs 폴링. [r1 4 §1.6](../r1/phase4-render-boundary.md) 이 미확정으로 남긴 항목이다 |
 
@@ -69,7 +69,7 @@ app/Sources/Scan/ScanPlayer.cpp:4287                 dequeue 후 GLFrameView::up
 
 | # | 작업 |
 |---|---|
-| B-1 | §1.1 의 6개 책임 중 5개를 제거한다(합성 자리는 유지) |
+| B-1 | §1.1 의 6개 책임 중 5개를 제거한다(표시 컴포넌트 자리는 유지) |
 | B-2 | **한 번에 지우지 않는다** — 스캔컨버전 → 텍스처 업로드 → 셰이더 → PW/M 래스터 → 프로브 기하 순으로 끊고, 매 단계 빌드를 유지한다 |
 | B-3 | `app/Resources/Shaders/` 정리 — 스캔컨버전 셰이더가 빠진 뒤 남는 것이 무엇인지 확인. **UI 셰이더가 섞여 있으면 함께 지우지 않는다** |
 | B-4 | 제거 후 `.pro`·`.qrc` 항목 정리 |
@@ -98,13 +98,13 @@ app/Sources/Scan/ScanPlayer.cpp:4287                 dequeue 후 GLFrameView::up
 
 | # | 항목 | 방법 | 기대 |
 |---|---|---|---|
-| 3.1 | **영상 표시** | 재생 데이터로 스캔 화면 | Phase 1 시험물과 동등 |
+| 3.1 | **영상 표시** | 재생 데이터로 스캔 화면 | Phase 1 표시 컴포넌트와 동등 |
 | 3.2 | 모드 전환 | B·M·CF·PW·PD | 전부 표시 |
 | 3.3 | 렌더 코어 잔존 | `app/Sources/Scan/` 에서 `scanConversion`·`fieldOfView`·`allocateStorage` grep | **0건** |
 | 3.4 | 셰이더 | `app/Resources/Shaders/scanConversion.*` | **부재** |
 | 3.5 | `SononFrame` 렌더 소비처 | `updateFrame(SononFrame*)` | **0건** |
 | 3.6 | 리사이즈 | 창 크기 변경 | 깨지지 않음 |
-| 3.7 | **QML 오버레이** | 영상 위 UI | **유지** — Phase 1 3.2 가 여기서 실코드로 재확인된다 |
+| 3.7 | **QML 오버레이** | 영상 위 UI | 유지 |
 | 3.8 | 프레임레이트 | 실장비 스캔 | **Phase 1 수치와 대조.** 저하가 있으면 원인 특정 |
 
 > **3.8 이 이 phase 의 실장비 검증 지점이다.** 나머지는 재생 데이터로 판정할 수 있다.
@@ -115,7 +115,7 @@ app/Sources/Scan/ScanPlayer.cpp:4287                 dequeue 후 GLFrameView::up
 
 | 위험 | 영향 | 대응 |
 |---|---|---|
-| **Phase 1 계약이 확정되지 않은 채 착수** | 두 번 만든다 | 선행 조건을 지킨다. Phase 1 F-4 산출물이 이 phase 의 입력이다 |
+| **Phase 1 계약이 확정되지 않은 채 착수** | 두 번 만든다 | 선행 조건을 지킨다. Phase 1 의 표시 컴포넌트와 계약 문서가 이 phase 의 입력이다 |
 | 13.8k LOC 를 한 번에 제거 | 회귀 원인 특정 불가 | B-2 — 5단계로 끊고 매 단계 빌드 유지 |
 | **`FrameStreamer` 의 FPS 동기를 놓친다** | 프레임레이트 널뜀 재발 | C-2 — 책임을 명시적으로 판정한다. `moana` 최근 회귀에 **FPS 10~25 널뜀**이 있었다([../../review/moana-app.md §9](../../review/moana-app.md)) |
 | 좌표 이관이 측정과 어긋난다 | 측정값 오류 — **임상 영향** | D-2 — Phase 5 와 순서를 맞춘다. 단독 진행 금지 |
@@ -127,7 +127,7 @@ app/Sources/Scan/ScanPlayer.cpp:4287                 dequeue 후 GLFrameView::up
 ## 5. cross-reference
 
 - [plan.md](./plan.md) §1.3(렌더 책임 경계)·§2.3(남는 것/사라지는 것)
-- [phase1-render-composition.md](./phase1-render-composition.md) — **선행. 이 phase 의 계약을 만든다**
+- [phase1-render-composition.md](./phase1-render-composition.md) — **선행. 표시 컴포넌트와 계약을 세운다**
 - [phase2-sdk-adk-adapter.md](./phase2-sdk-adk-adapter.md) — 선행. 프레임이 SDK 에서 오게 한다
 - [phase5-measure-controls.md](./phase5-measure-controls.md) — D-2 의 짝
 - [../r1/phase4-render-boundary.md](../r1/phase4-render-boundary.md) — SDK 측 렌더 계약
