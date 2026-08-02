@@ -17,7 +17,6 @@ flowchart TB
     p35[Phase 3.5 - 언어별 바인딩 정본화 B3 B5]
     p4[Phase 4 - 지원 경계와 샘플 B5 B6]
     p5[Phase 5 - moana 대체 판정 A1 A2 A3]
-    dev[장비 트랙 r2 r3 - 독립 병행]
     p0 --> p1
     p1 --> p2
     p2 --> p3
@@ -157,14 +156,14 @@ flowchart TB
 
 **성공 판정**: 기능 목록의 모든 항목이 판정되고, 미달 항목이 0이거나 폐기 승인된다. **이 시점이 `moana` 폐기 가능 시점이다.**
 
-## 병행 트랙 — 장비
+## 병행 트랙
 
 앱 결정과 **무관하게** 지금 착수 가능하며 내용이 그대로 유효하다.
 
+> **belle(500L) 장비 트랙 둘(r2·r3)은 삭제됐다**(2026-08-01) — 500L 출시 범위 제외로 대상이 사라졌다. **`r2` 슬롯은 `moana` UI → SDK/ADK 이관 계획이 이어받았다**([r2/plan.md](r2/plan.md)). 상세 = [README.md §실행 계획](README.md).
+
 | 트랙 | 문서 |
 |---|---|
-| `belle-fw` feature-first 재구성 | [r2/plan.md](r2/plan.md) |
-| Buildroot `BR2_EXTERNAL` 도입 | [r3/plan.md](r3/plan.md) |
 | **HC 프로토콜 정본** — 이미 만든 실물, `make` 로 재현 | [legacy/proof/protocol-sot/](legacy/proof/protocol-sot/) |
 | **사이버보안 대응(신규개발 항목)** — 범위·일정 미정, 힐세리온 협의 필요 | [cybersecurity.md](cybersecurity.md) §3 |
 

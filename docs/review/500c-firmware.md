@@ -4,7 +4,7 @@
 >
 > | 축 | 판정 | 이유 |
 > |---|---|---|
-> | **장비 펌웨어 리팩토링** | **범위 밖 유지** | Socionext ARM Cortex-M **베어메탈**이고 belle(ZynqMP + Linux)과 코드·빌드·아키텍처를 전혀 공유하지 않는다. [r2](../../refactoring/r2/plan.md)(Buildroot·Linux 전제)가 그대로 적용되지 않아 **별도 트랙이 필요하다** |
+> | **장비 펌웨어 리팩토링** | **범위 밖 유지** | Socionext ARM Cortex-M **베어메탈**이고 belle(ZynqMP + Linux)과 코드·빌드·아키텍처를 전혀 공유하지 않는다. belle 장비 계획(Buildroot·Linux 전제, 2026-08-01 삭제)이 그대로 적용되지 않아 **별도 트랙이 필요하다** |
 > | **클라이언트 축 판단 근거** | **범위 안 — 이미 SoNex 완성 범위에 포함** | `500C`·`500P`(+`500L`)는 SoNex 확정 지원 모델 5종에 이미 들어 있다 — [goal.md](../../refactoring/goal.md) · [gap.md A2](../../refactoring/gap.md)(모델 커버리지 **충족**). "`moana` 가 흡수하면 `sonex-app` 이 불필요해진다"는 구도([legacy/moana-vs-sonex.md §3.1](../../refactoring/legacy/moana-vs-sonex.md))는 **2026-07-29 전제 변경으로 무효** — `moana` 는 SoNex 출시와 동시에 폐기되므로 `sonex-app` 은 이 흡수 여부와 무관하게 완성 대상이다([../../refactoring/README.md 전제①](../../refactoring/README.md)). 남은 실질 질문 = §1.1 |
 >
 > **단종이 아니다** — `origin/FW_1_1_8_0` 최종 2026-04-24, Rev1.7 하드웨어·ABLIC WiFi SDK 전환 진행 중이고 `sonex-framework` 가 2026-07-23 에 펌웨어 굽기를 실장비 검증했다.

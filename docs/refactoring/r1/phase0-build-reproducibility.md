@@ -1,6 +1,6 @@
 # Phase 0 — 빌드 재현성 (B1)
 
-> **상태**: 진행 중 — Step 0-0·0-D·0-E·0-H·0-I(I-1·I-2) 완료(2026-07-31, 커밋 `1911035f`·`01505b66`·`62a2ddd7`·`eae9f14d`). 나머지(0-A·0-B·0-C·0-F·0-G·0-J·0-K·0-L)는 미시작
+> **상태**: 진행 중 — Step 0-0·0-D·0-E·0-H·0-I(I-1·I-2) 완료(2026-07-31, 커밋 `1911035f`·`01505b66`·`62a2ddd7`·`eae9f14d`) · **0-J 해소·0-F(F-1·F-5) 완료(2026-08-02, 미커밋)**. 나머지(0-A·0-B·0-C·0-F(F-2·F-3·F-4·F-6)·0-G·0-K·0-L)는 미시작
 > **범위**: `sonex-framework`(SDK+ADK)가 **깨끗한 체크아웃에서 문서화된 절차만으로** 빌드되게 한다. 코드 계층·API 계약은 건드리지 않는다 — 이 phase 가 바꾸는 것은 **의존물 확보·경로 선언·빌드 진입점·저장소 위생**뿐이다.
 > **선행**: 없음 (0-0 저장소 재배치가 이 phase 의 첫 항목)
 > **후행**: [Phase 1](./phase1-regression-baseline.md)
@@ -204,7 +204,21 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 
 **잔여 갭 1건**: `feature-apply_v1.23.4` 브랜치 tip(`c1fafb1d`, 2026-07-27, "V1.23.4 프리셋 동기화 — thyroid 격자·msk 도말/딜레이 수정")은 아직 master 에 없다(`git merge-base --is-ancestor c1fafb1d e17280b2` → NO). `feature-apply_v1.23.3` tip(`83bde28a`)은 master 조상에 포함됨(`git merge-base --is-ancestor` → YES) — 폐기됐어도 커밋 자체는 이력에 남아 있다.
 
-> **0-J 남은 작업**: J-1(2커밋 diff 읽기)은 완료 성격이 바뀌었다 — 흡수 여부가 아니라 **잔여 1커밋(`c1fafb1d`)을 언제 반입할지** 판단으로 좁아졌다. J-2(힐세리온 질의)·J-3(확정)은 이 잔여분에 대해서만 유효하다.
+### 1.9-보강②. `[실측 2026-08-02]` 잔여 갭도 내용은 흡수됐다 — 0-J 종결
+
+**커밋 조상 여부와 내용 흡수 여부는 다른 차원이다.** `c1fafb1d` 는 여전히 master 의 조상이 아니지만, 그것이 바꾼 **내용은 master 에 들어 있다.**
+
+| 대조 | 방법 | 결과 |
+|---|---|---|
+| `c1fafb1d` 가 건드린 파일 | `git show --stat` | `HCSRIv23_4Filter.h` **1개뿐**(+177/-13) |
+| 그 변경의 실질 | 커밋 메시지·diff | `presetByName()` 의 thyroid·msk 프리셋 값 동기화 |
+| **master 와 대조** | 두 ref 의 `presetByName()` 본문 md5 | **`264ce0ed…` 동일 — byte-identical** |
+
+즉 힐세리온이 `feature-apply_v1.23.5` 계열을 master 에 통합하면서 이 프리셋 값을 함께 실었다. **반입할 잔여분이 없다** — J-1~J-4 는 여기서 종결한다. 나머지 452줄 차이는 master 가 그 뒤에 더한 V1.23.5·V1.23.6(`linmix`·`presetByName235`)이며 우리가 흡수를 판단할 대상이 아니다.
+
+**동시에 확인된 것 — master 가 또 전진했다**: `e17280b2` → **`0656a63d`**("V1.23.6 SDK 통합 — SRI_TYPE_V23_6=10 + SRIv23_6Filter", 9파일 +488/-3). 즉 **주 5회꼴로 SRI 필터가 계속 들어오고 있고**, 이 저장소의 fork base 는 고정된 과녁이 아니다.
+
+> **baseline 정책**(2026-08-02 결정): fork base 는 `baseline-2026-07-31`(`e17280b2`)에 **고정하고 Phase 경계에서만 갱신**한다. 매 상류 커밋마다 rebase 하면 회귀 기준선(Phase 1)이 매번 흔들린다. 현재 상류 1커밋(`0656a63d`)은 우리 4커밋과 **파일 겹침 0** 이라 갱신 비용이 없으나, 갱신 시점을 규칙으로 두는 것이 이 phase 의 목적(재현성)에 맞는다.
 
 ---
 
@@ -359,20 +373,68 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | E-5 | `.gitignore` 정리 — 101줄에 중복 1건(`build_*_log.txt` 25·47행). **사고마다 한 줄 덧붙이는 방식 자체가 E-3 을 낳았다** | ✅ |
 | E-6 | **이력은 재작성하지 않는다.** `.git` 525MB 는 그대로 둔다 — 힐세리온 원본과의 반영 방식(0-4)이 정해지기 전에 history rewrite 는 되돌릴 수 없는 변경이다 | ✅ 유지 |
 
-### Step 0-F. 빌드 진입점 통일
+### Step 0-F. 빌드 진입점 통일 — F-1·F-5 ✅ 완료(2026-08-02), 나머지 미시작
 
 **§1.2 의 관측된 ADK 실패를 실제로 고치는 단계다.**
 
-| # | 작업 |
-|---|---|
-| F-1 | **모듈 의존 그래프를 선언한다** — `SonexCommon` → 각 SDK/ADK 모듈. `framework.sln` 에서 의존이 선언되지 않아 병렬 빌드가 순서를 지키지 않는 것이 관측된 실패(줄 225·273·291 vs 358)의 원인이다 |
-| F-2 | **단일 진입점 신설** — `make build PLATFORM=<android\|windows\|ios\|macos>`(가칭). 내부적으로 MSBuild·Xcode·CMake·`ndk-build` 를 호출하되 **외부 계약은 하나**다 |
-| F-3 | `build_all_android.sh` 의 **`Android.mk` 인라인 생성**(`cat > Android.mk << 'EOF'`, `:67,115`)을 파일로 분리. 지금은 생성된 `Android.mk` 가 저장소에 없어 빌드 구성이 셸 안에만 있다 |
-| F-4 | 드라이버 스크립트 **15개를 정리** — 겹치는 것(`build_sdk.bat`·`build_windows_sdk.bat`·`rebuild_sdk_full.bat`)을 진입점 옵션으로 흡수 |
-| F-5 | **NuGet 복원을 빌드 전 스텝으로** — 관측된 `NETSDK1004` 2건은 `Framework_Sample_Windows`·`ADK_Sample_Test`(C# 샘플)에서 났다. 진입점이 복원을 먼저 부르면 사라진다 |
-| F-6 | **절차 문서화** — B1 의 판정 문구가 *"문서화된 절차만으로"* 다. 현행 `CLAUDE.md` 의 빌드 절에는 의존물 확보 단계가 없다 |
+| # | 작업 | 상태 |
+|---|---|---|
+| F-1 | **모듈 의존 그래프를 선언한다** — `SonexCommon` → 각 SDK/ADK 모듈. `framework.sln` 에서 의존이 선언되지 않아 병렬 빌드가 순서를 지키지 않는 것이 관측된 실패(줄 225·273·291 vs 358)의 원인이다 | ✅ `framework.sln` 에 의존 간선 **12개 추가**. 게이트 = `scripts/check-project-dependencies.py`. 아래 F-1-실측 |
+| F-2 | **단일 진입점 신설** — `make build PLATFORM=<android\|windows\|ios\|macos>`(가칭). 내부적으로 MSBuild·Xcode·CMake·`ndk-build` 를 호출하되 **외부 계약은 하나**다 | 미시작 |
+| F-3 | `build_all_android.sh` 의 **`Android.mk` 인라인 생성**(`cat > Android.mk << 'EOF'`, `:67,115`)을 파일로 분리. 지금은 생성된 `Android.mk` 가 저장소에 없어 빌드 구성이 셸 안에만 있다 | 미시작 |
+| F-4 | 드라이버 스크립트 **15개를 정리** — 겹치는 것(`build_sdk.bat`·`build_windows_sdk.bat`·`rebuild_sdk_full.bat`)을 진입점 옵션으로 흡수 | 미시작 |
+| F-5 | **NuGet 복원을 빌드 전 스텝으로** — 관측된 `NETSDK1004` 2건은 `Framework_Sample_Windows`·`ADK_Sample_Test`(C# 샘플)에서 났다. 진입점이 복원을 먼저 부르면 사라진다 | ✅ solution 을 부르는 msbuild **4곳 전부**에 `-restore` 추가(`build_adk.bat`·`build_sdk.bat`·`build_windows_sdk.bat`·`rebuild_sdk_full.bat`). 단일 `.vcxproj` 만 부르는 2곳은 NuGet 이 없어 대상 아님 |
+| F-6 | **절차 문서화** — B1 의 판정 문구가 *"문서화된 절차만으로"* 다. 현행 `CLAUDE.md` 의 빌드 절에는 의존물 확보 단계가 없다 | 미시작 |
 
-### Step 0-G. headless 빌드 타깃 신설 + `HCCommon.h` 정본화
+#### F-1-실측. `[2026-08-02]` 두 solution 이 정반대였다
+
+**`sdk.sln` 은 이미 완전하고, `framework.sln` 만 비어 있었다** — 규약이 없어서가 아니라 **한쪽에만 적용된 것**이다.
+
+| solution | 수정 전 의존 간선 | 내용 |
+|---|---:|---|
+| `sdk.sln` | 17 | 모듈 6종 × 2플랫폼 → `SonexCommon`, `SonexSDK` → 전 모듈, 샘플 3 → `SonexSDK.Windows`. **결손 0** |
+| `framework.sln` | 3 | `SonexFramework.{Android,Windows}` → 모듈들, `Framework_Sample_Windows` → `SonexFramework.Windows`. **ADK 모듈 5종은 어느 플랫폼도 `SonexCommon` 을 선언하지 않았다** |
+
+**링크는 하는데 순서만 선언이 없다**는 것이 실측으로 확정된다 — ADK 모듈 5종은 Windows 에서 `AdditionalDependencies` 에 `SonexCommon.lib`, Android 에서 `AdditionalOptions` 에 `-l SonexCommon` 을 **전부 갖고 있다.** 관측된 실패 3건(DicomHandler·NetworkProcess·VideoEncoder)은 그중 일부가 먼저 스케줄된 것뿐이다.
+
+**드라이버가 이미 우회하고 있었다** — `build_adk.bat:105-110` 이 solution 빌드 **전에 `SonexCommon` 프로젝트를 따로 한 번 빌드**한다(주석: *"Build SonexCommon first (other projects depend on SonexCommon.lib)"*). 즉 그들도 원인을 알고 있었고, solution 대신 스크립트로 막아 뒀다. **F-1 이 그 우회를 불필요하게 만든다** — 다만 Windows 머신에서 확인하기 전까지 우회 자체는 남겨 둔다(제거는 F-4 소관).
+
+| 추가한 간선 | 수 |
+|---|---:|
+| ADK 모듈 5종(BackupReadWriter·DatabaseHelper·DicomHandler·NetworkProcess·VideoEncoder) × Android·Windows → `SonexCommon.{Android,Windows}` | 10 |
+| `SonexFramework.Android` → `SonexCommon.Android`(Windows 갈래에만 있던 것) | 1 |
+| `ADK_Sample_Test` → `SonexFramework.Windows`(`LibraryImport("SonexFramework.dll")` 로 P/Invoke) | 1 |
+
+수정 후 `framework.sln` 의 의존 그래프는 `sdk.sln` 과 **모양이 같다**.
+
+#### F-1-게이트. `scripts/check-project-dependencies.py`
+
+`.sln` 을 파싱해 **링크 입력과 의존 선언이 어긋나면 실패**한다. 0-D 의 `check-absolute-paths.sh`·0-H 의 `check-merge-markers.sh` 와 같은 계열이며, CI 연결은 F-2 진입점이 선 뒤다.
+
+| 판정 | 항목 |
+|---|---|
+| **error** | ① `vcxproj` 가 링크하는 형제 산출물에 의존 간선이 없음 ② `csproj` 가 P/Invoke 하는 형제 DLL 에 간선이 없음 ③ 의존 순환 |
+| **warning** | ④ 깨진 링커 플래그 |
+
+**역검증**: 수정 전 커밋에 대해 돌려 **error 12건**(위 표의 12개 간선과 정확히 일치)을 잡아냄을 확인했다. 수정 후 error 0.
+
+> **경로 오탐 함정 하나를 실제로 밟았다** — `.sln` 은 **CRLF** 라 `^EndProject$` 가 매칭되지 않아 첫 판에서 **프로젝트 0건을 파싱하고 "OK" 를 출력했다.** 역검증을 하지 않았으면 빈 검사기를 게이트로 커밋했을 것이다. 개행 정규화로 고쳤고, 이 사례가 §검증의 "게이트는 반드시 수정 전 상태로 역검증한다" 규칙의 근거다.
+
+> **함께 고친 것 — 0-D 의 게이트가 자기 자신을 잡고 있었다.** `check-absolute-paths.sh` 는 `git ls-files` 의 `*.sh` 를 전부 훑는데 **자신의 `PATTERNS` 배열에 `/opt/homebrew/` 등이 리터럴로 들어 있어** 항상 FAIL 이었다(HEAD 에서도 실패). 자기 제외를 추가했고, 추가 후에도 실제 절대경로 재유입은 여전히 잡는 것을 역검증했다.
+
+#### F-1-미결. `ImageFilter.android` x64 의 깨진 링커 플래그
+
+게이트가 warning 으로 보고하는 **실재 결함 1건**이다. `sdk/sdk/ImageFilter/android/android.vcxproj` 의 `Debug|x64`·`Release|x64` 가 `-l cvie64` 를 **`- cvie64`** 로 적었다(`-` 는 링커에게 stdin 입력을 뜻한다).
+
+| 근거 | 내용 |
+|---|---|
+| 유입 시점 | `f6b07d8f`("T8698 average filter") 가 `-lm` 뿐이던 줄에 `- cvie64` 를 **추가**했다 — 의도는 cvie64 링크 |
+| 그런데 | `libcvie64.so` 는 `third_party/context_vision/android/bin/**arm64-v8a**` **하나뿐**이다. x86_64 용 바이너리가 없다 |
+| 그래서 | `-l cvie64` 로 고쳐도 x64 는 링크되지 않는다. `ARM`·`x86` 갈래처럼 **빼는 것**이 맞을 수도 있다 |
+
+**어느 쪽이 맞는지는 [0-K](#step-0-k-플랫폼-툴체인sysroot-고정) 의 미결 항목 "Android ABI 확장 여부"가 정한다** — 현재 `APP_ABI := arm64-v8a` 단일이라 x64 갈래는 빌드된 적이 없다. 추측으로 고치지 않고 **warning 으로 드러낸 채 남긴다.**
+
+### Step 0-G. `OS_LINUX` 1급 분기 신설 + `HCCommon.h` 정본화
 
 **§1.7 대로 사본 통합이 선행이다. 분기를 먼저 늘리면 4벌에 각각 늘리게 된다.**
 
@@ -384,7 +446,7 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | G-4 | **`OS_LINUX` 1급 분기 추가** — Linux 는 **주 개발 플랫폼**이다([plan.md §0.1](./plan.md)). "headless 용 가드"가 아니라 정식 분기이며, 이 분기 위에서 CI·[Phase 5](./plan.md) Python wrapper·[Phase 6](./phase6-samples-support.md) Qt6 샘플이 함께 선다. 구현체는 [0-L](#step-0-l-platformslinux-신설) |
 | G-5 | **`#else` 에 `#error`** — 분기를 4개로 늘려도 5번째 플랫폼이 같은 함정에 빠질 수 있다. 미정의 플랫폼이 조용히 전 분기 거짓이 되는 구조 자체를 막는다 |
 | G-5 | `OS_MACOS` 사용처 **자체 소스 12파일**이 통합 후에도 같게 평가되는지 확인 — 특히 `HCImageRenderCore.cpp:782`(ANGLE 백엔드 선택)와 `HCImageFilter.cpp`(CVIE `#if !OS_MACOS` 게이트) |
-| G-6 | **headless 타깃은 렌더 서피스를 만들지 않는다** — 오프스크린 컨텍스트는 [Phase 1-C·Phase 4-D](./plan.md) 의 **신규 구현**이다. 여기서는 **컴파일·링크가 되는 타깃**까지만 만든다 |
+| G-6 | **Linux 타깃은 이 단계에서 렌더 서피스를 만들지 않는다** — headless(오프스크린) 컨텍스트는 [Phase 1-C·Phase 4-D](./plan.md) 의 **신규 구현**이다. 여기서는 **컴파일·링크가 되는 타깃**까지만 만든다. 플랫폼(`linux`)과 서피스 모드(`headless`)는 다른 축이다([plan.md §0.1.1](./plan.md)) |
 
 ### Step 0-H. 병합 충돌 마커 제거 — ✅ 완료(2026-07-31, `1911035f`)
 
@@ -406,25 +468,27 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | I-4 | 나머지 4블록(`HCDataBaseController.cpp` · `HCLogger.h` 2벌 · `PatientInfoDb.cpp`) 개별 판정 |
 | I-5 | **빌드 산출물이 바뀌지 않아야 한다** — `#if 0` 제거는 정의상 컴파일 결과가 동일하다. [Phase 1](./phase1-regression-baseline.md) 이 서기 전이므로 **이 성질이 이 단계의 유일한 안전망**이고, 그래서 I-3 처럼 성격이 다른 것을 섞지 않는다 |
 
-### Step 0-J. `feature-apply_v1.23.4` 2커밋 흡수 판단
+### Step 0-J. `feature-apply_v1.23.4` 2커밋 흡수 판단 — ✅ 종결(2026-08-02)
 
-| # | 작업 |
-|---|---|
-| J-1 | **2커밋 diff 를 읽는다** — `ef7e9ce3`(`HCSRIv23_4Filter`) · `83bde28a`(`HCSRIv23_3Filter`). 커밋 메시지만 확인됐고 `ImageFilter` 실변경은 미확인이다([../../review/sonex-framework.md §11](../../review/sonex-framework.md)) |
-| J-2 | **힐세리온에 머지 예정 여부 질의** — `feature-apply_v1.23.3` 브랜치도 남아 있어(2026-07-11) 이 계열이 **연속 반입 중**일 가능성이 있다 |
-| J-3 | **흡수 여부를 확정한다.** 이후 Phase 가 어느 코드 위에 서는지가 여기서 정해지고, 특히 [Phase 4-G](./plan.md)·[Phase 3-H~3-J](./plan.md) 의 diff 기준선이 걸린다 |
-| J-4 | 흡수하지 않기로 하면 **fork base = master 를 유지하고 그 사실을 기록**한다. 나중에 흡수할 때 재작업량이 늘어난다는 것을 아는 채로 정하는 것과 모르는 것은 다르다 |
+**흡수할 것이 남지 않았다.** 근거 = §1.9-보강·§1.9-보강②.
+
+| # | 작업 | 상태 |
+|---|---|---|
+| J-1 | **2커밋 diff 를 읽는다** — `ef7e9ce3`(`HCSRIv23_4Filter`) · `83bde28a`(`HCSRIv23_3Filter`). 커밋 메시지만 확인됐고 `ImageFilter` 실변경은 미확인이다([../../review/sonex-framework.md §11](../../review/sonex-framework.md)) | ✅ 두 커밋 모두 master 조상에 포함. 브랜치 tip `c1fafb1d` 만 조상 밖이었고 그 **내용도 master 와 byte-identical**(§1.9-보강②) |
+| J-2 | **힐세리온에 머지 예정 여부 질의** — `feature-apply_v1.23.3` 브랜치도 남아 있어(2026-07-11) 이 계열이 **연속 반입 중**일 가능성이 있다 | **질의 불필요** — 코드로 답이 나왔다. 계열이 연속 반입 중인 것도 확정됐다(V1.23.3→23.6, 최신 `0656a63d`) |
+| J-3 | **흡수 여부를 확정한다.** 이후 Phase 가 어느 코드 위에 서는지가 여기서 정해지고, 특히 [Phase 4-G](./plan.md)·[Phase 3-H~3-J](./plan.md) 의 diff 기준선이 걸린다 | ✅ **흡수 대상 없음.** 이후 Phase 의 코드 기준선 = `baseline-2026-07-31`(`e17280b2`) |
+| J-4 | 흡수하지 않기로 하면 **fork base = master 를 유지하고 그 사실을 기록**한다. 나중에 흡수할 때 재작업량이 늘어난다는 것을 아는 채로 정하는 것과 모르는 것은 다르다 | ✅ fork base 유지. 갱신 규칙은 §1.9-보강② 의 baseline 정책 |
 
 ### 권장 실행 순서
 
 | 순 | 단계 | 이유 |
 |---:|---|---|
-| 1 | **0-0** | 이것 없이는 아무것도 실행되지 않는다 |
-| 2 | **0-H · 0-I(I-1·I-2) · 0-E** | 저비용·저위험. 산출물이 바뀌지 않으므로 회귀 기준선 없이 할 수 있다 |
-| 3 | **0-J** | 이후 Phase 의 코드 기준선을 확정한다 |
-| 4 | **0-D** | 절대경로가 풀려야 다른 머신에서 **시도**라도 된다(§1.5) |
-| 5 | **0-F(F-1·F-5)** | 관측된 ADK 실패를 실제로 고치는 것은 여기다(§1.2) |
-| 6 | **0-K** | **툴체인·sysroot 가 서야 그 위에서 의존물을 빌드한다.** 0-A 의 ANGLE 자체 빌드가 이것을 전제한다 |
+| 1 | ✅ **0-0** | 이것 없이는 아무것도 실행되지 않는다 |
+| 2 | ✅ **0-H · 0-I(I-1·I-2) · 0-E** | 저비용·저위험. 산출물이 바뀌지 않으므로 회귀 기준선 없이 할 수 있다 |
+| 3 | ✅ **0-J** | 이후 Phase 의 코드 기준선을 확정한다 |
+| 4 | ✅ **0-D** | 절대경로가 풀려야 다른 머신에서 **시도**라도 된다(§1.5) |
+| 5 | ✅ **0-F(F-1·F-5)** | 관측된 ADK 실패를 실제로 고치는 것은 여기다(§1.2). **단 실판정은 Windows 머신이 필요하다** — 여기서 한 것은 선언과 정적 게이트까지다 |
+| 6 | **0-K** ← **다음** | **툴체인·sysroot 가 서야 그 위에서 의존물을 빌드한다.** 0-A 의 ANGLE 자체 빌드가 이것을 전제한다 |
 | 7 | **0-G · 0-L** | **Linux 분기와 구현체.** 주 개발 플랫폼이므로([plan.md §0.1](./plan.md)) 이후 단계가 딛고 설 바닥이다. 0-G 는 `HCCommon.h` 사본 통합 뒤에만 안전하다(§1.7) |
 | 8 | **0-A · 0-C · 0-B** | ANGLE 자체 빌드 → 의존물 관리 도입 → 경로 일원화. **0-A 는 Linux·Android 부터**(A-4) |
 | 9 | **0-F(나머지)** | 진입점·문서 마무리 |
@@ -478,7 +542,7 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | **iOS** | — | **`IPHONEOS_DEPLOYMENT_TARGET` 이 두 갈래**(15.0 **24건** / 16.4 **10건**, 같은 프로젝트 안에서) · Xcode·SDK 버전 미고정 |
 | **macOS** | `CMAKE_OSX_DEPLOYMENT_TARGET 11.0` · `CMAKE_OSX_ARCHITECTURES "arm64"` · `CMAKE_CXX_STANDARD 17` | **`CMAKE_OSX_SYSROOT` 0건** → 머신 기본 SDK. 커밋된 빌드캐시에 **`MacOSX26.2.sdk`·`arm64-apple-macosx15.7.0`·clang 17** 이 박혀 있다 |
 | **Windows** | `<PlatformToolset>v143`(82건) | **`WindowsTargetPlatformVersion` 이 29개 중 14개만**(`10.0.22621.0`). 나머지 15개는 머신 기본 |
-| **headless** | — | **존재 자체가 없다**(0-G 가 신설). glibc·gcc 버전 미정 |
+| **Linux** | — | **존재 자체가 없다**(`platform/linux/` 파일 0개 · `OS_LINUX` 0건 — 0-G 가 분기를, 0-L 이 구현체를 신설). glibc·gcc 버전 미정. **주 개발 플랫폼인데 고정된 것이 하나도 없다**([plan.md §0.1](./plan.md)) |
 
 **macOS 는 `arm64` 전용이고 사유가 주석에 있다** — *"Apple Silicon only (Homebrew OpenCV가 arm64 전용)"*. **서드파티 조달 방식이 아키텍처 지원을 좁힌 것**이라 0-C(Homebrew 탈피)와 함께 풀어야 x86_64 Mac 이 열린다.
 
@@ -539,10 +603,29 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | K-3 | **iOS 배포타깃 통일** — 15.0 / 16.4 두 갈래를 하나로. **낮은 쪽으로 맞추면 지원 기기가 넓어지고, 높은 쪽은 API 를 더 쓴다** — 어느 쪽인지는 힐세리온 판단 |
 | K-4 | **macOS `CMAKE_OSX_SYSROOT` 명시** + `arm64` 전용 제약을 0-C 와 함께 해소 |
 | K-5 | **Windows SDK 버전을 29개 전부에 선언** — `Directory.Build.props` 로 한 곳에서 주입 |
-| K-6 | **headless 툴체인 정의**(0-G 와 짝) — CI 컨테이너 이미지로 고정 |
+| K-6 | **Linux 툴체인 고정**(0-G·0-L 과 짝) — K-0 의 Linux 절(glibc 2.31 · GCC 9/Clang 14)을 CI 컨테이너 이미지로 굽는다. **headless 실행 모드는 이 항목이 아니다** — 그것은 [Phase 4-D](./phase4-render-boundary.md) 소관이고 여기서는 툴체인만 정한다 |
 | K-7 | **CI 이미지에 굽는다** — 매니페스트가 문서로만 있으면 또 표류한다. **이미지가 강제 수단**이다 |
 
 > **골든 재현성이 여기 걸린다** — [Phase 1-C](./phase1-regression-baseline.md) 의 프레임 골든은 부동소수·컴파일러 버전에 민감하다. 툴체인이 고정되지 않으면 **골든이 머신마다 깨지고**, 그러면 회귀 판정 자체를 신뢰할 수 없다.
+
+### Step 0-M. 자립 컴파일 결손 정정 — 판정 6b 를 구현 파일까지
+
+`[컴파일러 판정 2026-08-02]` 공개 헤더 62개 중 36개가 단독 컴파일에 실패하고 그중 **28개가 표준 include 누락**이라는 것은 이미 기록돼 있다(판정 6b). **같은 종류가 `.cpp` 에도 있다.**
+
+| 파일 | 증상 | 빠진 include |
+|---|---|---|
+| `sdk/common/shared/HCRingBuffer.cpp:45·79·96` | `error: 'memcpy' was not declared in this scope` | `<cstring>` |
+| `sdk/common/shared/HCString.cpp:416·441·460·481` | `error: 'unique_ptr' is not a member of 'std'` | `<memory>` |
+
+**지금 빌드가 서는 이유는 다른 헤더가 우연히 끌어오기 때문이다.** include 하나만 바뀌거나 표준 라이브러리 구현이 달라지면 깨진다 — **고객사가 자기 툴체인으로 빌드하는 순간이 정확히 그 조건**이다(B1·B5).
+
+| # | 작업 |
+|---|---|
+| M-1 | **각 `.cpp` 가 자기 헤더만으로 컴파일되는지** 전수 확인 — 위 2건은 확인된 것이고, **43파일은 플랫폼 헤더 부재로 검사 자체를 못 했다**. 0-C(vcpkg)·0-K(툴체인) 이후 재실행하면 숫자가 늘어난다 |
+| M-2 | 누락 include 추가. **IWYU(include-what-you-use) 를 한 번 돌려 목록을 만들되**, 자동 수정은 적용하지 않는다(불필요 include 제거는 별건이고 위험하다) |
+| M-3 | **3-F(공개 헤더 정본화)와 같은 검사기를 쓴다** — 헤더 28건과 구현 파일이 같은 결함이므로 게이트도 하나여야 한다 |
+
+> **이 항목은 결함 수정이지만 축 `X` 가 아니다** — 동작이 바뀌지 않고 **빌드 가능성만 바뀐다.** 그래서 Phase 0 에 둔다([code-defects-sdk.md §7.1](./code-defects-sdk.md)).
 
 ---
 
@@ -560,11 +643,12 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | 3.6 | **절대경로 0건** | `git -C <repo> grep -nE 'C:\\work\|/Users/[a-z]+/\|/opt/homebrew' -- '*.sh' '*.bat' '*.ps1' '*.vcxproj' 'CMakeLists.txt'` | **0건** (현재 10 스크립트 + macOS CMake 7줄) |
 | 3.7 | **커밋된 산출물 0건** | `git -C <repo> ls-files '*.o' '*.d'` · `git -C <repo> ls-files \| grep -E 'CMakeCache\.txt\|CMakeFiles/'` | 각 **0** (현재 **164** · **213**) |
 | 3.8 | ignore 커버 | `git -C <repo> check-ignore -v sdk/sdk/Main/macos/build/CMakeCache.txt` | **exit 0** (현재 exit 1) |
-| 3.9 | **빌드 순서** | `make build PLATFORM=android` 를 **병렬 최대치**로 | `unable to find library -lSonexCommon` **0건** |
+| 3.9 | **빌드 순서** | `make build PLATFORM=android` 를 **병렬 최대치**로 | `unable to find library -lSonexCommon` **0건**. **선행 정적 판정 = 3.9a** |
+| **3.9a** | **의존 선언 정합**(F-1 게이트) | `<repo>/scripts/check-project-dependencies.py` | error **0**. 링크 입력과 solution 의존 선언이 어긋나면 실패한다. **Windows 머신 없이 돌아가므로 3.9 보다 먼저 걸린다** |
 | 3.10 | NuGet | 같은 명령 | `NETSDK1004` **0건** |
 | 3.11 | **`HCCommon.h` 1벌** | `git -C <repo> ls-files \| grep -c 'HCCommon\.h$'` | **1** (현재 4) |
 | 3.12 | 미정의 플랫폼 방어 | 플랫폼 매크로 없이 `HCCommon.h` 컴파일 | **`#error` 로 실패** (현재 조용히 통과) |
-| 3.13 | headless 타깃 | `make build PLATFORM=headless` | 링크까지 성공. **렌더 서피스 동작은 판정하지 않는다**(0-G-6) |
+| 3.13 | **Linux 타깃** | `make build PLATFORM=linux` | 링크까지 성공. **렌더 서피스 동작은 판정하지 않는다**(0-G-6) |
 | 3.14 | 충돌 마커 | `git -C <repo> grep -c '^<<<<<<< '` | **출력 없음** (현재 `docs/VERSION_TAGGING.md:3`) |
 | 3.15 | 죽은 코드 | `git -C <repo> ls-files sdk/adk/Main/shared/HCSonexFramework.*` | **0건** |
 | 3.16 | **디버그 스위치 보존** | `git -C <repo> grep -c '#if 0' -- sdk/sdk/DeviceManager/shared/HCSocketCommunicator.cpp` | **13 유지**(또는 로그 레벨 전환 시 등가) |
@@ -590,8 +674,8 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | **회귀 판정 수단이 아직 없다** | 0-G(헤더 통합)·0-I 가 동작을 바꿔도 모른다 | 이 phase 는 **산출물이 바뀌지 않는 변경**만 한다. `#if 0` 제거·경로 선언 통일·`git rm --cached` 는 정의상 컴파일 결과가 같다. **0-G-1·G-2 만 예외**이므로 [Phase 1](./phase1-regression-baseline.md) 직후 재검증 대상으로 표시한다 |
 | **0-G-3(`#error`)이 macOS 를 즉시 깬다** | 빌드 중단 | G-1·G-2 완료 후에만 넣는다. §1.7 대로 macOS 갈래는 현재 **외부 매크로 주입에 의존**해 성립한다 |
 | **0-I 가 디버그 스위치까지 지운다** | 500C 디버깅 수단 상실 | I-3 — `HCSocketCommunicator.cpp` 13블록은 **제거 대상이 아니다.** `#if 0` 검색 결과를 그대로 삭제 목록으로 쓰지 않는다 |
-| **착수 후 힐세리온이 master 에 계속 커밋한다** | 작업 사본과 원본이 갈라진다 | 0-4 에서 반영 방식을 먼저 확정. 0-5 의 baseline SHA 로 diff 범위를 항상 계산 가능하게 둔다 |
-| **`feature-apply_v1.23.4` 계열이 계속 자란다** | 0-J 판단이 계속 미뤄진다 | `v1.23.3` 브랜치도 남아 있다(§2 J-2). **연속 반입 중인지**를 질의에 포함하고, 흡수하지 않기로 하면 그 사실을 기록한다(J-4) |
+| **착수 후 힐세리온이 master 에 계속 커밋한다** `[실현됨]` | 작업 사본과 원본이 갈라진다 | **실제로 일어나고 있다** — 착수 후 이틀 만에 상류 1커밋(`0656a63d`). 대응 = §1.9-보강② 의 **baseline 정책**(Phase 경계에서만 갱신) + 0-5 의 baseline 태그로 diff 범위를 항상 계산 가능하게 둔다 |
+| ~~**`feature-apply_v1.23.4` 계열이 계속 자란다**~~ | ~~0-J 판단이 계속 미뤄진다~~ | **해소** — 계열은 계속 자라지만(V1.23.6까지) **master 로 흡수되며 자란다.** 우리가 판단할 잔여분이 없음을 코드로 확정했다(§1.9-보강②) |
 | 절대경로 제거가 힐세리온 개발자 워크플로를 바꾼다 | 반발·되돌림 | **이미 상대경로인 스크립트 5개가 저장소에 있다**(D-4). 새 규약을 들여오는 것이 아니라 **그들이 이미 쓰는 방식으로 나머지를 맞추는 것**이다 |
 
 ---
@@ -616,7 +700,7 @@ flowchart LR
 **이 phase 가 만드는 것은 기능이 아니라 판정 가능성이다.**
 
 - [Phase 1](./phase1-regression-baseline.md) 의 CI 는 **빌드가 무인으로 도는 것**을 전제한다. 지금은 드라이버 10개가 두 사람의 머신 경로에 묶여 있어(§1.5) CI 러너에서 시작조차 못 한다
-- [Phase 1-C](./phase1-regression-baseline.md)(헤드리스 렌더 골든)는 0-G 의 headless 타깃이 링크되어야 그 위에 올라간다
+- [Phase 1-C](./phase1-regression-baseline.md)(헤드리스 렌더 골든)는 0-G·0-L 의 **Linux 타깃**이 링크되어야 그 위에 올라간다 — 창 없이 도는 것(headless)은 그 다음 층이다
 - [Phase 2](./plan.md)(배포 패키지)의 8구성 중 **③ 의존 서드파티**가 0-C 의 매니페스트 그대로다. 지금은 무엇을 넣어야 하는지 저장소가 세 가지로 답한다(§1.4)
 - [Phase 3~4](./plan.md) 의 모든 구조 변경은 "바꾸기 전과 후가 같은가"를 물어야 하는데, **바꾸기 전이 빌드되지 않으면 그 질문이 성립하지 않는다**
 
@@ -632,13 +716,12 @@ flowchart LR
 - [../../review/sonex-framework.md](../../review/sonex-framework.md) §1(저장소 구성)·§2.3(플랫폼 분기)·§3.6(`HCCommon.h` 4벌)·§7(빌드)·§10.5(죽은 코드) — 실측 SOT
 - [../rendering-boundary.md](../rendering-boundary.md) — 0-G 가 만들지 **않는** 것(오프스크린 서피스)의 근거. §4.1
 - [phase1-regression-baseline.md](./phase1-regression-baseline.md) — 후행. 이 phase 의 단일 진입점 위에 CI 가 선다
-- [../r2/phase0-hygiene-protocol-sot.md](../r2/phase0-hygiene-protocol-sot.md) — belle-fw 의 대응 phase. **같은 성격의 위생 작업이 장비 쪽에도 있다**
 - [../../../CLAUDE.md](../../../CLAUDE.md) — 0-0 이 해소하는 read-only 미러 제약의 근거
 
 ### 이 phase 의 미확인
 
-- **마지막 fetch(2026-07-27) 이후 `origin/master` 변화** — 0-0-1 이 착수 직전에 재확인한다
-- **`feature-apply_v1.23.4` 2커밋의 실제 diff** — 커밋 메시지만 확인했다(0-J-1)
+- **F-1·F-5 의 실판정** — 선언과 정적 게이트까지만 했다. **`framework.sln` 을 `/m` 병렬로 실제 빌드해 `-lSonexCommon` 실패가 사라졌는지, `-restore` 로 `NETSDK1004` 가 사라졌는지는 Windows 머신에서만 확인된다.** 이 환경에는 MSBuild 가 없고 `dotnet` 도 깨져 있다(`host/fxr` 부재)
+- **`ImageFilter.android` x64 의 `- cvie64`** — 오타는 확정, **올바른 수정은 0-K 의 Android ABI 결정에 달렸다**(F-1-미결)
 - **Windows·Android·macOS ANGLE 리비전** — 저장소에 출처 0건, 바이너리 0건. **코드로 회수 불가**(0-A-2)
 - **힐세리온 머신에서 SDK 타깃이 실제로 어디서 막히는지** — 커밋된 로그는 ADK 타깃뿐이라(§1.1) `ImageRenderer` 의 실패는 **관측된 적이 없다.** 정적 분석 도출만 있다
 - **`adk/library/` 13종 벤더 프리빌트의 출처·빌드 옵션** — 파일은 있으나 어디서 받았는지·어떤 구성으로 빌드됐는지 저장소에 없다. FFmpeg GPL 구성 여부([gap.md §8](../gap.md))가 여기 걸린다

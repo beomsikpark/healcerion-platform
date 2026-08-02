@@ -1,7 +1,7 @@
 # Phase 1 — 회귀 판정 기준선
 
 > **상태**: 미시작
-> **범위**: `sonex-framework`(SDK+ADK)의 동작 보존 판정 수단. **belle-fw(r2)와 달리 프레임워크에는 승격할 테스트 자산이 없다 — 처음부터 짓는다.** 다만 완전한 백지는 아니다(§1.2).
+> **범위**: `sonex-framework`(SDK+ADK)의 동작 보존 판정 수단. **프레임워크에는 승격할 테스트 자산이 없다 — 처음부터 짓는다.** 다만 완전한 백지는 아니다(§1.2).
 > **선행**: [Phase 0](./phase0-build-reproducibility.md)
 > **후행**: [Phase 2](./phase2-release-packaging.md) 이후 전부
 > **근거**: [legacy/principles.md §3](../legacy/principles.md) · [../../review/sonex-framework.md §9](../../review/sonex-framework.md)
@@ -11,11 +11,9 @@
 
 ## 1. 배경
 
-### 1.1 r2 와 정반대다 — 승격할 프레임워크 자산이 없다
+### 1.1 승격할 프레임워크 자산이 없다
 
-[r2 Phase 1](../r2/phase1-regression-baseline.md) 은 *"판정 수단이 **있다**"* 로 시작한다. `belle-fw` 에는 `lib/test/cf_ff_compare.c`(218 LOC) 하니스가 출하 브랜치 위에 있고 정량 합격 기준까지 문서화돼 있어서, 그 문서의 일은 **있는 것을 CI 에 올리고 확장하는 것**이었다.
-
-`sonex-framework` 는 그 자산이 없다.
+장비 축(`belle-fw`)에는 `lib/test/cf_ff_compare.c`(218 LOC) 하니스가 출하 브랜치 위에 있고 정량 합격 기준까지 문서화돼 있다([../../review/device-firmware.md §6.5](../../review/device-firmware.md)). **`sonex-framework` 는 그 자산이 없다.**
 
 | 항목 | 실측 |
 |---|---|
@@ -25,22 +23,22 @@
 | Android 로컬 유닛테스트 | `src/test` 디렉터리 **0건** — gradle 스캐폴딩조차 없다 |
 | CI | **0건** — `.github/`·`.gitlab-ci.yml`·`Jenkinsfile`·`azure-pipelines.yml` 이 `sonex-framework`·`sonex-app` 양쪽에 없다 |
 
-**그래서 이 phase 의 성격이 r2 와 다르다.** r2 Step 1-B 는 `build.sh` 를 `make test-golden` 진입점으로 잇는 일이었지만, 여기서는 **잇을 대상 자체를 먼저 만든다.**
+**그래서 이 phase 는 "있는 것을 CI 에 잇는" 일이 아니다** — **잇을 대상 자체를 먼저 만든다.**
 
 ### 1.2 그러나 백지도 아니다 — 자산 둘이 다른 저장소에 있다
 
-**r2 와 대비만 하면 이 phase 를 잘못 잡는다.** 실제로는 골든 비교 계통이 이미 둘 있고, 둘 다 "테스트"라는 이름을 달고 있지 않아서 §1.1 의 집계에 안 잡혔을 뿐이다.
+**§1.1 만 보면 이 phase 를 잘못 잡는다.** 실제로는 골든 비교 계통이 이미 둘 있고, 둘 다 "테스트"라는 이름을 달고 있지 않아서 §1.1 의 집계에 안 잡혔을 뿐이다.
 
 | 자산 | 위치 | 실측 |
 |---|---|---|
 | **필터 파이프라인 단계 덤프** | `sonex-framework` SDK 내부 | `HCDumpManager`(`.h` 84 + `.cpp` 202줄) + **`sdk/sdk/ImageFilter/DUMP_FORMAT.md` 347줄**. `REQUEST_DEBUG_DUMP_START 0x100D0001`/`STOP 0x100D0002` 로 켜고, 단계마다 raw + png + json sidecar 를 쓴다. 덤프 지점은 `HCDefaultBFilter.cpp:131,185,282,312` **4곳**(`stage0_raw`·`stage1_bh_avg`·`stage2_sri`·`stage3_graymap`) |
 | **앱 측 테스트·검증기** | `sonex-app` | Dart 테스트 **10파일 2,692줄**(`test/spec/app_scan_spec_test.dart` + `test/fixtures/app_scan_spec.yaml` 598줄 스펙 73케이스 · `test/services/adk/` 6파일) + **`test/HNS_v1/` 파이썬 검증기 424줄 + 덤프 5.7M**. `pubspec.yaml` 에 `flutter_test`·`integration_test` 선언 |
 
-**`DUMP_FORMAT.md` 가 도입 목적을 스스로 밝힌다** — *"외부 ImageFilter 래퍼와 SDK 내부 필터의 입출력 비트 정확 비교"*(도입 2026-05-03). 이것이 r2 의 `cf_ff_compare.c` 에 해당하는 자산이다. **목업이 아니라 실코드의 중간 산출을 비트 단위로 대조한다**는 점에서 [emulator-e2e.md §1](../legacy/emulator-e2e.md) 의 원칙과도 같다.
+**`DUMP_FORMAT.md` 가 도입 목적을 스스로 밝힌다** — *"외부 ImageFilter 래퍼와 SDK 내부 필터의 입출력 비트 정확 비교"*(도입 2026-05-03). 이것이 장비 축 `cf_ff_compare.c` 에 해당하는 자산이다. **목업이 아니라 실코드의 중간 산출을 비트 단위로 대조한다**는 점에서 [emulator-e2e.md §1](../legacy/emulator-e2e.md) 의 원칙과도 같다.
 
 `DumpManager::start(dir, frameLimit, tag)` 가 **출력 폴더·프레임 수·태그를 전부 인자로 받는다** — 자동화에 그대로 얹을 수 있는 형태다.
 
-### 1.3 그런데 r2 Step 1-A 와 똑같은 함정이 있다
+### 1.3 그런데 함정이 있다 — 골든이 범위 밖 저장소에 매달려 있다
 
 `test/HNS_v1/verify_v21_byte.py`·`verify_v21_full.py` 는 **범위 제외된 저장소에 절대경로로 매달려 있다.**
 
@@ -50,7 +48,7 @@ sys.path.insert(0, str(NEXTSRI_ROOT))
 from nextsri.pipeline_v1_21_2 import apply_v1_21_2, V1_21_2_PRESETS
 ```
 
-`NextSRI`(id 77)는 루트 `CLAUDE.md` 가 **신호처리 R&D 로 범위 제외**한 저장소다. **r2 의 `NextDoppler`(id 78) 문제와 구조가 같다** — 범위 제외 판단이 in-scope 코드의 검증 의존물을 잘랐다. 그리고 루트 `CLAUDE.md` 는 이미 그 제외 판단을 **재검토 대상**으로 표시해 뒀다.
+`NextSRI`(id 77)는 루트 `CLAUDE.md` 가 **신호처리 R&D 로 범위 제외**한 저장소다. **장비 축의 `NextDoppler`(id 78) 문제와 구조가 같다**([../../review/device-firmware.md §6.5](../../review/device-firmware.md)) — 범위 제외 판단이 in-scope 코드의 검증 의존물을 잘랐다. 그리고 루트 `CLAUDE.md` 는 이미 그 제외 판단을 **재검토 대상**으로 표시해 뒀다.
 
 **이것이 이 phase 의 선행 조건이고, 코드를 건드리기 전에 결론이 나야 한다**(§2 선행 조건).
 
@@ -61,7 +59,7 @@ from nextsri.pipeline_v1_21_2 import apply_v1_21_2, V1_21_2_PRESETS
 | 1 | **테스트 프레임워크가 없다** | 어떤 새 단위테스트도 얹을 자리가 없다 |
 | 2 | **실장비 없이는 아무것도 못 돈다** | 연결·명령·프레임 수신 전 경로가 장비 의존 |
 | 3 | **렌더 경로에 골든이 없다** | 덤프는 graymap(`stage3`)까지다. **렌더러 출력은 안 덮는다** |
-| 4 | **덤프가 B 모드만이다** | `process/` 에 `HCDefaultCfFilter`·`HCDefaultPwFilter`·`HCDefaultMFilter` 가 있으나 덤프 지점 0건. **r2 Step 1-C(CF 만 → B·PW·M 확장)의 정확한 거울상** |
+| 4 | **덤프가 B 모드만이다** | `process/` 에 `HCDefaultCfFilter`·`HCDefaultPwFilter`·`HCDefaultMFilter` 가 있으나 덤프 지점 0건. **모드 확장이 그대로 남아 있다** |
 | 5 | **CI 가 없다** | 위 전부를 사람이 손으로 돌린다 |
 | **6** | **ADK 측 통합 더블이 아예 없다** | SDK 는 mock 장치 서버(1-B)가 있는데, ADK 가 부르는 클라우드 HTTP(19개 엔드포인트, [gap.md §7.3](../gap.md))·DICOM SCP 는 흉내낼 더블이 **하나도 계획에 없었다.** ADK 만 떼어 검증할 방법이 없다는 뜻이다(§Step 1-H) |
 
@@ -88,7 +86,7 @@ from nextsri.pipeline_v1_21_2 import apply_v1_21_2, V1_21_2_PRESETS
 
 ## 2. 진행 단계
 
-> **선행 조건 — `NextSRI` 범위 재판정.** §1.3 의 의존을 먼저 정리한다. ① `NextSRI`(id 77) 클론 가능 여부 확인 ② `pipeline_v1_21_2` 모듈과 `nlm_apply.exe` 확보 ③ 루트 `CLAUDE.md` 의 "신호처리 R&D 제외" 정정 ④ **확보 불가 시 대안**: 현행 출하본으로 덤프를 새로 떠서 그 출력을 골든으로 삼는다. **"정답"이 아니라 "이전 값"이면 회귀 검출에 충분하다**([principles.md §3](../legacy/principles.md)) — r2 Step 1-A-4 와 같은 처리다.
+> **선행 조건 — `NextSRI` 범위 재판정.** §1.3 의 의존을 먼저 정리한다. ① `NextSRI`(id 77) 클론 가능 여부 확인 ② `pipeline_v1_21_2` 모듈과 `nlm_apply.exe` 확보 ③ 루트 `CLAUDE.md` 의 "신호처리 R&D 제외" 정정 ④ **확보 불가 시 대안**: 현행 출하본으로 덤프를 새로 떠서 그 출력을 골든으로 삼는다. **"정답"이 아니라 "이전 값"이면 회귀 검출에 충분하다**([principles.md §3](../legacy/principles.md)).
 
 ### Step 1-A. 단위테스트 프레임워크 도입
 
@@ -190,8 +188,6 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 | B-f | **에러 경로** — 잘린 패킷 · 미지 opcode · `targetId` 오류 · 타임아웃 · 연결 끊김 |
 | B-g | SDK 를 mock 에 붙인다(**0-0 재배치 후**). 앱까지 붙이려면 B-0 의 앱 상수 6곳 분리 선행 |
 
-> **[r2 Phase 4](../r2/phase4-platform-pc-emulator.md) 와 대칭이다.** 그쪽은 장비 코드가 PC 를 흉내내고, 이쪽은 PC 가 장비를 흉내낸다. 같은 정본을 쓰면 둘을 붙일 때 계약이 이미 맞아 있다.
-
 ### Step 1-C. 헤드리스 렌더 골든 — **"주석 해제"로 되는 일이 아니다**
 
 **이 항목을 낮게 잡으면 Phase 4 전체가 판정 불가가 된다.** 이전 판은 *"PBuffer 주석만 해제하면 된다"* 고 봤으나 틀렸다.
@@ -221,7 +217,7 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 **결과 셋**:
 1. **Android·Windows 산출물에는 이 심볼이 아예 없다.** 헤더에는 있으니 앱은 lookup 하고 런타임에 실패한다 — 1-D 가 잡아야 할 유형 그대로다
 2. **macOS 는 아래 두 층만 있고 위 두 층이 없다** — 코어에 구현이 있어도 C ABI 로 도달할 수 없다
-3. **CI 가 돌릴 만한 플랫폼(headless·Android·Windows)에 픽셀 반출 경로가 없다**
+3. **CI 가 돌릴 만한 플랫폼(Linux·Android·Windows)에 픽셀 반출 경로가 없다**
 
 그리고 구현 본문의 주석이 `// pbuffer에서 픽셀 데이터 읽기`(`:2800`)인데 **pbuffer 는 없다** — 실제로는 현재 바인딩된 프레임버퍼에서 `glReadPixels` 한다. **의도를 앞서 적어 둔 주석이며, 코드를 훑는 사람을 "이미 있다"로 오도한다.**
 
@@ -235,7 +231,7 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 | # | 작업 |
 |---|---|
 | C-a | **① 필터 골든 자동화** — `DumpManager::start(dir, frameLimit, tag)` 를 테스트 하니스에서 호출. 출력 폴더가 인자라 그대로 얹힌다 |
-| C-b | **① B 외 모드 확장** — `HCDefaultCfFilter`·`HCDefaultPwFilter`·`HCDefaultMFilter` 에 같은 4단계 덤프 지점을 넣는다. **r2 Step 1-C 와 같은 일** |
+| C-b | **① B 외 모드 확장** — `HCDefaultCfFilter`·`HCDefaultPwFilter`·`HCDefaultMFilter` 에 같은 4단계 덤프 지점을 넣는다. **모드 확장** |
 | C-c | **① 합격 기준 정의** — 부동소수·OpenCV 버전 의존이 있으므로 허용오차를 처음부터 명시. `verify_v21_byte.py` 가 이미 *"96% 매치"* 형태의 기준을 쓴다 |
 | C-d | **② 오프스크린 EGL 컨텍스트 신규 구현** — 활성 config 에 `EGL_SURFACE_TYPE` 을 세우고 pbuffer 또는 surfaceless 컨텍스트를 만든다. `AngleProbe.mm:56` 이 출발점 |
 | C-e | **② 픽셀 반출 API 를 전 플랫폼으로** — `hc_ReadRenderedImage` 의 4층 가드를 정리한다. **가드를 넓히는 것이지 알고리즘을 고치는 것이 아니다** |
@@ -296,6 +292,32 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 
 **`test-mock`·`check-bindings` 이름은 폐기하고 위 4종으로 흡수한다** — cctv 와 이름이 다르면 "제품이 달라도 같은 이름을 찾아 들어간다"는 이식성이 깨진다([precedent-cctv.md §2.5](../legacy/precedent-cctv.md)).
 
+### Step 1-E2. 경고 게이트 — 이 Phase 에서 가장 싼 항목
+
+**케이스를 한 줄도 쓰기 전에 결함 14건이 드러난다.** SDK `shared/` 소스를 `-Wall -Wextra` 로 문법 검사만 돌린 결과다([code-defects-sdk.md §1·§6](./code-defects-sdk.md)).
+
+| 경고 | 건수 | 무엇을 뜻하는가 |
+|---|---:|---|
+| **`-Wtype-limits`** | **14** | **전부 죽은 검사다.** `size_t` 값에 `< 0` 을 걸어 놓아 방어가 컴파일 시점에 사라진다 — `RingBuffer::at`(음수 인덱스 보호) · `PacketData::resetPosition` · **`InstructionSet` 6벌의 헤더 검증**(`skip < 0`·`contentSize < 0`) |
+| **`-Wdelete-incomplete`** | **2** | `VariantMap` 의 `void*` 삭제. **소멸자가 돌지 않아** 소유 객체의 힙이 전부 샌다 |
+| `-Wswitch` | 10 | 열거값 미처리 — `resultCodeToString` 이 5개 코드를 문자열로 못 바꾼다 |
+| `-Wsign-compare` | 29 | `EventThread::sendEvent` 의 큐 상한 비교 등 |
+| `-Wunused-variable` | 152 | 대부분 위생 항목 |
+| (별도) `-Wunused-parameter` | — | `String::contains`·`startsWith`·`endsWith`·`indexOf` 가 **`caseSensitive` 를 받고 안 쓴다** |
+
+> **이 숫자는 하한이다** — 43파일이 플랫폼 헤더 부재로 컴파일 자체가 서지 않아 집계에서 빠졌다. Phase 0-M(자립 컴파일 결손) 이 끝나면 숫자가 늘어난다.
+
+| # | 작업 |
+|---|---|
+| E2-1 | **수집만 한다** — CI 잡이 경고를 아티팩트로 남기되 빌드는 실패시키지 않는다. 기준선 숫자를 고정하는 단계다 |
+| E2-2 | **신규 코드에 `-Werror`** — 변경된 파일에만 적용. 여기서부터 새 결함이 들어오지 못한다 |
+| E2-3 | **범주별 소진** — `-Wtype-limits`·`-Wdelete-incomplete` 부터. **둘은 전부 실결함**이라 우선순위가 명확하다 |
+| E2-4 | 소진 후 **전면 `-Werror`** 로 승격. `-Wunused-variable` 152건은 마지막 |
+
+**순서를 지키는 이유**: 지금 `-Werror` 를 켜면 152건의 위생 경고에 묻혀 **실결함 16건이 보이지 않는다.** 범주를 나눠 켜는 것이 이 항목의 전부다.
+
+**성공 판정**: CI 에서 `-Wall -Wextra` 가 돌고 **`-Wtype-limits`·`-Wdelete-incomplete` 가 0건**이며, 신규 코드는 `-Werror` 로 막힌다([plan.md §5](./plan.md) 판정 18c).
+
 ### Step 1-F `[선행 가능]`. 원격 갱신분 재확인
 
 **브랜치 구도는 이미 확정됐다.** `[실측 2026-07-30]`
@@ -348,7 +370,7 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 
 `test_firmware_version_checker.cpp` 가 이미 좋은 형태다 — **외부 의존 0, 표 주도(table-driven), 통과/실패 카운트**. 주석이 기준까지 밝힌다: *"Moana `CFirmwareSetting::checkFirmwareVersion()` 500L 분기 동작을 기준으로 작성"*.
 
-**"정답"이 아니라 "이전 값"을 기준으로 삼는 방식**이며([r2/phase1-regression-baseline.md](../r2/phase1-regression-baseline.md) Step 1-A-4 와 같은 원칙), 회귀 검출에는 그것으로 충분하다.
+**"정답"이 아니라 "이전 값"을 기준으로 삼는 방식**이며이며, 회귀 검출에는 그것으로 충분하다.
 
 #### G-3. 덮지 않는 것을 명시한다 — **단, Phase 1 시점 한정이다**
 
@@ -490,7 +512,7 @@ make test-e2e TARGET=device    # 실장비 접근 확보 시([plan.md](./plan.md
 
 | 위험 | 영향 | 대응 |
 |---|---|---|
-| **`NextSRI` 골든·참조 구현을 확보 못 한다** | `verify_v21_*.py` 424줄이 못 돈다 | 선행 조건 ④ — 현행 출하본으로 덤프를 새로 떠 **"이전 값"** 을 골든으로. r2 Step 1-A-4 와 같은 처리 |
+| **`NextSRI` 골든·참조 구현을 확보 못 한다** | `verify_v21_*.py` 424줄이 못 돈다 | 선행 조건 ④ — 현행 출하본으로 덤프를 새로 떠 **"이전 값"** 을 골든으로. |
 | **PBuffer 가 ANGLE 백엔드(D3D11/Metal/Vulkan)별로 지원 편차** | 1-C ② 가 막히면 **렌더 회귀 oracle 이 없어져 Phase 4 전체가 판정 불가** | **1-C 를 ①·②로 쪼갠 이유가 이것이다.** ① 필터 골든은 GL 없이 돌고, ② 는 `AngleProbe.mm:56` 선례부터 백엔드별로 확인 |
 | **`hc_ReadRenderedImage` 가 CI 플랫폼에 존재하지 않는다** | 1-C ② 를 headless·Android 에서 시작할 수 없다 | C-e 가 가드 정리를 **1-C 안에 포함**한다. 가드를 넓히는 것이지 알고리즘 변경이 아니므로 회귀 위험이 낮다 |
 | **CVIE 라이선스가 장비 바인딩** | mock 으로 CVIE 유효 경로를 못 만든다 | `HCInstructionSet500L.cpp:393` 이 장비정보 필드 31 에서 키를 읽고 `HCLiveController.cpp:3079` 가 `cvieValidation(serial, key)` 로 검증한다. **500L·500P·500C 해당.** mock 은 `cvieLicense=false` 경로만 덮는다 — CVIE 없는 경로(HNS·NLM·SRI 자체 필터)부터 자동화하고 **실장비 의존을 그대로 인지한다** |
@@ -530,15 +552,13 @@ graph LR
 | [Phase 4-G](./plan.md) `HCImageRenderCore.cpp` 7,679 LOC 분할 | 픽셀이 같은지 알 수 없다 — **파일 분할이 회귀를 위장한다** |
 | [Phase 5-C](./plan.md) 바인딩 29건 해소 | 고쳤는지, 다른 곳이 새로 깨졌는지 판정 불가 |
 
-그리고 **[r2 Phase 1-D](../r2/phase1-regression-baseline.md) 와 짝이다.** 앱이 보내는 것(1-B)과 장비가 받는 것(r2 1-D)이 같은 정본을 쓰면, [r2 Phase 4](../r2/phase4-platform-pc-emulator.md) 의 PC 에뮬레이터와 이쪽 mock 서버를 붙일 때 계약이 이미 맞아 있다. **B-4 가 정본에 `sonex-framework` 를 넣는 이유가 그것이다** — 지금 정본은 3벌만 알고 있고, 네 번째를 넣지 않으면 두 갈래가 같은 정본 위에 서지 못한다.
+**B-4 가 정본에 `sonex-framework` 를 넣는 이유가 그것이다** — 지금 정본은 3벌만 알고 있고, 네 번째를 넣지 않으면 앱이 보내는 것과 장비가 받는 것이 같은 정본 위에 서지 못한다.
 
 ---
 
 ## 6. cross-reference
 
 - [plan.md §4 Phase 1](./plan.md) — 이 문서의 뼈대
-- [../r2/phase1-regression-baseline.md](../r2/phase1-regression-baseline.md) — **장비 축의 짝 문서.** `NextDoppler` 범위 문제(§1.3)·모드 확장(§C-b)·패킷 골든(Step 1-D)이 서로 대응한다
-- [../r2/phase4-platform-pc-emulator.md](../r2/phase4-platform-pc-emulator.md) — Step 1-B 의 대칭 구조
 - [../legacy/proof/protocol-sot/](../legacy/proof/protocol-sot/) — mock 서버가 쓸 정본. **`make` 로 재현되는 실물.** B-4 가 여기에 4번째 입력을 추가한다
 - [../../review/sonex-framework.md](../../review/sonex-framework.md) §3.5(심볼 불일치) · §4.2(오프스크린) · §5(장치 통신) · §9(품질 장치)
 - [../../review/sonex-app.md](../../review/sonex-app.md) — 앱 측 테스트 자산(§1.2)

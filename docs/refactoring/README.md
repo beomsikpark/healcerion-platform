@@ -27,11 +27,18 @@
 
 **실행 계획**
 
+**출시 대상은 `500C`·`500P` 뿐이다**(2026-08-01 확정). 두 트랙이 **공급자(SDK/ADK)와 소비자(UI)** 로 갈린다.
+
 | 트랙 | 문서 | 상태 |
 |---|---|---|
-| `sonex-framework`(client) — 렌더 경계를 코드 구조로 | [r1/plan.md](r1/plan.md) | 착수 전. ANGLE 은 회수가 아니라 **자체 빌드**로 확보한다(r1 Phase 0-A) — 상위 [plan.md](plan.md) Phase 0-3(배치 회수) 전제는 r1 자체 실측으로 무효화됐다 |
-| `belle-fw`(device) | [r2/plan.md](r2/plan.md) | 앱 결정과 무관하게 유효(§아래) |
-| Buildroot 도입(device) | [r3/plan.md](r3/plan.md) | 앱 결정과 무관하게 유효(§아래) |
+| **`sonex-framework`(SDK·ADK)** — 렌더 경계를 코드 구조로 | [r1/plan.md](r1/plan.md) | 착수. Phase 0 의 0-0·0-D·0-E·0-H·0-I 완료(2026-08-01). ANGLE 은 회수가 아니라 **자체 빌드**로 확보한다(Phase 0-A) |
+| **`moana` UI → SDK/ADK 이관 (Qt6)** | [r2/plan.md](r2/plan.md) | 착수 전. **`moana` 의 UI 를 살리고 자체 `framework/` 를 걷어내 SDK/ADK 위에 얹는다.** 첫 관문은 Phase 1(렌더 합성 실증) |
+
+> **두 트랙과 직교하는 축이 하나 있다 — `X`(코드 결함).** 코드를 읽어 확인한 동작 결함이 **계층 합계 60건**이다(SDK 21 · ADK+`moana` ADK 대응 계층 39). 여기에 `moana` 의 SDK 대응 계층 5건이 더 있다. **결함 수정은 리팩토링이 아니다** — 동작을 보존하는 게 아니라 바꾸므로 Phase 에 섞지 않고 별도 축으로 둔다. SOT 는 자매 문서 둘이고 계층 범위·항목 ID 가 겹치지 않는다: [r1/code-defects-sdk.md](r1/code-defects-sdk.md)(SDK `sdk/sdk`·`sdk/common` 21건 + `moana` SDK 대응 계층 5건, `XS-1`~`XS-5`) · [r1/code-defects.md](r1/code-defects.md)(ADK·`moana` ADK 대응 계층 39건, 계보 판정 포함, `X-1`~`X-6`). **양쪽 다 `moana` 원본 대조가 결정적이었다** — ADK 결함 36건 중 18건이 대조로만 회귀임이 드러났고, SDK 치명 1건도 같은 방식으로 확정됐다.
+
+> **왜 `sonex-app`(Flutter)이 아니라 `moana` UI 인가** — `sonex-app` 은 도메인 이식 0건이고 완료 조건이 없다([legacy/moana-vs-sonex.md §5](legacy/moana-vs-sonex.md)). 반면 `moana` 는 이미 Qt 6.6.3 완제품이라 **없는 것이 도메인 전체가 아니라 500C/P 컨트롤 몇 개**다. `moana` 가 500C/P 를 구동하지 못하는 것은 **걷어낼 계층의 한계**라 논점이 아니다 — 구동은 SDK 가 한다. 상세 = [r2/plan.md §0](r2/plan.md).
+
+> **belle(500L) 장비 트랙은 삭제됐다 (2026-08-01).** 이전 `r2`(`belle-fw` feature-first 재구성)·`r3`(Buildroot `BR2_EXTERNAL` 도입)는 전부 **belle(500L)** 대상이었는데 **500L 이 출시 범위 밖으로 확정**되면서 대상 자체가 사라졌다. 500C/500P 펌웨어(`500c-sn-fw`)는 Socionext 베어메탈이라 두 계획의 전제(ZynqMP + Linux + Buildroot)가 성립하지 않는다([../review/500c-firmware.md](../review/500c-firmware.md)). 계획 본문은 git 이력에만 남고, **`r2` 슬롯은 위 UI 이관 계획이 이어받았다.** belle 장비 실측 자체는 [../review/device-firmware.md](../review/device-firmware.md)·[../review/belle-hardware.md](../review/belle-hardware.md) 가 그대로 SOT 다.
 
 ## 전제 셋
 
@@ -60,13 +67,13 @@
 
 ## 이 결정과 무관한 트랙
 
-앱 선택이 무엇이든 영향받지 않는 것들이다. 뒤집힌 판단이 아니라 **지금도 유효한 실행계획**이라 `r1`과 같은 top-level 에 둔다(2026-07-30, `legacy/r2`·`legacy/r3` 에서 이동) — legacy 안에는 이 트랙에 딸린 배경 문서(`architecture.md`·`assessment.md`·`principles.md`·`emulator-e2e.md` 등)만 남아 있다.
+앱 선택이 무엇이든 영향받지 않는 것들이다.
 
 | 트랙 | 위치 | 상태 |
 |---|---|---|
-| `belle-fw` feature-first 재구성 | [r2/plan.md](r2/plan.md) | 장비 트랙. 앱 결정과 독립 |
-| Buildroot `BR2_EXTERNAL` 도입 | [r3/plan.md](r3/plan.md) | 장비 빌드 재현. 즉시 착수 가능 |
 | **HC 프로토콜 정본** | [legacy/proof/protocol-sot/](legacy/proof/protocol-sot/) | **이미 만든 실물.** `make` 로 재현되며 장비↔앱 이음매에 그대로 쓰인다 |
+
+> 여기 있던 장비 트랙 둘(`belle-fw` feature-first 재구성 · Buildroot `BR2_EXTERNAL` 도입)은 **500L 출시 범위 제외로 삭제**됐다(2026-08-01, 위 §실행 계획 참조). legacy 에는 그 트랙의 배경 문서(`architecture.md`·`assessment.md`·`principles.md`·`emulator-e2e.md`)가 남아 있으나 **실행 계획은 남아 있지 않다.**
 
 ## 라이선스 축의 위치
 

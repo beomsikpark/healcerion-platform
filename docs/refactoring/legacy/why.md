@@ -126,7 +126,7 @@ flowchart LR
 | 구성 | 내용 | 상세 |
 |---|---|---|
 | **feature-first clean architecture** | device·client 양쪽. 기능이 디렉토리 하나에 모이고 도메인이 하드웨어를 모른다 | [architecture.md](architecture.md) |
-| **빌드 가능한 소스** | 깨끗한 체크아웃 → 1커맨드 → 이미지 | [assessment.md §1.3](assessment.md) · 실행 계획 = [r3/plan.md](../r3/plan.md) |
+| **빌드 가능한 소스** | 깨끗한 체크아웃 → 1커맨드 → 이미지 | [assessment.md §1.3](assessment.md) |
 | **로컬 에뮬레이터** | 실장비 없이 개발 PC 에서 전 경로 실행 | [emulator-e2e.md](emulator-e2e.md) |
 | **E2E + CI** | **데이터 경로** 회귀를 커밋 시점에 잡는다 — 효과 상한은 [../review/change-cost.md §7](../review/change-cost.md) 에 재어 두었다(최근 표본의 25%) | [emulator-e2e.md §7](emulator-e2e.md) |
 | **플랫폼 뼈대** | 정본 프로토콜 · 표준 CLI · 축 사이 공유 계층 | [architecture.md §1](architecture.md) |
@@ -268,7 +268,7 @@ belle-fw/scripts/release_elsa.sh:8
 
 **리팩토링 이전에 빌드가 되어야 한다.** 안 그러면 바꾼 결과를 확인할 수 없다 — 사람이든 AI 든 같다.
 
-**cctv-platform 이 이미 같은 문제를 `BR2_EXTERNAL`(Buildroot 커스텀 트리) 하나로 풀었다** — 벤더 SDK를 local 패키지로, 앱을 git SHA 핀 패키지로, 커널·U-Boot 를 포크 저장소로 엮는다. belle 은 커널(`belle-kernel`)·U-Boot(`belle-u-boot`)가 이미 같은 배치로 갈라져 있어 이 형태로 옮기는 데 새 구조가 필요 없다. **패키지 정의를 쓰는 행위 자체가 절대경로·빈 Makefile·수동 셸 단계를 강제로 걷어낸다** — 실행 계획 = [r3/plan.md](../r3/plan.md).
+**cctv-platform 이 이미 같은 문제를 `BR2_EXTERNAL`(Buildroot 커스텀 트리) 하나로 풀었다** — 벤더 SDK를 local 패키지로, 앱을 git SHA 핀 패키지로, 커널·U-Boot 를 포크 저장소로 엮는다. belle 은 커널(`belle-kernel`)·U-Boot(`belle-u-boot`)가 이미 같은 배치로 갈라져 있어 이 형태로 옮기는 데 새 구조가 필요 없다. **패키지 정의를 쓰는 행위 자체가 절대경로·빈 Makefile·수동 셸 단계를 강제로 걷어낸다.**
 
 ### 7.2 저장소가 실제 코드의 1000배다
 

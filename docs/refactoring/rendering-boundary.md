@@ -271,7 +271,7 @@ flowchart TB
 
 **HAL 이 없는 둘이 정확히 렌더링과 이벤트다.** 그래서 `HCImageRenderCore.cpp`(shared)가 `#if OS_*` 로 직접 `eglCreateWindowSurface(nativeWindow)` 를 부르고, **윈도우 핸들이 공개 API 로 새어 나온다.** §5.3 의 `hwnd` 116줄은 그 누수를 앱이 떠안은 결과다.
 
-> **선례와 일치한다** — cctv-platform 의 `platforms/` 계층이 같은 개념이며, [r2/plan.md](r2/plan.md) 가 `belle-fw` 에 제안한 4계층(`app`/`core`/`features`/`platforms`)의 `platforms` 가 여기 대응한다.
+> **선례와 일치한다** — cctv-platform 의 `platforms/` 계층이 같은 개념이다([legacy/precedent-cctv.md](legacy/precedent-cctv.md)).
 
 ### 7.2 wrapper 의 산출물은 표시 컴포넌트다
 
