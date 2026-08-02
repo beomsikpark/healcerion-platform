@@ -1,6 +1,6 @@
 # Phase 3 — SDK/ADK 경계 정리·내부 구조 정리 (B3)
 
-> **상태**: 진행 중 — **3-C·3-F·3-G 의 판정 장치 완료**(2026-08-02, 커밋 `b8dc55bf`·`ce121c4a`·`b83869f5`). 게이트 3종이 CI 에 올랐고 실측이 계획을 크게 바꿨다(§실측 2026-08-02). 코드 이동(3-A·3-B·3-D·3-E·3-H·3-I·3-J·3-K)은 미시작
+> **상태**: 진행 중 — **3-C·3-E(실측)·3-F·3-G 의 판정 장치·실측 완료**(2026-08-02, 커밋 `b8dc55bf`·`ce121c4a`·`b83869f5`). 게이트 3종이 CI 에 올랐고 실측이 계획을 크게 바꿨다(§실측 2026-08-02). 코드 이동(3-A·3-B·3-D·3-E·3-H·3-I·3-J·3-K)은 미시작
 > **범위**: `sonex-framework` 의 **계층 경계 이탈 정리**(3-A~3-G) + **파일·함수 단위 내부 정리**(3-H~3-J) + **Phase 2 가 만든 게이트 활성화**(3-K). **모듈의 계층 배치는 바꾸지 않는다** — 배치 판정은 [rendering-boundary.md §7.5](../rendering-boundary.md) 가 이미 "현행 유지"로 끝냈다.
 > **선행**: [Phase 2](./phase2-release-packaging.md) — 특히 2-G(`SDK-only` 빌드 구성)가 있어야 3-K 를 켤 수 있고, [Phase 1](./phase1-regression-baseline.md) 회귀 하니스가 있어야 3-H~3-J 를 판정할 수 있다
 > **후행**: [Phase 4](./phase4-render-boundary.md) — 4-A(렌더 서피스 HAL)는 3-F(공개 헤더 정본)가 선 뒤에야 계약을 바꿀 자리가 생긴다
@@ -36,6 +36,35 @@ Phase 0~2 로 **빌드·테스트·게이트가 서고 나서** 3-C·3-F·3-G �
 > **남은 9건 중 6건이 한 원인이고 무겁다** — `sdk/include/objects/HCScanMCursor.h` 가 **공개 트리에 없다.** `HCImageRenderCore.h:22` 가 그것을 include 하므로 **`HCSonexSDK.h` 를 비롯한 6개가 깨진다. 즉 SDK 의 주 진입점이 고객사에서 컴파일되지 않는다.**
 >
 > **복사로 고치지 않았다.** `sdk/include/objects/` 의 15개 사본이 `sdk/sdk/ImageRenderer/shared/objects/` 원본과 **이미 전부 갈라져 있다**(md5 상이). 어느 쪽을 공개 계약으로 낼지가 3-F 의 본체이고, 추측으로 한쪽을 고르면 그 결정이 근거 없이 굳는다.
+
+### 3-E — 누수 표면이 **Windows·Android 뿐**이고, 헤더는 전 플랫폼에 광고한다
+
+`hc_create*Instance` / `hc_destroy*Instance` **12개**(모듈 6종 × 2)가 `extern "C"` 로 **`class HC::DeviceManager*` 를 반환**한다. C ABI 로 C++ 타입이 나가므로 클래스 레이아웃이 곧 바이너리 계약이 된다.
+
+**그런데 구현이 6개 모듈 전부 이 모양이다** `[실측 2026-08-02]`:
+
+```cpp
+#if OS_WINDOWS
+    class ExportDev HC::DeviceManager* _cdecl hc_createDeviceManagerInstance() { ... }
+#elif OS_ANDROID
+    class HC::DeviceManager* hc_createDeviceManagerInstance() { ... }
+#endif   // ← #else 가 없다
+```
+
+| 플랫폼 | 이 API |
+|---|---|
+| Windows · Android | **있다** — SDK 파사드가 모듈 DLL/so 를 동적 로딩해 이 심볼을 찾는다 |
+| **Linux · iOS · macOS** | **없다.** Apple 은 `file(GLOB)` 으로 전 모듈을 한 프레임워크에 몰아넣어 동적 로딩이 필요 없고, Linux 는 정적 링크다 |
+| 공개 헤더 | **무조건 선언한다** |
+
+**따라서 3-E 는 두 결함이지 하나가 아니다.**
+
+| # | 결함 | 성격 |
+|---|---|---|
+| 1 | **공개 헤더가 플랫폼별 API 를 무조건 선언한다** | `hc_renderCineFrameFromGray`(§Phase 4 정정)·`hc_ReadRenderedImage`(iOS 전용)와 **같은 종류**다. 고객사는 선언을 보고 부르고, 없는 플랫폼에서 런타임에 실패한다 |
+| 2 | 있는 곳에서는 **C++ 객체가 C ABI 로 나간다** | opaque handle 로 바꾸는 것이 3-E 의 원래 내용. **대상은 전 플랫폼이 아니라 Windows·Android 다** |
+
+> **순서가 갈린다** — 결함 1 은 `sdk/include/` 정본화(3-F)와 같은 작업이고 지금 게이트가 이미 17건을 세고 있다. 결함 2 는 API 변경이라 §3.2 대로 **왕복 케이스가 먼저**이며, 그 케이스는 Windows·Android 에서만 돌 수 있다 — **Linux 에서는 이 API 자체가 없어 판정할 수 없다.**
 
 ### 3-G — **통합이 무손실이다**
 
