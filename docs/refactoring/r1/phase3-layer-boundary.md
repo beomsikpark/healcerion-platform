@@ -91,6 +91,57 @@ sizeof(ImageRenderCore) = 3144   (-I sdk/include 우선)
 >
 > **완료 판정**: 이 게이트가 0 이 되면 `test/render/test_render_core_offscreen.cpp` 의 `DISABLED_` 를 뗄 수 있다. **3-F 가 끝났는지를 렌더 케이스가 판정하는 구조**다.
 
+#### 3-F 실행 결과 — **사본 49 → 0** `[2026-08-03]`
+
+`sizeof(ImageRenderCore)` 가 **양쪽 다 3728** 로 같아졌고, `DISABLED_` 를 뗀 렌더 케이스 2건이 통과한다(**103/103**). 위 완료 판정이 실제로 성립했다.
+
+**방향은 줄 수가 아니라 선언 집합으로 정했다.** 42벌은 내부가 정본이고 **4벌은 공개가 정본**이다 — `HCRequestCommands.h` 는 공개가 995줄 더 길어 "공개가 뚱뚱하다" 로 보이지만 그 995줄은 고객용 Request JSON 문서 주석이고, 주석·공백을 지운 선언 집합으로 재면 **공개 229심볼 ⊃ 내부 165심볼**(내부 전용 0 · 같은 이름 다른 값 0)이다. 줄 수로 판정했으면 API 문서가 사라졌다.
+
+**사본이 감추고 있던 것** — 통합하면서 드러난 것이 사본 정리 자체보다 무겁다.
+
+| 헤더 | 공개(고객사가 보는 것) | 내부(SDK 가 실제로 쓰는 것) |
+|---|---|---|
+| `HCRecordWriter.h` | `REC_FILE_VER 6.11` | **`7.2`** — 레코드 파일 포맷이 한 세대 다르다 |
+| `HCInstructionSet300C/300L/500L.h` | `createPacketUpdataFirmwareStart(out)` | `(out, VariantMap*)` — **공개 헤더로 컴파일하면 링크되지 않는다** |
+| `HCAverageBFilter.h` | `cv::UMat prevFrame[N]` | `cv::Mat prevFrame[N]` — 크기가 다른 타입의 배열 |
+| `HCFileReadWriter.h` / `HCRecordWriter.h` | `ExportFRW` 가 전자에만 | 후자에만 — **방향이 서로 반대**라 표류의 증거다 |
+
+부수 효과로 **공개 헤더 자기완결성 실패가 9 → 2** 로 내려갔다. 내부 사본은 이미 자기완결적이었고 공개 사본만 낡아 있었기 때문이다. 공개 트리에 아예 없던 `HCScanMCursor.h`·`HCMeasureBVF.h` 도 채웠다 — 공개 `HCImageRenderCore.h` 가 이미 include 하던 것이라 **고객사는 지금까지 이 헤더를 컴파일할 수 없었다**.
+
+**파일은 지우지 않았다.** 사본을 없애는 가장 짧은 길은 내부 파일을 삭제하고 include 경로가 공개를 찾게 두는 것이지만, `.sln`·`.vcxitems`·`ndk-build`·Xcode 가 **경로로 파일을 나열**하므로 우리가 빌드하지 못하는 플랫폼이 조용히 깨진다. 전달 헤더는 경로를 살리면서 실체를 하나로 만든다.
+
+#### 3-F 파생 — **사본이 아닌 것이 섞여 있었다(이름 충돌)** `[2026-08-03]`
+
+사본 게이트가 "갈라진 사본" 으로 세던 것 중 하나가 사본이 아니었다.
+
+```
+sdk/sdk/DeviceManager/shared/HCDeviceManager.h   → class HC::DeviceManager (하드웨어 소켓)
+sdk/adk/Main/shared/managers/HCDeviceManager.h   → class HC::DeviceManager (클라우드 장비·배터리 등록)
+```
+
+**이름이 같고 겹치는 멤버가 하나도 없다.** 사본은 합치면 되지만 이름 충돌은 **합칠 수 없고 이름을 바꿔야 한다** — 둘을 한 바구니에 담으면 "사본 0" 을 달성해도 충돌이 남는다. 그래서 게이트를 분리했다(`scripts/check-name-collisions.py`, **멤버 교집합이 공집합인 동명 클래스**를 찾는다). ADK 쪽을 `CloudDeviceManager` 로 바꿔 해소했다(C ABI 미노출이라 공개 API 변경이 아니다).
+
+같은 게이트가 **더 무거운 것**을 하나 더 찾았다. `sdk/adk/Main/ios/HCSonexSDK_iOS.h` 는 SDK 의 iOS 포팅이 아니라 **손으로 다시 쓴 별개 구현**인데, 선언을 `namespace HC` 에 두어 진짜 SDK 와 이름이 겹쳤다.
+
+| 이름 | 가짜(iOS) | 진짜 |
+|---|---|---|
+| `HC::ResultCode` `NOT_CONNECTED` | 1 | **14** |
+| `HC::ResultCode` `NOT_SUPPORTED` | 2 | **12** |
+| `HC::ResultCode` `INVALID_PARAMETER` | 3 | **6** |
+| `HC::ScanMode` 값 3 | `SCAN_MODE_PD` | `SCAN_MODE_PW` |
+| `HC::StreamData` | 3필드 POD | 10필드 이상 |
+
+**같은 iOS 타깃 안에서** `HCSonexADK.cpp`·`HCNetworkController.cpp` 는 진짜 값을 쓰고, 같은 헤더를 포함한 `HCSonexFramework.cpp` 는 가짜 값을 쓴다. 한 바이너리에 같은 이름의 두 정의가 있으므로 ODR 위반이고, **오류 코드가 경계를 넘을 때 뜻이 바뀐다**. 구현 통합은 iOS 를 빌드할 수 있는 곳에서 할 일이라 여기서는 **이름 충돌만 없앴다**(`HC::iosbridge` 로 내림) — 이름 변경은 컴파일 시점에 실패하므로 조용히 틀리는 이전 상태보다 안전하다.
+
+같은 계보로 **고객용 iOS 샘플의 크래시 요인**도 드러났다. `SonexSDKBridge.mm` 이 `HC::StreamData` 를 손으로 다시 선언하고 SDK 가 넘긴 `void*` 를 그리로 캐스팅하는데, 그 사본에는 `float linePosition` 이 빠져 있다.
+
+```
+진짜 imageData offset = 32
+사본 imageData offset = 24   ← 그 자리는 실제로 linePosition(float) 이다
+```
+
+**콜백마다 float 비트열을 포인터로 역참조했다.** 이 파일이 진짜 헤더를 피한 이유("내부 구현 헤더는 제외")가 성립했던 까닭은 공개 헤더가 혼자 컴파일되지 않았기 때문인데, **3-F 가 그것을 고쳐 이제 헤더 하나만 포함하면 된다.** 고쳤다.
+
 ### 3-G — **통합이 무손실이다**
 
 `HCRequestCommands.h` 3벌의 상수가 **175 / 119 / 81** 로 다르다. 그러나 **사본 간 "같은 이름·다른 값" 이 0건**이다. `protocol-sot` 전수 대조에서 무손실 통합의 근거였던 것과 같은 판정이고 같은 방법으로 얻었다.
