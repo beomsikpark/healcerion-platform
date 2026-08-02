@@ -245,25 +245,25 @@ flowchart LR
 |---|---:|---|
 | **SDK**(`sdk/sdk/`·`sdk/common/`) | **21건** — 치명 1·높음 8·중간 8·낮음 4. 장비 입력 경계와 공용 인프라 **둘에만** 몰리고 도메인 알고리즘에는 확정 결함 0건 | [code-defects-sdk.md](./code-defects-sdk.md) |
 | `moana` 의 **SDK 대응 계층**(`SononClient`·`ScanManager`·`Common`) | **5건** — 치명 1(원격 힙 오버플로) · 높음 2 · 중간 2. **활동 브랜치 `service_QT693` 에서 재검증** | [code-defects-sdk.md §6](./code-defects-sdk.md) |
-| **ADK**(`sdk/adk/`) + `moana` 의 **ADK 대응 계층** | **39건** — 데이터 파괴 4 · 크래시/UB 12 · 보안 7 · 기능 결손 10 · 누수 6 | [code-defects.md](./code-defects.md) |
+| **ADK**(`sdk/adk/`) + `moana` 의 **ADK 대응 계층** | **39건** — 데이터 파괴 **3** · 크래시/UB 12 · 보안 7 · 기능 결손 **11** · 누수 6. **별도 세션 반증 검증 완료**(정정 5 · 보강 3 · 반증 0) | [code-defects.md](./code-defects.md) |
 
 **두 갈래가 같은 방법으로 같은 결론에 도달했다 — `moana` 원본 대조가 결정적이다.**
 
 - SDK 쪽 치명 1건(`putFloat` 이 float 을 1바이트로 기록)은 **`moana` 정본 대비 FPGA 명령 페이로드가 5→3바이트**임을 대조로 확인한 것이다
-- ADK 쪽은 같은 함수를 줄 단위로 대조해 **ADK 결함 36건 중 18건이 원본에는 없던 회귀**임을 확인했다
+- ADK 쪽은 같은 함수를 줄 단위로 대조해 **ADK 결함 중 17건이 원본에는 없던 회귀**임을 확인했다(반증 검증에서 18 → 17 — S-1 은 `moana` 도 같은 평문 URL 이라 회귀가 아니었다, [code-defects.md §11](./code-defects.md))
 
 **대조 없이는 양쪽 다 "원래 그런 코드"로 보인다.** 이것이 `moana` 가 폐기 대상이면서도 **판정 기준선으로 남아야 하는 이유**다(§7).
 
 **이 계획에 미치는 영향 넷**
 
 1. **§8 의 "기존 동작 보존"에 기준선이 붙는다** — 보존 대상은 **ADK 의 현재 동작이 아니라 `moana` 의 검증된 동작**이다. 현재 동작을 그대로 고정하면 회귀 18건을 함께 굳힌다. **뒤집어 말하면 그 18건은 원본에 정답이 있어 설계 판단 없이 옮겨오면 되는, 이 축에서 가장 값싼 항목이다**
-2. **일부는 Phase 1 을 기다릴 수 없다** — 데이터 파괴 4건(장비 테이블 전 행 덮어쓰기·암호화 키 소실·배터리 저장이 장비 레코드 파괴·환자 삭제 후 영상 파일 잔존)은 회귀 하니스가 서기 전에 멈춰야 한다
+2. **일부는 Phase 1 을 기다릴 수 없다** — 데이터 파괴 **3건**(암호화 키 소실·배터리 저장이 장비 레코드 파괴·환자 삭제 후 영상 파일 잔존)은 회귀 하니스가 서기 전에 멈춰야 한다. **네 번째로 세었던 D-1(WHERE 절 부재)은 반증 검증에서 데이터 파괴가 아닌 것으로 판명**됐다 — PK 충돌로 statement 가 abort 되므로 다른 행이 덮어써지지 않고 갱신이 조용히 실패할 뿐이다
 3. **기존 Phase 에 흡수되는 것이 오히려 다수다** — ADK 쪽은 C-6(싱글턴 수명)→**3-E** · F-9(iOS raw socket)→**3-D** · S-5(암호화 폴백)→**0-C-W** · F-1(DICOM 껍데기)→**6-F**([code-defects.md §9.1](./code-defects.md)). **SDK 쪽은 21건 중 14건이 이미 잡아 둔 항목과 같은 표면에 있다** — SDK-10(소켓 3벌)→**3-J** · SDK-12(6벌 죽은 검사)→**3-I** · SDK-17·SDK-02(C ABI 반환규약·수명)→**3-E** · include 결손→**Phase 0**(판정 6b 를 구현 파일까지) · **컴파일러 경고 16건(항목 5건) → Phase 1-E 에 `-Wall -Wextra` 경고 게이트**([code-defects-sdk.md §7.1](./code-defects-sdk.md))
 4. **기존 항목의 *근거*가 바뀌는 곳이 있다** — **3-J(소켓 중복 제거)의 근거가 "중복 줄 수 50~59%"에서 "같은 결함이 3벌에서 서로 다르게 고쳐졌다"로 강화된다.** 성능 로그 제거는 **Windows 만**, 논블로킹 connect 완료 확인은 **iOS 만** 돼 있다. 중복은 유지비 문제였지만 이것은 **플랫폼마다 다른 동작**이다
 
 > **`moana` MO-01 은 r1 이 고치지 않지만 방치 항목도 아니다** — `SononClient` 의 제어·데이터 채널이 **전선 헤더가 선언한 본문 길이를 상한 검사 없이 1KB 버퍼에 읽는다**(원격 힙 오버플로, `service_QT693` 에서 확인). `framework/` 는 r2 가 폐기하지만 **출시 전까지 계속 배포된다.** 수정은 `checkPacketHeaderInfo()` 에 상한 검사 한 줄이며 **힐세리온 별도 보고 대상**이다([code-defects-sdk.md §7.3](./code-defects-sdk.md))
 
-> **r2 가 이 축의 무게를 키운다** — [r2](../r2/plan.md) 는 `moana/app/`(UI)을 살려 **ADK 위에 얹는다.** 그 Phase 4(데이터 계층 이관)의 목적지가 **데이터 파괴 4건이 있는 바로 그 계층**이다. 결함을 남긴 채 이관하면 새 앱이 그것을 그대로 물려받는다.
+> **r2 가 이 축의 무게를 키운다** — [r2](../r2/plan.md) 는 `moana/app/`(UI)을 살려 **ADK 위에 얹는다.** 그 Phase 4(데이터 계층 이관)의 목적지가 **데이터 파괴 3건이 있는 바로 그 계층**이다. 결함을 남긴 채 이관하면 새 앱이 그것을 그대로 물려받는다.
 
 ### 3.2 테스트 케이스는 Phase 마다 선행 조건이다
 
@@ -314,7 +314,7 @@ flowchart LR
 | 0-H | 병합 충돌 마커 제거 — `docs/VERSION_TAGGING.md` 커밋 `9ac1bfd4` |
 | 0-I | **죽은 코드 제거** — `adk/Main/shared/HCSonexFramework.h/.cpp`(184줄, **전체가 `#if 0`**) · `HCSRIv22Filter.cpp` 의 `#if 0` 블록 2개(82+52줄). 저비용 즉시 정리([../../review/sonex-framework.md §10.5](../../review/sonex-framework.md)) |
 | **0-M** | **자립 컴파일 결손 정정 — 판정 6b 를 구현 파일까지 넓힌다.** 공개 헤더 36건 실패(그중 28건이 표준 include 누락)와 **같은 종류가 `.cpp` 에도 있다**: `HCRingBuffer.cpp` 가 `memcpy` 를 쓰며 `<cstring>` 미include(`:45·79·96`), `HCString.cpp:416` 이 `std::unique_ptr` 을 쓰며 `<memory>` 미include. **지금은 다른 헤더가 우연히 끌어와 빌드된다** — include 하나만 바뀌어도 깨진다. 판정 = **각 `.cpp` 가 자기 헤더만으로 컴파일된다**([code-defects-sdk.md §7.1](./code-defects-sdk.md)) |
-| **0-K** | **플랫폼 툴체인·sysroot 고정 — 구체값까지 정한다.** 0-C 가 *서드파티 라이브러리*라면 이것은 *플랫폼 SDK* 이고, 둘 다 없으면 재현 빌드가 성립하지 않는다. **C++17**(코드확정, C++20 헤더 0건) · **Linux glibc 2.31 기준선**(제안 — **이 값이 고객사 호환 범위를 정한다**) · **Android NDK r25c**(제안, 현재 선언 0건) · **Windows SDK 10.0.22621.0**(이미 14/29 가 쓰는 값으로 통일) · **macOS `CMAKE_OSX_SYSROOT` 명시**(현재 0건). **미결 3건** = Linux 오디오 백엔드 · Android ABI 확장 여부 · **iOS 배포타깃 15.0/16.4 택1**(제품 정책). 전체 표 = [phase0](./phase0-build-reproducibility.md) Step 0-K-0 |
+| **0-K** | **플랫폼 툴체인·sysroot 고정 — 구체값까지 정한다.** 0-C 가 *서드파티 라이브러리*라면 이것은 *플랫폼 SDK* 이고, 둘 다 없으면 재현 빌드가 성립하지 않는다. **C++17**(코드확정, C++20 헤더 0건) · **Linux glibc 2.31 기준선**(제안 — **이 값이 고객사 호환 범위를 정한다**) · **Android NDK r25c**(제안, 현재 선언 0건) · **Windows SDK 10.0.22621.0**(**이미 Windows 프로젝트 14개 전부가 선언한다 — "14/29" 는 Android·iOS 를 분모에 넣은 오판정이었다**, 2026-08-02 정정) · **macOS `CMAKE_OSX_SYSROOT` 명시**(현재 0건). **K-1·K-2·K-4·K-5 완료(2026-08-02)** — `toolchain.json` 매니페스트 + `scripts/check-toolchain.py` 게이트 신설, NDK 를 머신에서 자동 선택하던 구조 제거, 호스트 OS 하드코딩(`prebuilt/darwin-x86_64`) 해소. **미결 3건** = Linux 오디오 백엔드 · **Android API 레벨(24·31·실측 21 세 갈래)** · **iOS 배포타깃 15.0/16.4 택1**(제품 정책). 전체 표 = [phase0](./phase0-build-reproducibility.md) Step 0-K-0 |
 | **0-J** | **종결 — 흡수할 잔여분이 없다(2026-08-02).** 2커밋(`ef7e9ce3`·`83bde28a`)은 master 조상에 포함됐고, 조상 밖이던 브랜치 tip `c1fafb1d`(프리셋 동기화)도 **`presetByName()` 본문이 master 와 byte-identical** 이다. 힐세리온 질의 불필요 — 코드로 답이 나왔다. **동시에 master 가 또 전진했고**(`e17280b2`→`0656a63d`, V1.23.6) SRI 필터 반입이 계속되므로, **fork base 는 `baseline-2026-07-31` 에 고정하고 Phase 경계에서만 갱신**한다. 상세 = [phase0 §1.9-보강②](./phase0-build-reproducibility.md) |
 
 **성공 판정**: 제3의 깨끗한 머신에서 문서만 보고 **Linux 가 빌드된다**(§0.1 — 주 개발 플랫폼이므로 여기가 1순위다). **Android 를 그 다음**으로 둔다 — 벤더 6종 중 4종이 이미 있어 결손이 `angle`·`freetype` 둘뿐이다([gap.md §5.2](../gap.md)). Windows·iOS 는 이 phase 의 판정 대상이 아니다.
@@ -486,10 +486,10 @@ flowchart LR
 | 15 | **거대 dispatcher** | `parseRequest` 류가 lookup-table/command-pattern 으로 전환 | **40-case** switch |
 | 16 | **플랫폼 코드 중복** | 소켓 HAL 공통 로직 추출, 플랫폼별 중복 대폭 감소 | 실질 줄 기준 Android-iOS **59%** · Android-Windows **50%**(3벌 전체) |
 | 17 | **아키텍처 강제**(§2.3) | `test-architecture` 4항목(AF-1~4)이 CI 게이트로 돈다 — **AF-4 는 포트마다 mock 더블 존재를 강제**해 커버리지 확장(2b)이 CI 로 고정된다 | 없음 — 방향 규칙이 문서 서술로만 존재 |
-| **18** | **코드 결함 — ADK**(축 `X`, §3.1b) | [code-defects.md](./code-defects.md) 39건 중 **데이터 파괴 4 · 크래시 12 · 보안 7 이 0건**이고, 각 건에 재현 케이스가 남아 회귀를 막는다 | **39건 확인**(승계 8 · 포팅 신규 18 · `moana` 고유 3 · 혼합 1 · 미판정 9), 재현 케이스 0건 |
+| **18** | **코드 결함 — ADK**(축 `X`, §3.1b) | [code-defects.md](./code-defects.md) 39건 중 **데이터 파괴 3 · 크래시 12 · 보안 7 이 0건**이고, 각 건에 재현 케이스가 남아 회귀를 막는다 | **39건 확인**(승계 9 · 포팅 신규 17 · `moana` 고유 3 · 혼합 1 · 미판정 9 — 반증 검증 반영), 재현 케이스 0건 |
 | **18b** | **코드 결함 — SDK**(축 `X` 의 `XS` 갈래) | [code-defects-sdk.md](./code-defects-sdk.md) 21건 중 **치명 1(`putFloat`) · 높음 8 이 0건.** 장비로 나가는 바이트가 `moana` 정본·`protocol-sot` 과 일치하고, `PacketData`·`RingBuffer`·`String` 에 경계 케이스가 남는다 | **21건 확인**, 재현 케이스 0건 |
 | **18c** | **경고 게이트**(1-E2) | CI 에서 `-Wall -Wextra` 가 돌고 **`-Wtype-limits`·`-Wdelete-incomplete` 0건**. 신규 코드는 `-Werror` | **`-Wtype-limits` 14 · `-Wdelete-incomplete` 2 · `-Wswitch` 10**(43파일이 컴파일 불가라 **하한**), 게이트 없음 |
-| **18b** | **`moana` 대비 회귀** | 포팅 신규 18건이 **원본 동작으로 정정**되거나, 의도된 변경임을 힐세리온이 확인 | 미확인 — 질의 대상(X-6) |
+| **18b** | **`moana` 대비 회귀** | 포팅 신규 **17건**이 **원본 동작으로 정정**되거나, 의도된 변경임을 힐세리온이 확인 | 미확인 — 질의 대상(X-6). **S-1 은 목록에서 빠졌다**(회귀 아님, 승계) |
 
 ## 6. 위험·대응
 
@@ -511,7 +511,7 @@ flowchart LR
 
 | 항목 | 판단 |
 |---|---|
-| `moana` | **소관이 [r2/plan.md](../r2/plan.md) 로 옮겨졌다**(2026-08-02 정정 — 이전 표기 *"폐기 대상. 무관"*). r2 는 `app/`(UI)을 **살리고** `framework/` 를 **폐기**한다. 이 문서와의 접점은 둘이다: ① `moana/framework/` 가 **ADK 결함의 계보 기준선**이고 그 대조로 **포팅 회귀 18건**이 드러났다(§3.1b) ② **r2 가 `moana/app/` 을 ADK 위에 얹으므로 ADK 결함이 곧 새 앱의 결함이 된다** — [r2 Phase 4](../r2/plan.md)(데이터 계층 이관)의 목적지가 축 `X` 의 데이터 파괴 4건이 있는 바로 그 계층이다 |
+| `moana` | **소관이 [r2/plan.md](../r2/plan.md) 로 옮겨졌다**(2026-08-02 정정 — 이전 표기 *"폐기 대상. 무관"*). r2 는 `app/`(UI)을 **살리고** `framework/` 를 **폐기**한다. 이 문서와의 접점은 둘이다: ① `moana/framework/` 가 **ADK 결함의 계보 기준선**이고 그 대조로 **포팅 회귀 17건**이 드러났다(§3.1b) ② **r2 가 `moana/app/` 을 ADK 위에 얹으므로 ADK 결함이 곧 새 앱의 결함이 된다** — [r2 Phase 4](../r2/plan.md)(데이터 계층 이관)의 목적지가 축 `X` 의 데이터 파괴 3건이 있는 바로 그 계층이다 |
 | `belle-fw`·Buildroot(장비) | **범위 밖** — 500L 출시 제외로 이전 r2·r3 삭제(2026-08-01, [../README.md](../README.md)). **현재 `r2` 슬롯은 `moana` UI 이관이 쓴다**(위 행) |
 | 500C/500P 실장비 **접근 확보** | [plan.md](../plan.md) Phase 2-5 소관. 시나리오 자체는 [phase1 Step 1-H](./phase1-regression-baseline.md)가 정의(`TARGET=device`) — 이 저장소 작업만으로 안 되는 것은 물리적 접근이지 시나리오 설계가 아니다 |
 | 서버·클라우드(`sonon-cloud`·`sonex-cloud-backend`) | 별도 트랙 |

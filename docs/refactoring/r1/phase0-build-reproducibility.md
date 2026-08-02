@@ -1,6 +1,7 @@
 # Phase 0 — 빌드 재현성 (B1)
 
-> **상태**: 진행 중 — Step 0-0·0-D·0-E·0-H·0-I(I-1·I-2) 완료(2026-07-31, 커밋 `1911035f`·`01505b66`·`62a2ddd7`·`eae9f14d`) · **0-J 해소·0-F(F-1·F-5) 완료(2026-08-02, 미커밋)**. 나머지(0-A·0-B·0-C·0-F(F-2·F-3·F-4·F-6)·0-G·0-K·0-L)는 미시작
+> **상태**: 진행 중 — Step 0-0·0-D·0-E·0-H·0-I(I-1·I-2) 완료(2026-07-31, 커밋 `1911035f`·`01505b66`·`62a2ddd7`·`eae9f14d`) · **0-J 해소·0-F(F-1·F-5)·0-K(K-1·K-2·K-4·K-5) 완료(2026-08-02, 미커밋)**. 나머지(0-A·0-B·0-C·0-F(F-2·F-3·F-4·F-6)·0-G·0-K(K-3·K-6·K-7)·0-L)는 미시작
+> **`[관측 2026-08-02]` Android 빌드가 Linux 개발 PC 에서 처음으로 통과했다** — §1.10. 이 phase 의 최대 미확인("SDK 타깃이 실제로 어디서 막히는지 관측된 적이 없다")이 해소됐고, 막힌 곳은 서드파티도 절대경로도 아니었다.
 > **범위**: `sonex-framework`(SDK+ADK)가 **깨끗한 체크아웃에서 문서화된 절차만으로** 빌드되게 한다. 코드 계층·API 계약은 건드리지 않는다 — 이 phase 가 바꾸는 것은 **의존물 확보·경로 선언·빌드 진입점·저장소 위생**뿐이다.
 > **선행**: 없음 (0-0 저장소 재배치가 이 phase 의 첫 항목)
 > **후행**: [Phase 1](./phase1-regression-baseline.md)
@@ -220,6 +221,34 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 
 > **baseline 정책**(2026-08-02 결정): fork base 는 `baseline-2026-07-31`(`e17280b2`)에 **고정하고 Phase 경계에서만 갱신**한다. 매 상류 커밋마다 rebase 하면 회귀 기준선(Phase 1)이 매번 흔들린다. 현재 상류 1커밋(`0656a63d`)은 우리 4커밋과 **파일 겹침 0** 이라 갱신 비용이 없으나, 갱신 시점을 규칙으로 두는 것이 이 phase 의 목적(재현성)에 맞는다.
 
+### 1.10 `[관측 2026-08-02]` Android 빌드를 실제로 돌렸다 — 막힌 곳이 예상과 달랐다
+
+**이 phase 의 §2 주석이 요구한 것을 실행했다** — *"SDK 타깃을 한 번 돌려 첫 실패 지점을 눈으로 확인한 뒤 우선순위를 정한다."* 지금까지 이 저장소의 빌드 관측 기록은 힐세리온 머신의 ADK 로그 하나뿐이었다.
+
+**환경**: Linux 개발 PC · NDK 28.0.12674087-beta2 · `sdk/sdk/build_all_android.sh`(ndk-build 경로, 모듈 2개 = `SonexCommon`·`DeviceManager`).
+
+**결과 — 실패가 넷 연쇄였고, 넷 다 빌드 스크립트 자체의 결함이다.**
+
+| # | 관측된 실패 | 원인 | 조치 |
+|---:|---|---|---|
+| 1 | `ld.lld: undefined symbol: std::__ndk1::*` 20여 건 · **4 ABI 전부 빌드**(arm64·armeabi-v7a·x86·x86_64) · `APP_PLATFORM not set. Defaulting to android-21` | ndk-build 호출이 **`NDK_APPLICATION_MK` 을 안 넘긴다.** 바로 옆에 `Application.mk` 를 생성해 놓고도 알리지 않아 `APP_ABI`·`APP_PLATFORM`·`APP_STL` 이 전부 무시됐다 | 호출 2곳에 `NDK_APPLICATION_MK=Application.mk` 추가 |
+| 2 | `cp: … /bin/Release/libSonexCommon.so 없음` → `set -e` 로 중단, DeviceManager 는 시작도 못 함 | ndk-build 는 `NDK_LIBS_OUT/<ABI>/` 에 설치하는데 스크립트는 **상위에서** 복사한다 | ABI 변수를 한 곳에 두고 복사 경로를 `$BUILD_OUTPUT/$APP_ABI/` 로 |
+| 3 | `Android NDK: Cannot find module with tag '.' in import path` | 생성된 `Android.mk` 가 `LOCAL_SHARED_LIBRARIES := SonexCommon` + `$(call import-module,.)` 인데, **`SonexCommon` 은 별개 ndk-build 프로젝트**라 모듈로 존재하지 않는다 | `PREBUILT_SHARED_LIBRARY` 로 선언 |
+| 4 | 같은 `cp` 실패가 prebuilt 참조에서 재발 | ndk-build 가 **설치 전에 `NDK_LIBS_OUT/<ABI>/` 를 비운다** — 방금 참조하려던 파일을 지운다 | prebuilt 출처를 지워지지 않는 `_out/ARM64/obj/local/<ABI>/` 로 |
+
+**넷을 고치자 통과했다** — `exit=0`, 산출물 `libSonexCommon.so`(188KB)·`libDeviceManager.so`(443KB) 둘 다 **ARM64 ELF 실물**이고 `libc++_shared.so`·`libSonexCommon.so` 를 정상 링크한다(`readelf -d` 확인).
+
+**판단에 미치는 영향 넷**
+
+| # | 내용 |
+|---|---|
+| 1 | **서드파티 결손이 이 경로의 블로커가 아니었다.** `sdk/third_party/` 에 실재하는 것은 `context_vision`·`nlohmann_json` 둘뿐이고 **angle·freetype·opencv 는 없는데도** 두 모듈은 빌드된다. 0-C 는 `ImageFilter`·`ImageRenderer` 로 넘어갈 때 걸린다 |
+| 2 | **`build_module()` 함수가 정의만 되고 한 번도 호출되지 않는다.** 올바른 플래그(`NDK_APPLICATION_MK` 포함)가 전부 그 죽은 함수 안에 있었고, 살아 있는 호출부에는 없었다 — **결함이 이렇게 살아남았다.** 0-I(죽은 코드)의 대상이 소스뿐 아니라 **빌드 스크립트에도 있다** |
+| 3 | **API 레벨이 세 갈래다** — 선언 `android-24`(`Application.mk`) · `android-31`(vcxproj 14개) · **실측 `android-21`**(ndk-build 기본값). 0-K 의 `[결정필요]` 가 두 갈래가 아니라 셋이었다 |
+| 4 | **`build_all_android.sh` 가 `sdk/common/android/{Android,Application}.mk` 를 덮어쓰는데 내용이 tracked 파일과 byte-identical 이다**(git status 무변경). 반면 `DeviceManager/android/` 쪽 2벌은 **생성되지만 저장소에 없다.** 이 phase 의 미확인 2건이 여기서 함께 해소되고, [F-3](#step-0-f-빌드-진입점-통일--f-1f-5--완료2026-08-02-나머지-미시작)의 범위가 "DeviceManager 쪽만 파일로 승격"으로 좁혀진다 |
+
+> **이것이 0-A·0-C 의 우선순위를 낮춘다.** ANGLE·OpenCV 를 확보해야 Android 가 열린다고 보았으나, **모듈 단위로는 이미 열려 있었고 막은 것은 빌드 스크립트였다.** [gap.md §5.2](../gap.md) 의 *"Android 가 가장 가깝다"* 는 판정은 맞았고, 남은 거리가 서드파티가 아니라 **드라이버 결함**이었다는 것이 이번 관측의 내용이다.
+
 ---
 
 ## 2. 진행 단계
@@ -273,6 +302,26 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 > **A-5 때문에 순서가 얽힌다** — 1-C(오프스크린 컨텍스트)가 없으면 대조할 수단이 없고, 1-C 는 ANGLE 이 있어야 돈다. **기존 prebuilt 로 1-C 를 먼저 세우고, 그 골든을 기준으로 자체 빌드를 검증**하는 순서가 자연스럽다. 착수 시 확정한다.
 
 > **질의 항목이 바뀐다** — 힐세리온에 물을 것은 리비전이 아니라 **"왜 그 fork 였는가 · upstream 으로 바꿔도 되는가 · Android/Windows 는 어떤 gn args 로 빌드했는가"** 다.
+
+#### A-실측. `[2026-08-02]` vcpkg `angle` 포트는 절반만 덮는다
+
+0-C-V 가 *"12종 중 11종 존재(`angle` 포함)"* 라고 적어 ANGLE 도 vcpkg 로 끝나는 것처럼 읽히나, **포트를 열어 확인하니 아니다.**
+
+| 확인 | 결과 |
+|---|---|
+| `ports/angle/portfile.cmake` 의 플랫폼 분기 | `VCPKG_TARGET_IS_LINUX` · `WINDOWS/UWP` · `OSX` — **셋뿐. Android·iOS 분기 0건** |
+| `ports/angle/cmake-buildsystem/` | **`ANDROID` 언급 0건** |
+| 포트 설명문 | *"Windows, Mac and Linux"* |
+| 빌드 방식 | **Google 공식 gn 빌드가 아니다** — WebKit 의 CMake 재구현(`WK_ANGLE_*`)을 받아 쓴다. 커밋+SHA512 고정이라 재현성·SOUP 요건은 충족하나 **upstream 산출물과 같은 바이너리가 아니고 백엔드 구성이 다를 수 있다** |
+
+**A-4(착수 순서)를 뒤집는다.**
+
+| 플랫폼 | 조달 | 비용 |
+|---|---|---|
+| **Linux · Windows · macOS** | **vcpkg 포트** | 사실상 공짜 |
+| **Android · iOS** | **gn 자체 빌드**(A-1~A-3) | 4~6시간·30GB 가 여기에만 든다 |
+
+즉 비싼 구간이 4개가 아니라 **2개**이고, *"Android·Windows 먼저"* 가 아니라 **주 개발 플랫폼인 Linux 를 vcpkg 로 먼저 세우고 그 위에서 gn 절차를 Android 로 확장**하는 순서가 맞는다. [plan.md §0.1](./plan.md) 의 우선순위와도 일치한다.
 
 ### Step 0-B. ANGLE 경로 선언 일원화 — 5곳
 
@@ -488,8 +537,8 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | 3 | ✅ **0-J** | 이후 Phase 의 코드 기준선을 확정한다 |
 | 4 | ✅ **0-D** | 절대경로가 풀려야 다른 머신에서 **시도**라도 된다(§1.5) |
 | 5 | ✅ **0-F(F-1·F-5)** | 관측된 ADK 실패를 실제로 고치는 것은 여기다(§1.2). **단 실판정은 Windows 머신이 필요하다** — 여기서 한 것은 선언과 정적 게이트까지다 |
-| 6 | **0-K** ← **다음** | **툴체인·sysroot 가 서야 그 위에서 의존물을 빌드한다.** 0-A 의 ANGLE 자체 빌드가 이것을 전제한다 |
-| 7 | **0-G · 0-L** | **Linux 분기와 구현체.** 주 개발 플랫폼이므로([plan.md §0.1](./plan.md)) 이후 단계가 딛고 설 바닥이다. 0-G 는 `HCCommon.h` 사본 통합 뒤에만 안전하다(§1.7) |
+| 6 | ✅ **0-K(K-1·K-2·K-4·K-5)** | **툴체인·sysroot 가 서야 그 위에서 의존물을 빌드한다.** 0-A 의 ANGLE 자체 빌드가 이것을 전제한다. **K-5 는 할 일이 없었고**(오판정), K-3 은 힐세리온 결정, K-6·K-7 은 Linux 빌드(0-G·0-L)와 CI 인프라 선행 |
+| 7 | **0-G · 0-L** ← **다음** | **Linux 분기와 구현체.** 주 개발 플랫폼이므로([plan.md §0.1](./plan.md)) 이후 단계가 딛고 설 바닥이다. 0-G 는 `HCCommon.h` 사본 통합 뒤에만 안전하다(§1.7). **§1.10 이 이 순서를 뒷받침한다** — Android 가 서드파티 없이 모듈 단위로 도는 것이 확인됐으므로, 같은 방식으로 Linux 를 세우는 것이 0-A·0-C 보다 앞선다 |
 | 8 | **0-A · 0-C · 0-B** | ANGLE 자체 빌드 → 의존물 관리 도입 → 경로 일원화. **0-A 는 Linux·Android 부터**(A-4) |
 | 9 | **0-F(나머지)** | 진입점·문서 마무리 |
 
@@ -541,7 +590,8 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | **Android** | `APP_ABI := arm64-v8a`(단일) · `APP_PLATFORM := android-24` · `APP_STL := c++_shared` · `-std=c++17` | **NDK 버전 0건**(`ndkVersion` 선언 없음) → **sysroot 가 머신의 NDK 에 따라 달라진다** |
 | **iOS** | — | **`IPHONEOS_DEPLOYMENT_TARGET` 이 두 갈래**(15.0 **24건** / 16.4 **10건**, 같은 프로젝트 안에서) · Xcode·SDK 버전 미고정 |
 | **macOS** | `CMAKE_OSX_DEPLOYMENT_TARGET 11.0` · `CMAKE_OSX_ARCHITECTURES "arm64"` · `CMAKE_CXX_STANDARD 17` | **`CMAKE_OSX_SYSROOT` 0건** → 머신 기본 SDK. 커밋된 빌드캐시에 **`MacOSX26.2.sdk`·`arm64-apple-macosx15.7.0`·clang 17** 이 박혀 있다 |
-| **Windows** | `<PlatformToolset>v143`(82건) | **`WindowsTargetPlatformVersion` 이 29개 중 14개만**(`10.0.22621.0`). 나머지 15개는 머신 기본 |
+| **Windows** | `<PlatformToolset>v143`(82회 출현 / **파일 14개**) · **`WindowsTargetPlatformVersion` `10.0.22621.0` — Windows 프로젝트 14개 전부**(`[정정 2026-08-02]`) | **없음. 이 항목은 이미 고정돼 있다** |
+| **Android(vcxproj)** | `<UseOfStl>c++_shared` · `<PlatformToolset>Clang_5_0`(14파일) | **`<AndroidAPILevel>android-31`** — `Application.mk` 의 `android-24` 와 **어긋난다**(`[신규 2026-08-02]`) |
 | **Linux** | — | **존재 자체가 없다**(`platform/linux/` 파일 0개 · `OS_LINUX` 0건 — 0-G 가 분기를, 0-L 이 구현체를 신설). glibc·gcc 버전 미정. **주 개발 플랫폼인데 고정된 것이 하나도 없다**([plan.md §0.1](./plan.md)) |
 
 **macOS 는 `arm64` 전용이고 사유가 주석에 있다** — *"Apple Silicon only (Homebrew OpenCV가 arm64 전용)"*. **서드파티 조달 방식이 아키텍처 지원을 좁힌 것**이라 0-C(Homebrew 탈피)와 함께 풀어야 x86_64 Mac 이 열린다.
@@ -596,15 +646,28 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 >
 > **부수 발견 — `openssl-1.1.1d` 는 EOL(2023-09) 이다.** 툴체인 항목은 아니나 **재배포물에 EOL 암호 라이브러리가 들어간다**는 것은 B4 에서 별도로 다뤄야 한다.
 
-| # | 작업 |
+| # | 작업 | 상태 |
+|---|---|---|
+| K-1 | **툴체인 매니페스트 1파일** — 위 K-0 표를 파일로 고정. `[결정필요]` 는 **미결로 표기한 채 커밋**한다 | ✅ **`toolchain.json` 신설.** 항목마다 `status` = `fixed`(코드확정) / `proposed`(우리 판단) / `pending`(결정필요, 값 `null`). **0-C 의 서드파티는 여기 넣지 않는다** — vcpkg 매니페스트가 그 자리다 |
+| K-2 | **Android NDK 버전 고정** — ABI 는 현행 `arm64-v8a` 단일 유지 여부 별도 판단 | ✅ **머신이 고르게 두는 구조를 없앴다.** `build_all_android.sh`·`build_modules_android.sh` 가 `ls -d $HOME/Library/Android/sdk/ndk/* \| tail -1` 로 아무거나 집던 것을 제거하고 `scripts/ndk-env.sh` 로 대체 — `ANDROID_NDK_HOME` 을 **요구**하고 설치 개정판을 매니페스트와 대조해 경고한다. `build_direct_android.sh` 의 **`prebuilt/darwin-x86_64` 하드코딩**은 `uname` 기반으로(Linux 에서 아예 못 돌던 것) |
+| K-3 | **iOS 배포타깃 통일** — 15.0 / 16.4 두 갈래를 하나로 | ⏸ **`pending` 으로 매니페스트에 기록.** 제품 정책이라 우리가 정하지 않는다. 게이트가 매번 warning 으로 드러낸다 |
+| K-4 | **macOS `CMAKE_OSX_SYSROOT` 명시** + `arm64` 전용 제약을 0-C 와 함께 해소 | ✅ `set(CMAKE_OSX_SYSROOT macosx)` 추가. `arm64` 제약 해소는 0-C 대기 |
+| K-5 | ~~**Windows SDK 버전을 29개 전부에 선언**~~ | ✅ **할 일이 없다 — 오판정이었다.** vcxproj 29개 = **windows 14 + android 14 + ios 1** 이고, `WindowsTargetPlatformVersion` 은 **windows 14개 전부**가 `10.0.22621.0` 을 선언한다. 이전 판의 *"29개 중 14개만, 나머지 15개는 머신 기본"* 은 **Android·iOS 프로젝트를 분모에 넣은 것**이다. `Directory.Build.props` 도 필요 없다 |
+| K-6 | **Linux 툴체인 고정**(0-G·0-L 과 짝) — K-0 의 Linux 절(glibc 2.31 · GCC 9/Clang 14)을 CI 컨테이너 이미지로 굽는다. **headless 실행 모드는 이 항목이 아니다** — 그것은 [Phase 4-D](./phase4-render-boundary.md) 소관이고 여기서는 툴체인만 정한다 | 미시작 — 매니페스트에 값은 `proposed` 로 들어갔으나 **강제할 대상(Linux 빌드)이 아직 없다**(0-G·0-L 선행) |
+| K-7 | **CI 이미지에 굽는다** — 매니페스트가 문서로만 있으면 또 표류한다. **이미지가 강제 수단**이다 | 미시작 — CI 인프라 선택이 [Phase 1-E](./phase1-regression-baseline.md)·힐세리온 결정 사항 |
+
+#### K-게이트. `scripts/check-toolchain.py`
+
+**매니페스트가 문서로만 있으면 표류한다**(K-7). 이미지가 서기 전까지 그 자리를 메우는 것이 이 게이트다 — `toolchain.json` 과 트리의 빌드 파일을 대조한다.
+
+| 판정 | 항목 |
 |---|---|
-| K-1 | **툴체인 매니페스트 1파일** — 위 K-0 표를 파일로 고정. 0-C 의 서드파티 매니페스트와 같은 파일에 두되 절을 나눈다. `[결정필요]` 3건(Linux 오디오·Android ABI 확장·iOS 배포타깃)은 **미결로 표기한 채 커밋**한다 |
-| K-2 | **Android NDK 버전 고정** — `ndkVersion` 명시. ABI 는 현행 `arm64-v8a` 단일을 유지할지 확장할지 별도 판단(`readme.txt` 는 `android_v7a`·`x64` 도 상정한다) |
-| K-3 | **iOS 배포타깃 통일** — 15.0 / 16.4 두 갈래를 하나로. **낮은 쪽으로 맞추면 지원 기기가 넓어지고, 높은 쪽은 API 를 더 쓴다** — 어느 쪽인지는 힐세리온 판단 |
-| K-4 | **macOS `CMAKE_OSX_SYSROOT` 명시** + `arm64` 전용 제약을 0-C 와 함께 해소 |
-| K-5 | **Windows SDK 버전을 29개 전부에 선언** — `Directory.Build.props` 로 한 곳에서 주입 |
-| K-6 | **Linux 툴체인 고정**(0-G·0-L 과 짝) — K-0 의 Linux 절(glibc 2.31 · GCC 9/Clang 14)을 CI 컨테이너 이미지로 굽는다. **headless 실행 모드는 이 항목이 아니다** — 그것은 [Phase 4-D](./phase4-render-boundary.md) 소관이고 여기서는 툴체인만 정한다 |
-| K-7 | **CI 이미지에 굽는다** — 매니페스트가 문서로만 있으면 또 표류한다. **이미지가 강제 수단**이다 |
+| **error** | `fixed`·`proposed` 값과 트리가 어긋남 · **머신이 NDK 를 고르게 두는 구조**(`ls \| tail`) · **호스트 OS 하드코딩**(`prebuilt/darwin-x86_64`) |
+| **warning** | `pending` 항목(Android API 레벨 · iOS 배포타깃)과 그때의 실측 불일치 |
+
+**역검증**: 착수 시점 트리에 대해 error **4건**(Android 드라이버 3 + macOS sysroot 1)을 잡았고, K-2·K-4 적용 후 **error 0 · warning 2**(둘 다 `pending`)로 내려간다.
+
+> **여기서도 0-D 의 함정을 반복하지 않았다** — 게이트가 찾는 패턴(`prebuilt/darwin-x86_64`)을 자기 소스에 리터럴로 갖고 있어 **자기 자신을 잡는다.** 자기 제외를 넣었고, 검사 대상도 `git ls-files` 로 좁혀 디스크에 남은 빌드 산출물(`CMakeFiles/`)을 오탐하지 않게 했다.
 
 > **골든 재현성이 여기 걸린다** — [Phase 1-C](./phase1-regression-baseline.md) 의 프레임 골든은 부동소수·컴파일러 버전에 민감하다. 툴체인이 고정되지 않으면 **골든이 머신마다 깨지고**, 그러면 회귀 판정 자체를 신뢰할 수 없다.
 
@@ -649,6 +712,8 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | 3.11 | **`HCCommon.h` 1벌** | `git -C <repo> ls-files \| grep -c 'HCCommon\.h$'` | **1** (현재 4) |
 | 3.12 | 미정의 플랫폼 방어 | 플랫폼 매크로 없이 `HCCommon.h` 컴파일 | **`#error` 로 실패** (현재 조용히 통과) |
 | 3.13 | **Linux 타깃** | `make build PLATFORM=linux` | 링크까지 성공. **렌더 서피스 동작은 판정하지 않는다**(0-G-6) |
+| **3.13a** | **툴체인 정합**(0-K 게이트) | `<repo>/scripts/check-toolchain.py` | error **0**. `pending` 항목은 warning 으로만 나온다 |
+| **3.13b** | **Android 모듈 빌드**(관측 기준선, §1.10) | `<repo>/sdk/sdk/build_all_android.sh` | `exit=0` · `libSonexCommon.so`·`libDeviceManager.so` 가 **arm64-v8a 단일 ABI** 로 생성 · `APP_PLATFORM not set` 경고 **0건**. **현재 통과한다** — 회귀하면 여기서 걸린다 |
 | 3.14 | 충돌 마커 | `git -C <repo> grep -c '^<<<<<<< '` | **출력 없음** (현재 `docs/VERSION_TAGGING.md:3`) |
 | 3.15 | 죽은 코드 | `git -C <repo> ls-files sdk/adk/Main/shared/HCSonexFramework.*` | **0건** |
 | 3.16 | **디버그 스위치 보존** | `git -C <repo> grep -c '#if 0' -- sdk/sdk/DeviceManager/shared/HCSocketCommunicator.cpp` | **13 유지**(또는 로그 레벨 전환 시 등가) |
@@ -723,7 +788,7 @@ flowchart LR
 - **F-1·F-5 의 실판정** — 선언과 정적 게이트까지만 했다. **`framework.sln` 을 `/m` 병렬로 실제 빌드해 `-lSonexCommon` 실패가 사라졌는지, `-restore` 로 `NETSDK1004` 가 사라졌는지는 Windows 머신에서만 확인된다.** 이 환경에는 MSBuild 가 없고 `dotnet` 도 깨져 있다(`host/fxr` 부재)
 - **`ImageFilter.android` x64 의 `- cvie64`** — 오타는 확정, **올바른 수정은 0-K 의 Android ABI 결정에 달렸다**(F-1-미결)
 - **Windows·Android·macOS ANGLE 리비전** — 저장소에 출처 0건, 바이너리 0건. **코드로 회수 불가**(0-A-2)
-- **힐세리온 머신에서 SDK 타깃이 실제로 어디서 막히는지** — 커밋된 로그는 ADK 타깃뿐이라(§1.1) `ImageRenderer` 의 실패는 **관측된 적이 없다.** 정적 분석 도출만 있다
+- **`ImageFilter`·`ImageRenderer` 가 어디서 막히는지** — §1.10 이 관측한 것은 `SonexCommon`·`DeviceManager` **2모듈**이고 이 둘은 서드파티를 안 쓴다. **OpenCV·ANGLE 을 쓰는 모듈은 여전히 관측된 적이 없다** — 0-C 이후에 같은 방식으로 확인한다
 - **`adk/library/` 13종 벤더 프리빌트의 출처·빌드 옵션** — 파일은 있으나 어디서 받았는지·어떤 구성으로 빌드됐는지 저장소에 없다. FFmpeg GPL 구성 여부([gap.md §8](../gap.md))가 여기 걸린다
-- **`Android.mk` 인라인 생성분과 `.vcxproj` 의 소스 목록이 일치하는지** — 같은 모듈을 두 빌드시스템이 각각 기술하는데 대조하지 않았다
-- **`sdk/common/android/Android.mk` 가 `build_all_android.sh` 의 인라인 생성분과 같은 것인지** — 파일로도 있고 셸이 생성하기도 한다
+- **`Android.mk` 인라인 생성분과 `.vcxproj` 의 소스 목록이 일치하는지** — 같은 모듈을 두 빌드시스템이 각각 기술하는데 대조하지 않았다. **생성분과 tracked `.mk` 의 동일성은 해소됐다**(§1.10 영향 ④)
+- **Android API 레벨 정본** — 세 갈래다(선언 24 · vcxproj 31 · ndk-build 기본 21). `toolchain.json` 에 `pending` 으로 남겼고 **minSdk 를 바꾸는 결정이라 힐세리온 판단**이다
