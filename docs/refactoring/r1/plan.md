@@ -320,7 +320,9 @@ flowchart LR
 | **0-K** | **플랫폼 툴체인·sysroot 고정 — 구체값까지 정한다.** 0-C 가 *서드파티 라이브러리*라면 이것은 *플랫폼 SDK* 이고, 둘 다 없으면 재현 빌드가 성립하지 않는다. **C++17**(코드확정, C++20 헤더 0건) · **Linux glibc 2.31 기준선**(제안 — **이 값이 고객사 호환 범위를 정한다**) · **Android NDK r25c**(제안, 현재 선언 0건) · **Windows SDK 10.0.22621.0**(**이미 Windows 프로젝트 14개 전부가 선언한다 — "14/29" 는 Android·iOS 를 분모에 넣은 오판정이었다**, 2026-08-02 정정) · **macOS `CMAKE_OSX_SYSROOT` 명시**(현재 0건). **K-1·K-2·K-4·K-5 완료(2026-08-02)** — `toolchain.json` 매니페스트 + `scripts/check-toolchain.py` 게이트 신설, NDK 를 머신에서 자동 선택하던 구조 제거, 호스트 OS 하드코딩(`prebuilt/darwin-x86_64`) 해소. **미결 3건** = Linux 오디오 백엔드 · **Android API 레벨(24·31·실측 21 세 갈래)** · **iOS 배포타깃 15.0/16.4 택1**(제품 정책). 전체 표 = [phase0](./phase0-build-reproducibility.md) Step 0-K-0 |
 | **0-J** | **종결 — 흡수할 잔여분이 없다(2026-08-02).** 2커밋(`ef7e9ce3`·`83bde28a`)은 master 조상에 포함됐고, 조상 밖이던 브랜치 tip `c1fafb1d`(프리셋 동기화)도 **`presetByName()` 본문이 master 와 byte-identical** 이다. 힐세리온 질의 불필요 — 코드로 답이 나왔다. **동시에 master 가 또 전진했고**(`e17280b2`→`0656a63d`, V1.23.6) SRI 필터 반입이 계속되므로, **fork base 는 `baseline-2026-07-31` 에 고정하고 Phase 경계에서만 갱신**한다. 상세 = [phase0 §1.9-보강②](./phase0-build-reproducibility.md) |
 
-**성공 판정**: 제3의 깨끗한 머신에서 문서만 보고 **Linux 가 빌드된다**(§0.1 — 주 개발 플랫폼이므로 여기가 1순위다). **Android 를 그 다음**으로 둔다 — 벤더 6종 중 4종이 이미 있어 결손이 `angle`·`freetype` 둘뿐이다([gap.md §5.2](../gap.md)). Windows·iOS 는 이 phase 의 판정 대상이 아니다.
+**성공 판정**: 제3의 깨끗한 머신에서 문서만 보고 **Linux 가 빌드된다** — §0.1 대로 **개발·CI 기반**이라 이것이 서야 나머지가 판정된다. 그다음이 **출시 1순위인 Windows** 이고, Android·iOS 는 그 뒤다([§0.1](#01-플랫폼--출시-우선순위와-개발-플랫폼은-다른-축이다)). **macOS 는 대상이 아니다.**
+
+> **Linux 가 먼저인 것은 출시 우선순위가 아니라 판정 수단이라서다.** 헤드리스 회귀 골든이 Linux 에서 돌고, 그것 없이는 Windows 빌드가 맞는지도 확인할 수 없다.
 
 > **착수 전 1회 해야 할 일**: §1 대로 실패 원인이 **셋이고 서로 무관하다.** 특히 **SDK 타깃(`ImageRenderer` 포함)을 실제로 빌드한 관측 기록이 없다** — 커밋된 로그는 ADK 5모듈만 돌렸다. **SDK 타깃을 한 번 돌려 첫 실패 지점을 눈으로 확인**한 뒤 0-A~0-F 의 우선순위를 정한다. 지금 목록은 "고칠 것이 여기 있다"는 것이지 "이 순서로 막힌다"가 아니다. 상세 = [phase0-build-reproducibility.md](./phase0-build-reproducibility.md).
 

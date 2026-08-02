@@ -219,7 +219,7 @@ Android 가 가장 가깝다 — 벤더 6종이 갖춰져 있고 ANGLE·freetype
 
 ### 5.3 Linux 구현이 현재 0 이다 — 그런데 **범위가 바뀌었다**
 
-> **범위 변경(2026-07-30)**: Linux 가 **주 개발 PC 로 확정**됐다. Linux·Android 에서 일상 개발하고 Windows·iOS 는 포팅 시점에 동작 확인만 한다. **따라서 이 절의 "지원 대상 아님"은 더 이상 유효하지 않다** — 아래 실측은 그대로 유효하되, 그것이 **미지원 근거가 아니라 착수 비용 목록**으로 읽혀야 한다. 대응 = [r1/plan.md §0.1](r1/plan.md) · [r1 Phase 0-G·0-L](r1/phase0-build-reproducibility.md).
+> **범위 변경(2026-07-30 → 2026-08-02 정정)**: **Linux 가 주 개발 PC** 이고 일상 개발·CI·회귀 판정이 거기서 돈다. **출시 대상은 Windows(1순위) · Android·iOS(2순위)** 이며 Linux 는 출시 대상이 아니다([r1/plan.md §0.1](r1/plan.md)). *"Linux·Android 에서 일상 개발"* 이라고 적었던 것은 **Android 를 주 개발로 오기한 것**이다. **따라서 이 절의 "지원 대상 아님"은 더 이상 유효하지 않다** — 아래 실측은 그대로 유효하되, 그것이 **미지원 근거가 아니라 착수 비용 목록**으로 읽혀야 한다. 대응 = [r1/plan.md §0.1](r1/plan.md) · [r1 Phase 0-G·0-L](r1/phase0-build-reproducibility.md).
 >
 > **비용이 고르지 않다** — 소켓은 Android 구현이 **순수 POSIX**(Android 전용 API 0건)라 사실상 공짜, **오디오는 신규**(Android 가 OpenSLES), 렌더는 EGL 네이티브라 **오히려 유리**하다.
 

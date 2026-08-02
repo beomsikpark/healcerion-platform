@@ -129,7 +129,7 @@ error: expected unqualified-id before '[' token                  // uint32_t[10]
 | # | 작업 |
 |---|---|
 | B-1 | [Phase 5-D](./phase5-language-wrappers.md) 의 `SonexScanWidget`(Qt6)을 쓰는 소비자 관점 샘플. **프레임워크 자체에는 Qt 의존이 0건**이므로 Qt 는 wrapper·샘플 층에만 들어온다 |
-| B-2 | **대상 플랫폼은 Linux 우선이다.** Linux 가 주 개발 PC 이고([plan.md §0.1](./plan.md)) Phase [0-G](./phase0-build-reproducibility.md)(`OS_LINUX` 분기)·[0-L](./phase0-build-reproducibility.md)(`platforms/linux`)이 그 바닥을 만든다. **Qt6 가 Linux 데스크톱을 자연스럽게 부르던 것이 이제 제약이 아니라 이점**이다 — 이전 판이 *"core 가 Linux 를 지원하지 않아 Windows·macOS 로 시작"* 이라 적은 것은 Linux 1급화 이전 서술이다. Windows·macOS 는 **포팅 검증 시점**에 확인한다 |
+| B-2 | **Linux 에서 만들고 Windows 에서 확정한다.** Linux 가 주 개발 PC 이고([plan.md §0.1](./plan.md)) Phase [0-G](./phase0-build-reproducibility.md)(`OS_LINUX` 분기)·[0-L](./phase0-build-reproducibility.md)(`platforms/linux`)이 그 바닥을 만들어 **샘플을 처음 세우기 쉬운 곳**이다. 다만 **출시 1순위는 Windows** 이므로(§0.1 ⚑) **판정 대상 플랫폼은 Windows** 다 — 이 샘플을 실제로 소비하는 것이 [r2](../r2/plan.md)(Windows 우선)이기 때문이다. Android·iOS 는 그다음, **macOS 는 대상이 아니다** |
 | B-3 | 시나리오 — SDK 섹션(연결→스캔→렌더→저장) + ADK 섹션(로그인→환자관리→DICOM→백업) |
 | B-4 | `SDK-only` 구성에서 빌드되게 만든다. **구성 추가는 Phase 2-G, 게이트 활성화는 Phase 3-K 소관**이고 이 phase 는 샘플이 그 구성에서 빌드되게 하는 것만 담당한다 |
 

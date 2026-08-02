@@ -321,7 +321,7 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | **Linux · Windows · macOS** | **vcpkg 포트** | 사실상 공짜 |
 | **Android · iOS** | **gn 자체 빌드**(A-1~A-3) | 4~6시간·30GB 가 여기에만 든다 |
 
-즉 비싼 구간이 4개가 아니라 **2개**이고, *"Android·Windows 먼저"* 가 아니라 **주 개발 플랫폼인 Linux 를 vcpkg 로 먼저 세우고 그 위에서 gn 절차를 Android 로 확장**하는 순서가 맞는다. [plan.md §0.1](./plan.md) 의 우선순위와도 일치한다.
+즉 비싼 구간이 4개가 아니라 **2개**다. **Linux·Windows·macOS 는 vcpkg 로 사실상 공짜**이므로 순서는 **주 개발 플랫폼 Linux → 출시 1순위 Windows**(둘 다 vcpkg) → **gn 자체 빌드가 필요한 Android·iOS** 다([plan.md §0.1](./plan.md)). **비용이 큰 gn 구간을 뒤로 미루는 것과 출시 우선순위가 같은 방향**이라 충돌하지 않는다.
 
 ### Step 0-B. ANGLE 경로 선언 일원화 — ✅ B-2·B-5 완료(2026-08-02, `6cc350d1`), **선언은 5곳이 아니라 7곳이었다**
 
