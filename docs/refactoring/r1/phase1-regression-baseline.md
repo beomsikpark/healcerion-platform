@@ -61,7 +61,7 @@ from nextsri.pipeline_v1_21_2 import apply_v1_21_2, V1_21_2_PRESETS
 | 3 | **렌더 경로에 골든이 없다** | 덤프는 graymap(`stage3`)까지다. **렌더러 출력은 안 덮는다** |
 | 4 | **덤프가 B 모드만이다** | `process/` 에 `HCDefaultCfFilter`·`HCDefaultPwFilter`·`HCDefaultMFilter` 가 있으나 덤프 지점 0건. **모드 확장이 그대로 남아 있다** |
 | 5 | **CI 가 없다** | 위 전부를 사람이 손으로 돌린다 |
-| **6** | **ADK 측 통합 더블이 아예 없다** | SDK 는 mock 장치 서버(1-B)가 있는데, ADK 가 부르는 클라우드 HTTP(19개 엔드포인트, [gap.md §7.3](../gap.md))·DICOM SCP 는 흉내낼 더블이 **하나도 계획에 없었다.** ADK 만 떼어 검증할 방법이 없다는 뜻이다(§Step 1-H) |
+| **6** | **ADK 측 통합 더블이 아예 없다** | SDK 는 소켓 에코(1-B 축소분)가 있는데, ADK 가 부르는 클라우드 HTTP(19개 엔드포인트, [gap.md §7.3](../gap.md))·DICOM SCP 는 흉내낼 더블이 **하나도 계획에 없었다.** ADK 만 떼어 검증할 방법이 없다는 뜻이다(§Step 1-H) |
 
 ### 1.5 목적
 
@@ -102,9 +102,25 @@ from nextsri.pipeline_v1_21_2 import apply_v1_21_2, V1_21_2_PRESETS
 
 > **A-3 의 관문은 Phase 0 이다.** 깨끗한 체크아웃이 빌드되지 않으면([gap.md §3.2](../gap.md)) 테스트도 빌드되지 않는다. A-1·A-2 는 `HCFirmwareVersionChecker` 처럼 의존이 적은 대상이라 ANGLE 회수를 기다리지 않아도 된다.
 
-### Step 1-B `[선행 가능]`. Mock HC 프로토콜 장치 서버
+### Step 1-B. ~~Mock HC 프로토콜 장치 서버~~ → **r1 범위에서 제외**(2026-08-02 결정)
 
-**[legacy/proof/protocol-sot](../legacy/proof/protocol-sot/) 정본으로 300C·300L·500C·500L·500P `InstructionSet` 을 흉내내는 최소 TCP 서버.** `make` 로 재현되는 실물이 이미 있으므로 옮겨 적지 않고 그 헤더를 쓴다.
+> **장치 에뮬레이터는 만들지 않는다.** 대신 **프로토콜 코덱 테스트**와 **소켓 에코 테스트**로 가르고, 실장비 왕복은 [1-H](#step-1-h-sdk-e2eadk-e2e-시나리오) `TARGET=device` 에 맡긴다.
+
+**이 항목이 두 가지를 한 덩어리로 묶고 있었다.** 갈라 보면 필요한 것과 아닌 것이 갈린다.
+
+| 묶여 있던 것 | 판정 | 사유 |
+|---|---|---|
+| **장치 에뮬레이터**(5모델 `InstructionSet` 응답) | **제외** | **바이트 일치까지만 보장하고 실장비 타이밍·오류 특성은 재현하지 못한다** — 이 문서가 §성공판정 아래 "한계 ①"로 이미 적어 둔 그대로다. 그 한계를 알면서 5모델 응답을 짜는 비용을 r1 에 넣을 이유가 없다. **실장비가 그 자리를 대신한다** |
+| **프로토콜 코덱 테스트**(`PacketData` 직렬화·파싱, `InstructionSet` 디스패치) | **유지 — 1-G 로 흡수** | 소켓도 서버도 필요 없는 **순수 함수**다. §1-G 가 이미 `PacketData` 순수 접근자를 대상에 넣어 뒀다 |
+| **소켓 왕복 테스트**(`CompSocketPosix` 연결·송수신·오류) | **유지 — 축소** | 장치를 흉내낼 필요가 없다. **로컬 TCP 에코**면 연결·송수신·타임아웃·끊김을 다 덮는다 |
+
+**빼면서 생기는 구멍 하나를 명시한다** — [plan.md §3.2](./plan.md) 가 **3-J**(소켓 3벌 통합)·**3-I**(40-case 디스패처)의 착수 전제로 *"mock 서버(1-B) 기반 케이스"* 를 걸어 뒀다. 그 전제는 **위 두 줄로 대체된다**: 3-I 는 애초에 소켓이 필요 없고(디스패치는 순수 함수), 3-J 는 에코 소켓으로 충분하다. **정본 응답이 실제로 필요한 것은 e2e 뿐이고 그것은 실장비 몫이다.**
+
+**아래 B-0 은 유지한다** — 연결 대상이 인자라는 사실은 mock 이든 실장비든 e2e 하니스가 서는 근거다.
+
+#### ~~원래 계획~~ (참고)
+
+**[legacy/proof/protocol-sot](../legacy/proof/protocol-sot/) 정본으로 300C·300L·500C·500L·500P `InstructionSet` 을 흉내내는 최소 TCP 서버.** 정본 헤더는 그대로 남아 있으므로, 나중에 판단이 바뀌면 여기서 다시 집어 들 수 있다.
 
 #### B-0. 왜 지금 만들 수 있나 — 연결 대상이 코드가 아니라 인자다
 
@@ -285,7 +301,7 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 |---|---|
 | E-1 | **앱부터 올린다** — `sonex-app` 은 지금도 `flutter test` 한 줄이면 Dart 10파일 2,692줄이 돈다. **프레임워크보다 앱이 먼저 CI 에 오른다** |
 | E-2 | Phase 0-F 의 단일 진입점 위에서 **Linux**(0-G·0-L) + Android 커밋마다 빌드 | ✅ `.github/workflows/ci.yml` — 잡 셋(`gates`·`linux`·`android`). **하는 일이 `make check`·`make build`·`make test` 세 줄**이라 다른 러너로 옮기는 비용이 거의 없다. 진입점을 Phase 0 에서 먼저 만든 이유가 이것이다 |
-| E-3 | 게이트 편성 — 빌드 매트릭스 · 1-A 단위테스트 · 1-B mock 왕복 · 1-C ① 필터 골든 · 1-D ① 선언 대조 |
+| E-3 | 게이트 편성 — 빌드 매트릭스 · 1-A 단위테스트 · **1-B 소켓 에코 왕복** · 1-C ① 필터 골든 · 1-D 선언·export 대조 |
 | E-4 | 실패 시 픽셀 diff·수치 diff 를 아티팩트로 |
 | E-5 | 인프라 선택(GitHub Actions 등)은 **힐세리온 결정 사항** — 31개 저장소 CI 0건이라 조직 표준 자체가 없다([../../review/dev-environment.md §2.2](../../review/dev-environment.md)) | ✅ **결정을 미루면서도 착수했다** — 문법은 GitHub Actions 이나 내용은 `make` 세 줄이라 결정이 바뀌어도 버리는 것이 없다 |
 
@@ -389,7 +405,7 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 | 4 | `ScanBuffer`·`ScanTimeSync` | 링버퍼 경계·오버런·타임스탬프 정렬 | 없음 |
 | 5 | `FileReadWriter`(HCP/HCM) | 왕복(write→read) 동일성 · 손상 파일 거부 | 없음 |
 | 6 | `DatabaseHelper`·`DicomHandler` | 스키마 왕복 · DICOM 태그 매핑 | ADK 빌드 |
-| 7 | `DeviceManager` 통합 | 연결→명령→프레임 왕복 | **1-B(mock 서버)** |
+| 7 | `DeviceManager` 통합 | 연결→송수신→끊김 | **1-B 소켓 에코**(장치 에뮬레이터 아님). 프레임까지 가는 왕복은 실장비 e2e |
 | 8 | 렌더 골든 | 프레임 픽셀 비교 | **1-C(오프스크린 컨텍스트)** |
 
 **1~6 은 Phase 0(빌드)만 끝나면 되고 1-B·1-C 를 기다리지 않는다.** 이 순서가 "하니스가 다 서야 테스트를 쓴다"는 교착을 푼다.

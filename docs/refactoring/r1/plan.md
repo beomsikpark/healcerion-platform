@@ -9,7 +9,7 @@
 
 > **이름에 대해**: `r1` 은 client 트랙 슬롯이다. 이전 `r1`(`moana` feature-first 재구성)은 `moana` 폐기로 [legacy/r1/](../legacy/r1/) 에 남아 있다. 이 문서가 client 트랙의 현재 실행 계획이다.
 
-> **IMPORTANT — 지금과 착수 후의 차이**: 지금 `client/legacy/sonex-framework` 는 검토 단계의 **read-only 미러**라 이 문서를 쓰는 시점엔 코드를 고칠 수 없다([루트 CLAUDE.md](../../../CLAUDE.md)). **이건 영구 제약이 아니라 지금이 아직 검토 단계라서다.** **Phase 0-0(저장소 재배치)** 로 `client/sonex-framework` 쓰기 가능 작업 사본을 만들면 그 뒤로는 이 계획을 그대로 실행한다 — 위탁 리팩토링 전제([legacy/README.md](../legacy/README.md) 전제 ②)대로 **작업자는 AI 에이전트다.** 힐세리온에 사양만 넘기고 끝나는 문서가 아니다. 재배치 전에도 독립적으로 할 수 있는 것(Phase 1-B·1-D·1-F·2-B — `protocol-sot` 선례)은 지금 시작할 수 있고 `[선행 가능]` 으로 표시했다.
+> **IMPORTANT — 지금과 착수 후의 차이**: 지금 `client/legacy/sonex-framework` 는 검토 단계의 **read-only 미러**라 이 문서를 쓰는 시점엔 코드를 고칠 수 없다([루트 CLAUDE.md](../../../CLAUDE.md)). **이건 영구 제약이 아니라 지금이 아직 검토 단계라서다.** **Phase 0-0(저장소 재배치)** 로 `client/sonex-framework` 쓰기 가능 작업 사본을 만들면 그 뒤로는 이 계획을 그대로 실행한다 — 위탁 리팩토링 전제([legacy/README.md](../legacy/README.md) 전제 ②)대로 **작업자는 AI 에이전트다.** 힐세리온에 사양만 넘기고 끝나는 문서가 아니다. 재배치 전에도 독립적으로 할 수 있는 것(Phase 1-D·1-F·2-B — `protocol-sot` 선례)은 지금 시작할 수 있고 `[선행 가능]` 으로 표시했다.
 
 ## 0. 전제 — 상위 계획과의 관계
 
@@ -281,14 +281,14 @@ flowchart LR
 | **3-E** C ABI 누수 정리(28건) | `hc_create*Instance` 계열 **생성→사용→해제 왕복** 케이스 | 단위 |
 | **3-F** 공개 헤더 정본화 | **공개 헤더 단독 컴파일 케이스**(현재 62개 중 36개 실패) — 이것 자체가 회귀 게이트다 | CI |
 | **3-H** 파사드 God class 분리 | 분리 전 `SonexSDK`/`SonexADK` **public 메서드 계약 케이스** — 같은 입력에 같은 결과 | 단위 |
-| **3-I** dispatcher → lookup-table | **40 case 전수 디스패치 케이스.** 이 계획에서 **유일하게 로직 형태가 바뀌는 항목**이라 가장 엄격하다 | 단위 |
-| **3-J** 소켓 중복 제거 | mock 서버(1-B) 기반 **연결·송수신·오류 경로** 케이스 | 통합 |
+| **3-I** dispatcher → lookup-table | **40 case 전수 디스패치 케이스.** 이 계획에서 **유일하게 로직 형태가 바뀌는 항목**이라 가장 엄격하다. **소켓이 필요 없다** — 디스패치는 순수 함수다 | 단위 |
+| **3-J** 소켓 중복 제거 | **로컬 TCP 에코 기반 연결·송수신·오류 경로** 케이스(1-B 축소분). 장치 에뮬레이터는 필요 없다 — 통합 대상이 소켓이지 프로토콜이 아니다 | 통합 |
 | **4-A·4-G** 렌더 HAL·God class 분할 | **프레임 골든**(1-C). 메서드 단위로 쪼개지 않고 출력 픽셀로 판정 | 골든 |
 | **4-C·4-C2** 프레임·기하 반환 승격 | 승격 전 `hc_GetBufferRenderedFrameAt` **현행 출력 골든** — 일반화가 기존 경로를 바꾸지 않았음을 보인다 | 골든 |
 | **5-B~5-D** wrapper 정본화 | **심볼 대조 자동화**(1-D) + 언어별 **왕복 스모크**(연결→스캔→프레임) | CI + 통합 |
 | **2-F** 패키징 | 패키지에서 **샘플이 빌드되는지**(B5 판정 ①) | CI |
 | **X-1~X-4** 결함 수정([code-defects.md](./code-defects.md)) | **결함을 재현하는 실패 케이스를 먼저 쓴다**(X-5). 다른 항목과 방향이 반대다 — 여기서는 케이스가 **현행 동작을 고정하는 게 아니라 현행 동작이 틀렸음을 고정**한다 | 단위 |
-| **XS-1** 프로토콜 직렬화 정정([code-defects-sdk.md](./code-defects-sdk.md)) | **바이트 단위 패킷 골든** — mock 서버(1-B)가 `protocol-sot` 기준으로 수신 바이트를 검증한다. **`moana` 정본과 필드 폭까지 갈려 있어 정답 확정이 케이스보다 먼저다** | 통합 |
+| **XS-1** 프로토콜 직렬화 정정([code-defects-sdk.md](./code-defects-sdk.md)) | **바이트 단위 패킷 골든 — 소켓 없이 한다.** `PacketData` 가 만든 바이트열을 `protocol-sot` 기준과 직접 대조하면 되고, 그러려면 장치가 필요 없다(1-B 재정의). **`moana` 정본과 필드 폭까지 갈려 있어 정답 확정이 케이스보다 먼저다** | 단위 |
 | **XS-2** 소유권 모델 정리 | `PacketData`·`StreamData` **생성→참조→해제 왕복 케이스**. 셋(SDK-02·11·14)이 한 덩어리라 **따로 고치면 이중 해제**가 된다 — 케이스도 함께 짠다 | 단위 |
 | **XS-4** 입력 경계 정정 | **잘린 패킷·빈 버퍼·경계값 입력 케이스.** `PacketData` 는 [phase1 Step 1-G](./phase1-regression-baseline.md) 인벤토리에 이미 있다 | 단위 |
 
@@ -334,7 +334,7 @@ flowchart LR
 |---|---|
 | 1-A | **단위테스트 프레임워크 도입** — `test/` 신설, CMake 대상(macOS/iOS)에 `FetchContent` 로 gtest 연결부터 시작. 기존 1파일(`test_firmware_version_checker.cpp` 134줄)을 **케이스 수 보존하며 이관**. 이후 MSBuild(`sdk.sln`)·`ndk-build`로 확장 |
 | **1-G** | **초기 테스트 케이스 인벤토리** — 프레임워크만 세우고 케이스를 안 정하면 빈 스위트가 남는다. **GL·소켓 의존이 0인 모듈 6개**(`ImageFilter` 38 · `DatabaseHelper` 20 · `FileReadWriter` 6 · `DicomHandler` 6 · `ScanBuffer` 5 · `ScanTimeSync` 5)와 `PacketData` 순수 접근자가 **mock 서버·오프스크린 컨텍스트를 기다리지 않고** 덮을 수 있는 표면이다. 작성 순서·형식·**덮지 않는 것**까지 [phase1-regression-baseline.md](./phase1-regression-baseline.md) Step 1-G 가 정본 |
-| 1-B `[선행 가능]` | **Mock HC 프로토콜 장치 서버** — [legacy/proof/protocol-sot](../legacy/proof/protocol-sot/) 정본으로 300C·300L·500C·500L·500P `InstructionSet` 을 흉내내는 최소 TCP 서버. **재배치(0-0) 전에도 우리 루트 git 안에서 독립적으로 지금 만들 수 있다** — `sonex-framework` 코드는 건드리지 않고 프로토콜 정본 헤더만 참조한다. `DeviceManager` 가 실제로 이 서버에 붙게 만드는 것(연결 대상 IP 를 mock 서버로 교체)은 작업 사본이 선 뒤 이어서 한다. |
+| **1-B** | **장치 에뮬레이터는 r1 에서 만들지 않는다**(2026-08-02 결정). 원래 이 항목은 5모델 `InstructionSet` 응답을 흉내내는 TCP 서버였으나, **바이트 일치까지만 보장하고 실장비 타이밍·오류 특성은 재현하지 못한다** — [phase1](./phase1-regression-baseline.md) 이 이미 "한계 ①"로 적어 둔 그대로다. **둘로 갈라 필요한 쪽만 남긴다**: ① **프로토콜 코덱 테스트**(순수 함수, 1-G 로 흡수) ② **로컬 TCP 에코 소켓 테스트**(3-J 의 전제). 실장비 왕복은 1-H `TARGET=device` 소관이고 접근 확보는 [plan.md](../plan.md) Phase 2-5 다 |
 | 1-C | **헤드리스 렌더 골든** — IQ 고정 입력 → 렌더 → 픽셀 버퍼를 골든과 비교. **"주석 해제"로 되는 일이 아니다**(아래 주의). 오프스크린 EGL 컨텍스트 생성이 **신규 구현**이고, 그 위에서 **`hc_GetBufferRenderedFrameAt` 경로**(플랫폼 무관·실동작)를 재사용한다 — `hc_ReadRenderedImage` 는 **iOS 전용이라 CI 플랫폼에서 못 쓴다.** Phase 4-C·4-D 를 앞당겨 쓰는 것 |
 | 1-D `[선행 가능]` | **바인딩 오탐 검출 스크립트** — [gap.md §7.2](../gap.md) 의 확인된 3건(대소문자 2·부재 1)과 같은 lookup 실패를, 공개 헤더 심볼과 앱이 `lookup()` 하는 문자열을 대조해 잡는 Python 스크립트. `reconcile.py`([legacy/proof/protocol-sot](../legacy/proof/protocol-sot/))와 같은 패턴 — **재배치 전에도 지금 만들 수 있다** |
 | 1-E | **CI 파이프라인 신설** — **Linux 를 기본 러너로**(§0.1) Linux + Android 를 커밋마다 빌드. Windows·iOS 는 상시가 아니라 **포팅 검증 시점의 별도 잡**으로 둔다. CI 인프라(GitHub Actions 등) 선택은 조직 표준에 맞춰 힐세리온과 협의 |
