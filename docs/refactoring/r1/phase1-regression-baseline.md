@@ -1,6 +1,6 @@
 # Phase 1 — 회귀 판정 기준선
 
-> **상태**: 진행 중 — **1-A(A-1·A-2)·1-E(E-2·E-5)·1-E2 완료**(2026-08-02, 커밋 `ba2e7d84`·`98803fdc`·`35b785e6`·`2e78c146`). 나머지(1-B·1-C·1-D·1-F·1-G·1-H)는 미시작
+> **상태**: 진행 중 — **1-A·1-C(②)·1-D·1-E·1-E2·1-G(착수) 완료**(2026-08-02). 테스트 **38건**이 `ctest` 에서 개별 판정된다. 나머지(1-B mock 장치 서버 · 1-C ① 필터 골든 · 1-F · 1-H)는 미시작
 > **범위**: `sonex-framework`(SDK+ADK)의 동작 보존 판정 수단. **프레임워크에는 승격할 테스트 자산이 없다 — 처음부터 짓는다.** 다만 완전한 백지는 아니다(§1.2).
 > **선행**: [Phase 0](./phase0-build-reproducibility.md)
 > **후행**: [Phase 2](./phase2-release-packaging.md) 이후 전부
@@ -188,7 +188,17 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 | B-f | **에러 경로** — 잘린 패킷 · 미지 opcode · `targetId` 오류 · 타임아웃 · 연결 끊김 |
 | B-g | SDK 를 mock 에 붙인다(**0-0 재배치 후**). 앱까지 붙이려면 B-0 의 앱 상수 6곳 분리 선행 |
 
-### Step 1-C. 헤드리스 렌더 골든 — **"주석 해제"로 되는 일이 아니다**
+### Step 1-C. 헤드리스 렌더 골든 — ✅ ②(오프스크린 컨텍스트) 완료(2026-08-02, `5ff7987c`)
+
+> **`[실측 2026-08-02]` 창 없이 픽셀이 나온다.** `EGL_MESA_platform_surfaceless` 로 디스플레이를 얻고 `EGL_KHR_surfaceless_context` 로 서피스 없이 current 를 만든 뒤 FBO 로 렌더한다. **pbuffer 가 아니라 surfaceless 를 골랐다** — 헤드리스에서 요구가 가장 적고(서피스 크기 협상 없음) FBO 크기가 곧 출력이다.
+>
+> 구현 = `sdk/sdk/ImageRenderer/linux/HCOffscreenContextLinux.{h,cpp}`. 실측 환경은 **ANGLE 2.1.7258 / Mesa llvmpipe** 이고, 소프트웨어 래스터라이저라 **골든 재현성에 오히려 유리**하다. `glClearColor(0.25,0.5,0.75,1)` → readback `(64,128,191,255)` 전 픽셀 일치.
+>
+> 테스트 5건이 이것을 지킨다 — 그중 `IsDeterministicAcrossContexts`(같은 입력 → 같은 바이트)가 **골든의 전제**다. 재현되지 않으면 골든이 의미가 없다.
+>
+> **남은 것은 ①(필터 골든)과 실제 렌더 파이프라인 연결**이다. 이 항목이 연 것은 "컨텍스트가 선다" 까지이고, `ImageRenderCore` 를 이 컨텍스트 위에서 돌리는 것은 [Phase 4-D](./phase4-render-boundary.md) 와 한 벌이다.
+
+#### 원래 실측 — **"주석 해제"로 되는 일이 아니었다**
 
 **이 항목을 낮게 잡으면 Phase 4 전체가 판정 불가가 된다.** 이전 판은 *"PBuffer 주석만 해제하면 된다"* 고 봤으나 틀렸다.
 
