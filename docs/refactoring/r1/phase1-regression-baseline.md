@@ -1,6 +1,6 @@
 # Phase 1 — 회귀 판정 기준선
 
-> **상태**: 미시작
+> **상태**: 진행 중 — **1-A(A-1·A-2)·1-E(E-2·E-5)·1-E2 완료**(2026-08-02, 커밋 `ba2e7d84`·`98803fdc`·`35b785e6`·`2e78c146`). 나머지(1-B·1-C·1-D·1-F·1-G·1-H)는 미시작
 > **범위**: `sonex-framework`(SDK+ADK)의 동작 보존 판정 수단. **프레임워크에는 승격할 테스트 자산이 없다 — 처음부터 짓는다.** 다만 완전한 백지는 아니다(§1.2).
 > **선행**: [Phase 0](./phase0-build-reproducibility.md)
 > **후행**: [Phase 2](./phase2-release-packaging.md) 이후 전부
@@ -88,17 +88,17 @@ from nextsri.pipeline_v1_21_2 import apply_v1_21_2, V1_21_2_PRESETS
 
 > **선행 조건 — `NextSRI` 범위 재판정.** §1.3 의 의존을 먼저 정리한다. ① `NextSRI`(id 77) 클론 가능 여부 확인 ② `pipeline_v1_21_2` 모듈과 `nlm_apply.exe` 확보 ③ 루트 `CLAUDE.md` 의 "신호처리 R&D 제외" 정정 ④ **확보 불가 시 대안**: 현행 출하본으로 덤프를 새로 떠서 그 출력을 골든으로 삼는다. **"정답"이 아니라 "이전 값"이면 회귀 검출에 충분하다**([principles.md §3](../legacy/principles.md)).
 
-### Step 1-A. 단위테스트 프레임워크 도입
+### Step 1-A. 단위테스트 프레임워크 도입 — ✅ A-1·A-2 완료(2026-08-02)
 
 **CMake 갈래부터 시작한다.** 빌드 진입점 4갈래 중 CMake 가 가장 작다 — `CMakeLists.txt` 4개 중 SDK 를 짓는 것은 `sdk/sdk/Main/ios/CMakeLists.txt`·`sdk/sdk/Main/macos/CMakeLists.txt` **2개뿐**이고(둘 다 `project(SonexSDK)` + `add_library(SonexSDK SHARED)`), 나머지 2개는 샘플앱용이다. `.vcxproj` 는 29개·솔루션 2개(`sdk/sdk/workspace/sdk.sln`·`sdk/adk/workspace/framework.sln`), `ndk-build` 는 `sdk/common/android/{Android,Application}.mk` 다.
 
-| # | 작업 |
-|---|---|
-| A-1 | `test/` 신설(§[plan.md 2.2](./plan.md) 폴더 구조). CMake 대상에 `FetchContent` 로 gtest 연결 |
-| A-2 | **기존 1파일 승격** — `test_firmware_version_checker.cpp` 134줄의 손수 만든 `check()` 를 `EXPECT_EQ` 로 옮긴다. **케이스 수를 보존한다**(3.2). 이 저장소에서 유일하게 "있는 것을 잇는" 항목이다 |
-| A-3 | 첫 대상 선정 — 플랫폼·GL·소켓에 얽히지 않은 순수 계산부터. `ImageFilter`(`test/core/image_filter_test.cpp`)·`ScanBuffer`(`test/core/scan_buffer_test.cpp`) |
-| A-4 | MSBuild 확장 — `sdk.sln` 에 테스트 프로젝트 추가 |
-| A-5 | `ndk-build` 확장 — Android 로컬 유닛테스트. gradle `src/test` 스캐폴딩부터 신설 |
+| # | 작업 | 상태 |
+|---|---|---|
+| A-1 | `test/` 신설. CMake 대상에 gtest 연결 | ✅ `test/CMakeLists.txt`. **`find_package(GTest)` 우선, 없으면 `FetchContent` 폴백** — CI 이미지(0-K K-7)가 굽는 것이 정본이고 FetchContent 는 네트워크 있는 개발자 머신용이다. `make test` 로 진입점에 연결 |
+| A-2 | **기존 1파일 승격** — 손수 만든 `check()` 를 `EXPECT_EQ` 로. **케이스 수를 보존한다** | ✅ **20건 그대로.** 기대값을 한 건도 바꾸지 않았고 `ctest` 가 20개를 **개별 판정**한다. 원본은 삭제했다(두 벌이면 갈라진다). **이관 전에 원본이 Linux 에서 20/20 통과함을 먼저 확인**한 뒤 옮겼다 |
+| A-3 | 첫 대상 선정 — 플랫폼·GL·소켓에 얽히지 않은 순수 계산부터 | 미시작. **`[실측 2026-08-02]` 후보 모듈의 Linux 컴파일률** — `ScanTimeSync` 2/2 · `ScanBuffer` 1/2 · `FileReadWriter` 1/3. `ImageFilter` 는 OpenCV 가 필요해 0-C 이후다 |
+| A-4 | MSBuild 확장 — `sdk.sln` 에 테스트 프로젝트 추가 | 미시작 — Windows 머신 필요 |
+| A-5 | `ndk-build` 확장 — Android 로컬 유닛테스트 | 미시작 |
 
 > **A-3 의 관문은 Phase 0 이다.** 깨끗한 체크아웃이 빌드되지 않으면([gap.md §3.2](../gap.md)) 테스트도 빌드되지 않는다. A-1·A-2 는 `HCFirmwareVersionChecker` 처럼 의존이 적은 대상이라 ANGLE 회수를 기다리지 않아도 된다.
 
@@ -269,15 +269,15 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 
 > **교훈을 기계로 고정하는 것이 이 항목의 목적이다.** "앱이 선언했다"와 "SDK 가 제공한다"는 다른 차원의 사실이고, 이전 판이 앱 선언을 SDK 기능으로 읽어 *"픽셀 반출 API 가 이미 셋 있다"* 고 잘못 적었다. 사람이 다시 틀리지 않게 만드는 것이 1-D 다.
 
-### Step 1-E. CI 파이프라인 신설
+### Step 1-E. CI 파이프라인 신설 — ✅ E-2·E-5 완료(2026-08-02, `2e78c146`)
 
 | # | 작업 |
 |---|---|
 | E-1 | **앱부터 올린다** — `sonex-app` 은 지금도 `flutter test` 한 줄이면 Dart 10파일 2,692줄이 돈다. **프레임워크보다 앱이 먼저 CI 에 오른다** |
-| E-2 | Phase 0-F 의 단일 진입점 위에서 **Linux**(0-G·0-L) + Android 커밋마다 빌드 — §0.1 의 주 개발축 둘이다 |
+| E-2 | Phase 0-F 의 단일 진입점 위에서 **Linux**(0-G·0-L) + Android 커밋마다 빌드 | ✅ `.github/workflows/ci.yml` — 잡 셋(`gates`·`linux`·`android`). **하는 일이 `make check`·`make build`·`make test` 세 줄**이라 다른 러너로 옮기는 비용이 거의 없다. 진입점을 Phase 0 에서 먼저 만든 이유가 이것이다 |
 | E-3 | 게이트 편성 — 빌드 매트릭스 · 1-A 단위테스트 · 1-B mock 왕복 · 1-C ① 필터 골든 · 1-D ① 선언 대조 |
 | E-4 | 실패 시 픽셀 diff·수치 diff 를 아티팩트로 |
-| E-5 | 인프라 선택(GitHub Actions 등)은 **힐세리온 결정 사항** — 31개 저장소 CI 0건이라 조직 표준 자체가 없다([../../review/dev-environment.md §2.2](../../review/dev-environment.md)) |
+| E-5 | 인프라 선택(GitHub Actions 등)은 **힐세리온 결정 사항** — 31개 저장소 CI 0건이라 조직 표준 자체가 없다([../../review/dev-environment.md §2.2](../../review/dev-environment.md)) | ✅ **결정을 미루면서도 착수했다** — 문법은 GitHub Actions 이나 내용은 `make` 세 줄이라 결정이 바뀌어도 버리는 것이 없다 |
 
 **`make` 인터페이스 — cctv taxonomy 로 통일**([precedent-cctv.md §5.2](../legacy/precedent-cctv.md) `test-unit`·`test-integration`·`test-e2e`·`test-architecture`)
 
@@ -292,7 +292,7 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 
 **`test-mock`·`check-bindings` 이름은 폐기하고 위 4종으로 흡수한다** — cctv 와 이름이 다르면 "제품이 달라도 같은 이름을 찾아 들어간다"는 이식성이 깨진다([precedent-cctv.md §2.5](../legacy/precedent-cctv.md)).
 
-### Step 1-E2. 경고 게이트 — 이 Phase 에서 가장 싼 항목
+### Step 1-E2. 경고 게이트 — ✅ E2-1·E2-2 완료(2026-08-02, `35b785e6`)
 
 **케이스를 한 줄도 쓰기 전에 결함 14건이 드러난다.** SDK `shared/` 소스를 `-Wall -Wextra` 로 문법 검사만 돌린 결과다([code-defects-sdk.md §1·§6](./code-defects-sdk.md)).
 
@@ -307,12 +307,30 @@ if (packet.version < 0 || packet.targetId != 2 || packet.sessionId != 0
 
 > **이 숫자는 하한이다** — 43파일이 플랫폼 헤더 부재로 컴파일 자체가 서지 않아 집계에서 빠졌다. Phase 0-M(자립 컴파일 결손) 이 끝나면 숫자가 늘어난다.
 
-| # | 작업 |
-|---|---|
-| E2-1 | **수집만 한다** — CI 잡이 경고를 아티팩트로 남기되 빌드는 실패시키지 않는다. 기준선 숫자를 고정하는 단계다 |
-| E2-2 | **신규 코드에 `-Werror`** — 변경된 파일에만 적용. 여기서부터 새 결함이 들어오지 못한다 |
-| E2-3 | **범주별 소진** — `-Wtype-limits`·`-Wdelete-incomplete` 부터. **둘은 전부 실결함**이라 우선순위가 명확하다 |
-| E2-4 | 소진 후 **전면 `-Werror`** 로 승격. `-Wunused-variable` 152건은 마지막 |
+| # | 작업 | 상태 |
+|---|---|---|
+| E2-1 | **수집만 한다** — 기준선 숫자를 고정하는 단계 | ✅ **래칫으로 한 단계 더 갔다** — `warnings-baseline.json` + `scripts/check-warnings.py`. 수집에 그치지 않고 **기준선 위로 늘면 실패**한다 |
+| E2-2 | **신규 코드에 `-Werror`** — 변경된 파일에만 적용 | ✅ **파일 단위가 아니라 범주 단위로 했다** — 현재 **0건인 심각 범주 8종**(`nonnull`·`return-type`·`uninitialized`·`address`·`sizeof-pointer-memaccess`·`memset-transposed-args`·`delete-non-virtual-dtor`·`reorder`)에 `-Werror=`. 변경 파일 추적보다 단순하고 되돌아오는 것을 확실히 막는다 |
+| E2-3 | **범주별 소진** — `-Wtype-limits`·`-Wdelete-incomplete` 부터 | 미시작. **`-Wdelete-incomplete` 는 소유권 모델 정리(XS-2)가 선행**이라 오늘 0 으로 못 만든다 — 기준선에 기록해 늘지만 않게 했다 |
+| E2-4 | 소진 후 **전면 `-Werror`** 로 승격 | 미시작 |
+
+#### E2-실측. `[2026-08-02]` Linux 빌드로 다시 세니 숫자가 달라졌다
+
+이전 집계는 **문법 검사(`-fsyntax-only`)** 기준이고, 이번은 **실제 링크까지 가는 빌드** 기준이다. 대상 범위가 달라 숫자가 어긋난다.
+
+| 범주 | 이전(문법검사) | **실빌드(Linux, `SonexCommon`+`DeviceManager`)** |
+|---|---:|---:|
+| `-Wunused-variable` | 152 | **147** |
+| `-Wtype-limits` | 14 | **14** |
+| `-Wsign-compare` | 29 | **10** |
+| `-Wswitch` | 10 | **6** |
+| `-Wdelete-incomplete` | 2 | **2** |
+| **`-Wnonnull`** | — | **1 → 0**(고쳤다) |
+| 합계 | — | **181**(7범주) |
+
+**차이의 원인은 범위다** — 실빌드는 아직 두 모듈만 덮는다. `ImageFilter`·`ImageRenderer`·ADK 가 편입되면 숫자가 오른다. **기준선은 그때 갱신하고, 갱신은 `--update` 로 명시적으로만 한다.**
+
+> **`-Wnonnull` 1건은 실결함이었고 고쳤다** — `HCTxWorker::connection()` 이 플랫폼 분기가 하나도 맞지 않으면 `socket == nullptr` 인 채로 역참조한다. GCC 가 정적으로 증명했다. 원인 둘을 함께 고쳤다: Linux 분기 누락(0-L L-2 의 미완)과 **분기 미일치 시 가드 부재**(플랫폼이 늘 때마다 재발하는 구조).
 
 **순서를 지키는 이유**: 지금 `-Werror` 를 켜면 152건의 위생 경고에 묻혀 **실결함 16건이 보이지 않는다.** 범주를 나눠 켜는 것이 이 항목의 전부다.
 
