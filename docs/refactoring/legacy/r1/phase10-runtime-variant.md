@@ -71,7 +71,6 @@
 | `device/legacy/500c-sn-fw` | **71커밋, 최신 브랜치 `FW_1_1_8_0` 2026-04-24** |
 | 최근 커밋 내용 | *"migrate to ABLIC WiFi SDK and add **Rev1.7** scan parameters"*(2026-04-21) · *"add WiFi FW upgrade path and wifi_version in device info"*(2026-04-20) · *"tune scan parameters and restructure line gain offset table"*(2026-04-24) |
 | `sonex-framework` | **2026-07-23** *"500C/P WiFi(RS9116) 펌웨어 통합 굽기 — 5계층 구현 + 실장비 검증"* |
-| `fpga/legacy/charm-fpga` | 500C 용 FPGA |
 
 **신규 하드웨어 리비전(Rev1.7)과 부품 전환(WiFi SDK)이 진행 중이다. 단종 라인의 활동이 아니다.** 300 시리즈에 대한 단종 판정은 유지하되 **`500C`·`500P` 는 뺀다.**
 

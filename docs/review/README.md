@@ -25,12 +25,13 @@ HLAB-2487(힐세리온 SW 리팩토링 검토)의 산출물이다. **미러 소�
 |---|---|
 | **[change-cost.md](change-cost.md)** | **변경 1건의 실제 비용 실측** — 재작업·출하 지연·미도달 커밋. **다른 문서의 "효과" 주장은 전부 여기로 수렴한다.** 논지에 불리한 결과도 그대로 적었다 |
 | [belle-hardware.md](belle-hardware.md) | 보드·SoC·QSPI 파티션·PL 인터페이스·주변장치·MSP430 |
-| [device-firmware.md](device-firmware.md) | 펌웨어 구조 · 빌드/패키징 · 변종 선택 · HC 프로토콜 |
-| [500c-firmware.md](500c-firmware.md) | `500c-sn-fw`(Socionext 베어메탈, belle 비호환·단종 아님). **범위가 축별로 갈린다**: 펌웨어 축 제외 / 클라이언트 축 포함 — **500C·500P·500LS 세 SKU 공용 펌웨어**이며 이미 SoNex 확정 모델 범위에 포함됨([gap.md A2](../refactoring/gap.md)) |
+| [device-firmware.md](device-firmware.md) | 펌웨어 구조 · 빌드/패키징 · 변종 선택 · HC 프로토콜 · **애플리케이션 내부(스레드·커맨드 파이프라인·Web/BLE 서비스 계통)** |
+| [500c-firmware.md](500c-firmware.md) | `500c-sn-fw`(Socionext 베어메탈, belle 비호환·단종 아님). **범위가 축별로 갈린다**: 펌웨어 축 제외 / 클라이언트 축 포함 — **500C·500P 공용 펌웨어**이며 이미 SoNex 확정 모델 범위에 포함됨([gap.md A2](../refactoring/gap.md)) |
 | [500c-hardware.md](500c-hardware.md) | `500c-sn-fw`·`charm-fpga` 실측 — **Efinix Titanium FPGA**(UDL 가속기) · SPI NOR 32MB 맵 · 프로브 3-SKU 가 공장 플래시 설정으로 갈리는 구조(자동인식 아님) |
 | [moana-app.md](moana-app.md) | **Qt 앱(SOT)** 구조 · 도메인 기능 · 호스트 SW 3종 대조 |
 | **[sonex-framework.md](sonex-framework.md)** | **SDK·ADK 코드베이스 실측** — 계층·공개계약·렌더링·장치통신·빌드·서드파티. **리팩토링 수정 대상의 SOT** |
 | [sonex-app.md](sonex-app.md) | **Flutter 재작성** 실측 — 타깃·결합 구조·완성도 · **전환 진척 시계열(§10)** |
+| **[client-database.md](client-database.md)** | **단말 로컬 DB 실측** — moana·ADK·sqflite **저장 스택 3벌**의 테이블·컬럼 전수, 이중 저장(SOT 분열), 질의 생성·마이그레이션·트랜잭션 처리 방식. moana↔ADK DDL **93컬럼 차이 0** |
 | [legacy/sonex-rendering.md](legacy/sonex-rendering.md) | **렌더링 계층 실측** — ANGLE·GLES2 스택 · 플랫폼별 GL 경계 4종 · 스캔변환 수학 대조 · 헤더 4벌 표류 |
 | [sonex-architecture.md](sonex-architecture.md) | sonex 에 대해 **힐세리온 자체 문서가 주장하는** 아키텍처 |
 | [SoNex-Requirement/summary.md](SoNex-Requirement/summary.md) | **2023년 SoNex 개발계획서·설계서·블록다이어그램·인터페이스 명세** 4건 분석 — 계획 대 실제 구현 대조 |

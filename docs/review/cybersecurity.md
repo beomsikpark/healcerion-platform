@@ -60,6 +60,8 @@
 | SI-10 물리적 변조 방지 | **미확인** — 소스 수준에서 확인 가능한 봉인·잠금 로직 없음(회로도·BOM 미확보로 판단 제한) | **N/A** — 자체 하드웨어 인클로저 없음, 호스트 단말 제조사 책임 영역 |
 | SI-11 부트 프로세스 무결성 | **미충족(핵심)** — U-Boot·FSBL 빌드 설정에 `CONFIG_FIT_SIGNATURE`·`CONFIG_RSA` 등 서명검증 옵션 없음, `BOOT.BIN` 생성 스크립트에 PPK/SPK 키 참조 0건. FSBL ELF에 Xilinx 보안부트 라이브러리 코드는 링크돼 있으나 활성화 인자가 없어 비활성으로 판단 | **N/A** — 앱 부트는 OS(iOS/Android/Windows/macOS) 책임, 자체 부트로더 없음 |
 
+> **교차 확인** — 이 표는 belle·sonex 축이지만, `500c-sn-fw`(Socionext 별도 라인) 장비측 코드를 직접 읽어도 SI-09 와 같은 패턴이 나온다: `USSFUP_Custom.c` 의 유일한 무결성 장치가 **바이트 덧셈 체크섬**이고 서명 검증은 0건이다. 클라이언트(`HCFirmwareController.cpp`)·장비(`USSFUP_Custom.c`) 양쪽이 **같은 약한 체크섬으로 서로 왕복 대조할 뿐**이라는 뜻이다 — 상세 = [500c-firmware.md §3.2.2](500c-firmware.md).
+
 ### 데이터 기밀성 (DC)
 
 | ID | belle | sonex |

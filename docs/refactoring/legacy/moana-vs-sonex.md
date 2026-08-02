@@ -182,7 +182,7 @@ flowchart LR
 | **출하 계통에는 500C·500P 가 없다** | `framework/Common/CommonData.cpp:71,73` 의 `deviceModelList` 문자열 목록에만 있다(700C·700L 도 함께). `Model.cpp` 에 capability table 분기 없음 |
 | **그러나 미병합 브랜치에는 있다 — `origin/sonon_500c`** | **71커밋 / 113파일 / +14,946줄**, 최종 **2023-09-19**. **500C·500P 둘 다 있다** — `Model.cpp` 에 `MODEL_500C` 18곳·`MODEL_500P` 18곳, `InitCapabilityTable_500C`·`InitCapabilityTable_500P` 각각 선언·정의(`Model.h` 각 1). 커밋 내용도 실기능이다 — *"500C audio sync with PRF"* · *"PW spectrum pre image processing"* · *"M mode crash fix"* · *"fix sweep speed"* |
 | **sonex 는 500C·500P 명령셋을 갖는다** | `sdk/include/HCInstructionSet{500C,500P}.h` + `DeviceManager/shared/` 구현 |
-| **500C 는 활발한 신규 라인이다** | `device/legacy/500c-sn-fw` 71커밋(2023-06 ~ 2026-04, Socionext 베어메탈) · `fpga/legacy/charm-fpga`(500C 용) · sonex-framework **2026-07-23** *"500C/P WiFi(RS9116) 펌웨어 통합 굽기 — 5계층 구현 + 실장비 검증"* |
+| **500C 는 활발한 신규 라인이다** | `device/legacy/500c-sn-fw` 71커밋(2023-06 ~ 2026-04, Socionext 베어메탈) · sonex-framework **2026-07-23** *"500C/P WiFi(RS9116) 펌웨어 통합 굽기 — 5계층 구현 + 실장비 검증"* |
 | **moana 가 sonex 의 500C 튜닝을 참조한다** | `HCNextSRIFilter.cpp:17` 주석 *"EPF 생략 … sonex 500C 와 동일"*, `:457` *"500C = idx 1"* — **영상 파라미터는 이미 넘어왔는데 장비 구동은 못 한다** |
 
 **따라서 `sonex-app` 은 "moana 를 따라가는 것" 만 하는 게 아니다 — `500C`·`500P` 의 **현재** 유일한 호스트 앱이다.** 이것이 라이선스·CVIE 가 전부 빠진 뒤에도 남는 **유일한 실질 존재 이유**다.

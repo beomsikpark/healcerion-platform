@@ -200,6 +200,8 @@ flowchart TB
 | E-3 | `HC::ScannerInfo`·`HC::StreamData` 반환 2건은 **POD 구조체 복사 또는 out-parameter** 로. 두 타입이 실제 POD 인지 먼저 확인하고, 아니면 getter 로 분해 |
 | E-4 | **3-F 와 동시에 한다** — 공개 헤더가 두 벌인 상태에서 서명을 바꾸면 어느 쪽을 바꿨는지가 갈린다 |
 | E-5 | 기존 바인딩 27벌이 이 심볼을 어떻게 쓰는지 대조. 실제 교체는 [Phase 5](./plan.md) 소관이나 **깨질 목록은 여기서 만든다** |
+| **E-6** | **반환 규약 결함 1건을 같이 고친다** `[실측 2026-08-02]` — `hc_ProcessPlaybackFrame`(`HCSonexSDKInterface.cpp:792-945`)이 **성공에는 처리 바이트 수를, 실패에는 `HC::INVALID_PARAMETER` 열거값을** 반환한다. 한 `int` 채널에 두 도메인이 섞여 있어 규약대로 `== SUCCESS(0)` 로 판정하는 소비자는 **정상 처리를 오류로 읽는다.** 더 나쁜 것은 **필터를 못 찾은 경로도 `return inputSize`** 라 완전 성공과 값이 같다 — "필터가 안 걸린 영상"이 조용히 나간다. **out-parameter 로 바이트 수를 빼고 반환은 `ResultCode` 로 통일**한다([code-defects-sdk.md](./code-defects-sdk.md) SDK-17) |
+| **E-7** | **`void*` 수명 문제도 같은 표면이다** `[컴파일러 판정]` — `VariantMap` 이 소유 포인터를 `delete (void*)` 로 해제한다(`HCVariantMap.cpp:12-18`, `-Wdelete-incomplete`). **소멸자가 돌지 않아** `PacketData` 의 `std::vector` 힙 등이 통째로 샌다. 그 때문에 `RxWorker` 가 **프레임마다 `VariantMap` 을 일부러 누수**시켜 이중 해제를 피하고 있다(`HCRxWorker.cpp:283-301`). **셋이 한 덩어리라 따로 고치면 이중 해제**가 되므로, E-1~E-3 의 handle 타입 도입과 **같은 설계 결정 안에서** 처리한다 — 축 `X` 의 [XS-2](./code-defects-sdk.md) |
 
 #### Step 3-F. 공개 헤더 정본화
 
@@ -314,6 +316,8 @@ flowchart TB
 | I-3 | `InstructionSet500{C,P,L}` 최대 switch 3건(46·45·41) — **프로토콜 명령 테이블**이라 3-G 의 스키마와 대응시킬 수 있다. 단 `InstructionSet` 5종은 모델별 차이가 실제 프로토콜 차이이므로 **공통화하지 않는다**. 형태만 바꾼다 |
 | I-4 | **매 변환 직후 회귀 하니스 실행.** 3-H·3-J 와 달리 이 항목은 `switch` 폴스루·`default` 처리·case 순서 의존이 조용히 사라질 수 있다 |
 | I-5 | **폴스루 case 를 먼저 목록화** — `parseRequest` 의 `REQUEST_FIRMWARE_UPGRADE_SN_*` 4연속처럼 여러 case 가 한 본문을 공유하는 자리가 변환 시 가장 위험하다 |
+| **I-6** | **같은 6개 파일에 죽은 헤더 검증이 복제돼 있다 — 걷어내면서 한 벌로 모은다** `[컴파일러 판정 2026-08-02]`. `InstructionSet{300C,300L,500C,500L,500P,Default}` 의 `parseReceivedPacket` 진입부가 **파일마다 같은 코드**이고 각각 `-Wtype-limits` 2건이 뜬다: ① `size_t skip = current() - 2; if (skip < 0)` — **항상 거짓**이라 1바이트만 수신된 상태(TCP 분할 시 흔하다)에서 `skip = SIZE_MAX` 가 `outLength` 로 나가고 `pop()` 이 거부돼 **그 바이트가 링에서 소비되지 않는다** ② `contentSize < 0` 도 `size_t` 라 항상 거짓 → **실질 검증이 `targetId != 2 \|\| sessionId != 0` 뿐**이다. 코드에 `// FIXME: Check header validation` 이 붙어 있다. **뒤이은 `hasAmountOfData(contentSize)` 가 실제 잔량으로 다시 막으므로 그 자체가 오버플로는 아니다** — 과장하지 않는다([code-defects-sdk.md](./code-defects-sdk.md) SDK-12) |
+| **I-7** | **I-6 은 로직 형태 변경이 아니라 동작 변경이다** — 지금 항상 통과하던 검사가 실제로 걸리기 시작한다. 따라서 **축 `X`(XS-4)로 취급**하고, 변환 전에 **잘린 패킷·경계값 케이스**를 먼저 쓴다([phase1 Step 1-G](./phase1-regression-baseline.md) 의 `PacketData` 인벤토리) |
 
 #### Step 3-J. 소켓 HAL 중복 제거
 
@@ -344,8 +348,33 @@ flowchart TB
 | **J-1c** | **`DeviceManager` 의 `domain/` 단위테스트 착수 — J-1b 가 서는 즉시.** 명령 조립·응답 파싱·모델별 `InstructionSet` 분기 선택을, 실소켓·1-B mock 서버 없이 검증한다. [phase1 G-3](./phase1-regression-baseline.md) "재개방" 표를 실행하는 항목 |
 | J-2 | Android ∩ iOS 전용 58줄(110 − 52)을 POSIX 공통으로. `i_socket_port.h`(J-1a) 는 유지 |
 | J-3 | Windows 는 **WinSock 초기화·핸들 타입·에러 코드 변환만** 플랫폼 구현에 남긴다 |
-| J-4 | **iOS 가 240줄로 가장 크다** — Android 에 없는 60줄이 무엇인지 먼저 확인한다. iOS 고유 요구(백그라운드 진입·`SO_NOSIGPIPE` 등)일 수도, 표류일 수도 있다 |
+| J-4 | **iOS 가 240줄로 가장 크다 — 답이 나왔다(2026-08-02).** 그 초과분의 핵심은 iOS 고유 요구도 표류도 아니라 **혼자만 제대로 구현된 논블로킹 connect 완료 확인**이다(아래 §J-6). **정본은 iOS 다** |
+| **J-6** | **정본 선정이 J-1 보다 먼저다** — 아래 표대로 결함이 벌마다 다르게 남아 있어, 공통 추출을 먼저 하면 **어느 벌의 동작을 3플랫폼에 퍼뜨릴지 모른 채** 합치게 된다 |
 | J-5 | 이 작업은 [Phase 4](./phase4-render-boundary.md) 의 `platform/` 통합과 **같은 방향**이다. 4-A 가 렌더 서피스로 같은 일을 할 때 이 구조를 재사용한다 |
+
+##### J-6 근거 — 중복이 아니라 **다른 동작**이다
+
+`[실측 2026-08-02]` 이 항목의 논거가 바뀐다. 지금까지는 *"같은 코드가 3벌"* 이라는 **유지비** 논거였는데, 실제로 읽어 보니 **같은 결함이 벌마다 다르게 고쳐져 있다** — 즉 세 플랫폼의 **동작이 다르다**([code-defects-sdk.md §3.2](./code-defects-sdk.md) SDK-10).
+
+| 결함 | Android | iOS | Windows |
+|---|---|---|---|
+| **논블로킹 connect 완료 미확인** — `select()` 의 **타임아웃 반환(0)** 이 `else` 로 떨어져 `EISCONN` 이 된다. 타임아웃이 `tv{0,10}` = **10µs** 라 첫 select 가 곧바로 0 을 반환 → **connect 가 사실상 항상 SUCCESS**. `SO_ERROR` 를 읽지 않는다 | **있음** `:103-112` | **없음** — 2초 타임아웃·시도 10회·`errorfds` 검사 `:120-145` | **있음** `:128-137` |
+| `EWOULDBLOCK` 에서 `continue` — 백오프 없는 무한 재시도, `isListening` 미확인 | 있음 `:245` | 있음 `:306` | 있음 `:243` |
+| 부분 전송 재귀 `sendPacket()` **반환값 폐기 후 무조건 `SUCCESS`** | 있음 `:185` | 있음 `:246` | 있음 `:199` |
+| `writeBuffer()` 반환값 폐기 — 링버퍼 쓰기 실패가 **수신 성공으로 보고** | 있음 `:221` | 있음 `:282` | 있음 `:232` |
+| 수신마다 hex 덤프 로그(성능) | 있음 `:225-236` | 있음 `:286-297` | **제거됨** `:229` |
+
+**두 방향으로 갈렸다.** 성능 문제는 **Windows 만** 고쳤고(`// 매 recv마다 로그 → 성능 저하 원인, 제거`), 연결 정확성은 **iOS 만** 고쳤다. 각자 자기 플랫폼만 손댄 결과다.
+
+**따라서 J-6 을 J-1 앞에 둔다.**
+
+| # | 작업 |
+|---|---|
+| J-6a | **행별로 정본을 명시**한다 — 연결 완료 확인 = **iOS**, 로그 정책 = **Windows**, 나머지 3행은 **세 벌 다 결함**이라 새로 쓴다 |
+| J-6b | 3행(무한 재시도·부분전송 SUCCESS·`writeBuffer` 무시)은 **공통 유틸로 올릴 때 함께 고친다** — 어차피 한 벌이 되므로 따로 3번 고칠 이유가 없다 |
+| J-6c | **판정은 1-B mock 장치 서버**다 — 연결 실패·부분 전송·수신 버퍼 포화를 mock 이 만들 수 있어야 하고, 그것이 [plan.md §3.2](./plan.md) 가 3-J 에 요구한 *"연결·송수신·오류 경로 케이스"* 의 구체 내용이다 |
+
+> **이것이 이 phase 의 성격을 하나 바꾼다.** 3-J 는 §1.5 가 분류한 *"파일/함수 단위 내부 정리"* — 즉 **동작 보존** 항목이었다. **연결 정확성 행은 동작이 바뀐다.** 그 부분은 축 `X`(결함 수정)로 취급하고, [plan.md §8](./plan.md) 의 "mechanical move" 주장에서 **명시적으로 제외**한다.
 
 ### 2.3 교차 항목 (3-K)
 
