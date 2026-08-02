@@ -259,7 +259,7 @@ flowchart LR
 | 3.6 | **회귀 검출** | 헤더에 심볼 1개 추가 후 바인딩 미갱신 | **CI 가 실패해야 한다** |
 | 3.7 | 〃 | 바인딩 심볼 1개를 대소문자만 바꿔 재도입 | **CI 가 실패해야 한다** |
 | 3.8 | **모듈 로드 은폐** | 정본 wrapper 소비 코드 grep | `libEGL`·`libGLESv2`·개별 모듈 DLL 이름 **0건** |
-| 3.9 | **Python 헤드리스** | 창 없이 연결→스캔→프레임 획득 | 통과 ([../rendering-boundary.md §7](../rendering-boundary.md) 판정 시험 ②) |
+| 3.9 | Python 코어(연기분) | 창 없이 연결→스캔→프레임 획득 | 통과. **판정 시험 ②(창 없이)의 주체는 CI 다** ([../rendering-boundary.md §7 ⚑](../rendering-boundary.md)) |
 | 3.10 | Flutter 배관 소멸 | 앱 측 `hwnd` grep | **0** (현재 116) · `flutter_native_view` 의존 제거 |
 | 3.11 | 죽은 바인딩 | `sn_*`·`imageRendererPrepare` 계열 | `wrapper/` 아래 **0건** |
 | 3.12 | 표시 컴포넌트 | 각 언어 최소 사용례 | **한 줄**로 스캔 화면이 뜬다 |
@@ -320,7 +320,7 @@ flowchart TB
 |---|---|
 | **[Phase 6](./phase6-samples-support.md) 이 성립한다** | 샘플은 wrapper 의 사용례다. 정본이 없으면 샘플이 어느 벌을 쓰는지 물을 수 없다 |
 | **[../goal.md B2](../goal.md) 8구성 중 "언어별 wrapper" 가 채워진다** | 지금 배포 산출물 0벌 |
-| **[../rendering-boundary.md §7](../rendering-boundary.md) 판정 시험 ②가 통과 가능해진다** | Python 에서 창 없이 동작 — Phase 4 가 경로를 만들고 5-D 가 소비 수단을 만든다 |
+| **[../rendering-boundary.md §7](../rendering-boundary.md) 판정 시험 ②가 통과 가능해진다** | **창 없이 동작** — Phase 4 가 경로를 만들고 5-D 가 소비 수단을 만든다. 드라이버 언어는 무관하다 |
 | **앱 측 배관 1,273 + 901 + 116 LOC 의 회수 경로가 열린다** | [../rendering-boundary.md §5.3·§7.4](../rendering-boundary.md). 다만 **회수 자체는 [Phase 8](./phase8-app-migration.md) 소관**이며 이 phase 는 대체물을 낼 뿐이다 |
 | **다시 갈라지지 않는다** | 3.6·3.7 게이트. 27벌 표류의 원인이 이 장치의 부재였다 |
 

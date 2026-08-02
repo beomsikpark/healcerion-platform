@@ -478,7 +478,7 @@ flowchart LR
 | 6b | **공개 헤더 컴파일** | `sdk/include/*.h` 전부 단독 컴파일 통과 | **62개 중 36개 실패**(28 = 표준 include 누락) |
 | 7 | C ABI 순수성 | `extern "C"` 경계에 C++ 클래스 포인터 반환 0건 | **28건**(`hc_create*Instance` 6모듈 포함) |
 | 7b | **빈 API 부재** | 공개 API 중 `return SUCCESS; // TODO` 껍데기 0건 | `startFirmwareUpdate`·`cancelFirmwareUpdate` 확인 |
-| 8 | **렌더 경계** | SDK 단독 샘플이 ADK 없이 빌드 + Python 이 창 없이 동작 | 둘 다 불가 |
+| 8 | **렌더 경계** | SDK 단독 샘플이 ADK 없이 빌드 + **창 없이 동작**(드라이버 언어 무관) | 둘 다 불가 |
 | 9 | wrapper 정본 | `wrapper/` 아래 1차 4언어 각 1벌 | 27벌 산개, Python 0 |
 | 10 | **샘플 커버리지** | 1차 4언어(C++·C#·Python·Flutter) 각 `sample/` 아래 1벌(SDK+ADK 섹션) | **C++·Python 0**, C#·Flutter 는 앱/샘플 안에 흩어짐 |
 | 11 | 바인딩 정합성 | 앱이 부르는 심볼 중 구현 부재 0건 | **29 / 108 부재**(코어 기준 31). 앱 호출의 **82%가 공개 헤더 밖** |

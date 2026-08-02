@@ -311,13 +311,13 @@ flowchart TB
 | C# | `SonexScanControl` (WPF UserControl) | |
 | JNI/Java | `SonexScanView` (Android View) | |
 | ObjC++/Swift | `SonexScanView` (UIView) | |
-| **Python** | **코어는 없음** — 프레임을 배열로 반환. GUI 는 **선택 패키지**(PySide6) | §7 판정 시험 ②의 근거 |
+| **Python** | **코어는 Qt 무의존** — 프레임을 배열로 반환. GUI 는 **선택 패키지**(PySide6) | 검증·자동화 쓰임에 맞춘 분리 |
 
 **C++ 에 Qt6 를 고르는 이유** — ① `moana` 가 Qt/QML 앱이라 **사내 Qt 경험이 남는다**(앱은 폐기해도 역량은 재사용) ② Qt6 LGPLv3 동적 링크로 **라이선스 비용 0** ③ 데스크톱 3종을 하나로 커버 ④ 텍스처 통합 경로가 이미 있다.
 
 > **Linux 가 1순위다** — 주 개발 PC 로 확정됐고([r1/plan.md §0.1](r1/plan.md)) `OS_LINUX` 분기와 `platforms/linux` 가 [r1 Phase 0-G·0-L](r1/phase0-build-reproducibility.md) 에 들어갔다. 이전 판의 *"SDK core 가 Linux 를 지원하지 않아 Windows·macOS 로 시작"* 은 **범위 변경 전 서술**이다. Windows·macOS 는 포팅 검증 시점에 확인한다.
 
-**Python 은 코어와 GUI 를 나눈다** — `[실측]` 이 코드베이스에서 Python 의 쓰임은 **검증·자동화**다(`verify_v21_byte.py` 가 SDK 출력을 numpy 로 바이트 비교, [gap.md §7.2](gap.md) 계열). 화면이 없으므로 코어에 Qt 를 강제하면 CI·헤드리스에서 부담만 되고 **§7 판정 시험 ②도 무의미해진다.**
+**Python 은 코어와 GUI 를 나눈다** — `[실측]` 이 코드베이스에서 Python 의 쓰임은 **검증·자동화**다(`verify_v21_byte.py` 가 SDK 출력을 numpy 로 바이트 비교, [gap.md §7.2](gap.md) 계열). **창을 못 만들어서가 아니라 그 쓰임에서 창이 필요 없기 때문**이고(§7 ⚑), 코어에 Qt 를 강제하면 CI·헤드리스에서 부담만 된다. GUI 가 필요한 고객사는 `sonex[qt]`(PySide6)를 쓴다.
 
 | 패키지 | 내용 | 대상 |
 |---|---|---|

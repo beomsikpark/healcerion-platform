@@ -73,7 +73,7 @@
 ### 1.5 목적
 
 1. 샘플을 `sample/` 아래 **언어당 1벌**(SDK 섹션 + ADK 섹션)로 모으고, **배포 패키지 기준으로 빌드**되게 한다
-2. C++·Python 두 백지를 채운다 — Python 코어 샘플은 **[Phase 4](./phase4-render-boundary.md) 판정 시험 ②를 겸한다**
+2. C++·Python 두 백지를 채운다 — **판정 시험 ②(창 없이 동작)는 CI 헤드리스 하니스가 맡는다**([Phase 4 §3.2](./phase4-render-boundary.md)). Python 샘플이 그것을 겸하던 구도는 해소됐다
 3. 지원 매트릭스(모델 × 펌웨어 × 플랫폼)를 선언하고 미지원 조합에 **명시 오류**를 반환한다
 4. 지원 경계 3건(음향출력 표시 책임 · 펌웨어 업그레이드 범위 · CVIE 적용 범위)을 명시한다
 
@@ -138,11 +138,11 @@ error: expected unqualified-id before '[' token                  // uint32_t[10]
 | # | 작업 |
 |---|---|
 | C-1 | **코어 패키지 `sonex`** — **Qt 의존 없음**, 프레임을 배열로 반환. 대상은 검증·자동화·연구·CI |
-| C-2 | **C-1 의 샘플 스크립트가 곧 [Phase 4](./phase4-render-boundary.md) 판정 시험 ②** — *"Python 에서 SDK 가 창 없이 동작한다"*. **같은 코드가 겸하며 별도 시험 코드를 만들지 않는다** |
+| C-2 | C-1 의 샘플 스크립트는 **CI 헤드리스 하니스와 같은 시나리오**를 쓴다([Phase 4 §3.2](./phase4-render-boundary.md)). **판정 주체는 CI 이고 이 샘플은 사용례다** — 이전 판이 둘을 하나로 묶었던 것을 가른다 |
 | C-3 | **선택 패키지 `sonex[qt]`** — PySide6 `SonexScanWidget`. **PyQt6 는 GPLv3 이라 배제**하고 PySide6(Qt Company 공식, LGPLv3)를 쓴다 |
 | C-4 | 두 벌의 시나리오 문서 — 코어는 GUI 없이 연결→스캔→프레임 획득, `[qt]` 는 위젯 표시까지 |
 
-> **코어에 Qt 를 넣지 않는 이유는 이 코드베이스의 Python 실사용이 증거다** `[실측]`. 존재하는 Python 은 `sonex-app/test/HNS_v1/verify_v21_byte.py`·`verify_v21_full.py`(SDK 출력을 numpy 로 바이트 비교) · 프레임워크 `build_device_manager.py` · `ai_models/.../convert_pytorch_to_{coreml,onnx_opencv}.py` 3벌 · `SDK_Sample_iOS/add_{cvie64,resources}.py`(Xcode 프로젝트 조작)이다. **GUI 를 띄우는 Python 은 한 벌도 없다.** 코어에 Qt 를 강제하면 CI·헤드리스에서 부담만 되고 판정 시험 ②도 무의미해진다.
+> **코어에 Qt 를 넣지 않는 이유는 이 코드베이스의 Python 실사용이 증거다** `[실측]`. 존재하는 Python 은 `sonex-app/test/HNS_v1/verify_v21_byte.py`·`verify_v21_full.py`(SDK 출력을 numpy 로 바이트 비교) · 프레임워크 `build_device_manager.py` · `ai_models/.../convert_pytorch_to_{coreml,onnx_opencv}.py` 3벌 · `SDK_Sample_iOS/add_{cvie64,resources}.py`(Xcode 프로젝트 조작)이다. **GUI 를 띄우는 Python 은 한 벌도 없다** — 못 만들어서가 아니라 그 쓰임이 아니어서다. 코어에 Qt 를 강제하면 CI·헤드리스에서 부담만 된다.
 
 ### Step 6-D. Flutter 샘플 — 별도 신규 작성 없음
 
@@ -256,7 +256,7 @@ SDK 와 ADK 는 **한 패키지로 배포**하고 고객사가 사용 시점에 
 | 3.2 | **배포 패키지 빌드** | 깨끗한 머신에서 **배포 아카이브만** 풀어 각 샘플 빌드 | 성공. 소스 트리 경로 참조 **0건** |
 | 3.3 | `SDK-only` 구성 | ADK 라이브러리 미링크 빌드 | 통과 (게이트 활성화는 Phase 3-K) |
 | 3.4 | 시나리오 커버리지 | SDK 섹션 4단계 · ADK 섹션 4단계 | 전 언어 샘플에 존재 |
-| 3.5 | **Python 헤드리스** | 창 없이 프레임 획득 | 통과. **[Phase 4](./phase4-render-boundary.md) 판정 시험 ②와 동일** |
+| 3.5 | Python 코어 샘플 | 창 없이 프레임 획득 | 통과. **판정 주체는 CI 헤드리스 하니스**([Phase 4 §3.2](./phase4-render-boundary.md))이고 이것은 사용례다 |
 | 3.6 | 프레임워크 소스 사본 | `sample/` 아래 `HCSonexFramework.cpp`·복사 헤더 | **0파일** (현재 731 LOC + 222헤더) |
 | 3.7 | 지원 매트릭스 | 패키지 안 문서 | 모델문자열 6 × 펌웨어 3 × 플랫폼 4 표 존재 |
 | 3.8 | **미지원 조합** | mock 서버(1-B)가 미지원 모델·구펌웨어 응답 | **명시 오류 코드**. `SUCCESS` 아님 |
@@ -303,7 +303,7 @@ flowchart LR
 
 [goal.md B5](../goal.md) 판정 3개(배포 패키지 빌드 · 대표 시나리오 · `SDK-only` CI)와 [B6](../goal.md) 판정(매트릭스 + 미지원 조합 동작 정의)이 여기서 닫힌다.
 
-**그리고 6-C 의 코어 샘플이 [Phase 4](./phase4-render-boundary.md) 판정 시험 ②를 겸하므로, Phase 4 의 성공 판정이 이 phase 에서 실증된다** — 렌더 경계가 실제로 언어 독립인지는 "Python 이 창 없이 프레임을 받는가" 한 줄로 갈리고, 그 코드가 곧 샘플이다.
+**렌더 경계가 실제로 섰는지는 "창 없이 프레임을 받는가" 한 줄로 갈린다.** 그 판정은 [Phase 4 §3.2](./phase4-render-boundary.md) 의 CI 헤드리스 하니스가 맡고, 이 phase 의 샘플은 **같은 경로를 고객 관점에서 보여 주는 사용례**다 — 판정과 사용례를 하나로 묶으면 샘플이 밀릴 때 판정도 함께 밀린다.
 
 이 phase 뒤 r1 에 남는 것은 [Phase 7](./plan.md) 하나이며, 그 착수 조건(실장비 회귀 시나리오)은 이 저장소 밖에 있다. **F-2 의 경계 문서가 그 자리를 대신하는 동안 고객사는 무엇이 되고 무엇이 안 되는지를 알게 된다** — 지금은 그것조차 선언돼 있지 않다.
 
@@ -317,5 +317,5 @@ flowchart LR
 - [../rendering-boundary.md §3.2·§7.5](../rendering-boundary.md) — MI/TI 분담 근거 · 펌웨어 프로토콜 이관 보류 근거
 - [../../review/sonex-framework.md §2.3·§5·§6.2·§6.3·§8.2](../../review/sonex-framework.md) — Linux 미지원 · 장치 통신 · ADK 의 장비 직접 접촉 · 펌웨어 업그레이드 계열별 경계 · CVIE
 - [../gap.md §4.5·§7.2·§8.1](../gap.md) — 펌웨어 비대칭 · 공개 헤더 27/54 · 기밀 표기 제외 대상
-- [./phase4-render-boundary.md](./phase4-render-boundary.md) — 판정 시험 ②를 6-C 가 겸한다
+- [./phase4-render-boundary.md](./phase4-render-boundary.md) — 판정 시험 ②(CI 헤드리스). 6-C 는 같은 경로의 사용례다
 - [./phase5-language-wrappers.md](./phase5-language-wrappers.md) — 선행. `sample/` 과 `wrapper/` 는 다른 것이다(계약 vs 사용례)
