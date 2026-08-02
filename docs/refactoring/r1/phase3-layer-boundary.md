@@ -1,11 +1,49 @@
 # Phase 3 — SDK/ADK 경계 정리·내부 구조 정리 (B3)
 
-> **상태**: 미시작
+> **상태**: 진행 중 — **3-C·3-F·3-G 의 판정 장치 완료**(2026-08-02, 커밋 `b8dc55bf`·`ce121c4a`·`b83869f5`). 게이트 3종이 CI 에 올랐고 실측이 계획을 크게 바꿨다(§실측 2026-08-02). 코드 이동(3-A·3-B·3-D·3-E·3-H·3-I·3-J·3-K)은 미시작
 > **범위**: `sonex-framework` 의 **계층 경계 이탈 정리**(3-A~3-G) + **파일·함수 단위 내부 정리**(3-H~3-J) + **Phase 2 가 만든 게이트 활성화**(3-K). **모듈의 계층 배치는 바꾸지 않는다** — 배치 판정은 [rendering-boundary.md §7.5](../rendering-boundary.md) 가 이미 "현행 유지"로 끝냈다.
 > **선행**: [Phase 2](./phase2-release-packaging.md) — 특히 2-G(`SDK-only` 빌드 구성)가 있어야 3-K 를 켤 수 있고, [Phase 1](./phase1-regression-baseline.md) 회귀 하니스가 있어야 3-H~3-J 를 판정할 수 있다
 > **후행**: [Phase 4](./phase4-render-boundary.md) — 4-A(렌더 서피스 HAL)는 3-F(공개 헤더 정본)가 선 뒤에야 계약을 바꿀 자리가 생긴다
 > **근거**: [plan.md §4 Phase 3](./plan.md) · [gap.md §4·§7](../gap.md) · [../../review/sonex-framework.md §2·§3·§10](../../review/sonex-framework.md)
 > **실측 기준**: `master` `f336e25b` = 로컬 HEAD == `origin/master`. 이 문서의 `[실측 2026-07-30]` 표기는 이 커밋에서 직접 측정한 값이다.
+
+---
+
+## 실측 (2026-08-02) — 판정 장치를 먼저 세우고 재니 세 항목이 다르게 보인다
+
+Phase 0~2 로 **빌드·테스트·게이트가 서고 나서** 3-C·3-F·3-G 를 실제로 측정했다. 셋 다 계획의 수치와 어긋난다.
+
+### 3-C — ODR 위반이 1건이 아니라 **6건**이다
+
+계획은 `HC::ResultCode` 하나를 지목했다. 전 헤더를 훑으니 **같은 이름이 다른 뜻을 갖는 enum 이 6개**다. 전부 `namespace HC` 안이라 **ODR 위반**이고, 어느 헤더를 include 한 번역 단위냐에 따라 같은 정수가 다른 뜻이 된다 — **컴파일도 링크도 통과한다.**
+
+| enum | 충돌 | 실질 결과 |
+|---|---|---|
+| **`HC::ResultCode`** | `1` = `NOT_CONNECTED`(ADK iOS) vs `PROGRESSING`(SDK) | **"연결 안 됨"이 "진행 중"으로 읽힌다** |
+| **`HC::ScanMode`** | `3` = `SCAN_MODE_PD` vs `SCAN_MODE_PW` | **파워도플러와 펄스파가 뒤바뀐다** |
+| **`HC::LogType`** | `0` = `USER_ACTIVITY` vs `LOG_TYPE_DEBUG` | 사본 **3벌**이 어긋난다. 로그 심각도가 잘못 읽힌다 |
+| **`HC::Error`** | `2` = `NotSupported` vs `FileIo` · `3`·`4` 도 어긋남 | **기록 파일 reader 와 writer 가 서로 다른 오류표를 쓴다** |
+| `HC::StreamMode` · `HC::BackupFileReaderError` | 멤버 집합 자체가 다름 | |
+
+**값 집합이 같은 사본은 결함이 아니다** — 중복일 뿐 뜻이 갈리지 않는다. 그런 것이 **11건** 더 있고 warning 으로 분리했다. 이 구분이 없으면 게이트가 사본 정리(3-F)와 뜻 충돌(3-C)을 뭉뚱그린다.
+
+게이트 = `scripts/check-duplicate-enums.py`(래칫). 6건은 iOS 코드가 섞여 있어 여기서 빌드로 판정할 수 없으므로 **새 충돌만 error 로 막는다.**
+
+### 3-F — 공개 헤더 자립률이 **111/120** 이다
+
+계획의 *"62개 중 36개 실패"* 보다 나은 출발점이었고(Phase 0-L·0-M 이 이미 일부를 고쳤다), 이번에 **98 → 111** 로 올렸다. 결손 21건은 `<cstdint>` 13 · `<list>`·`<cmath>`·`HCString.h`·`HCCommon.h` 각 1 · **배열 선언 문법 오류 6**(`uint32_t[10] multiFocalTable;` — C++ 문법이 아니다).
+
+> **남은 9건 중 6건이 한 원인이고 무겁다** — `sdk/include/objects/HCScanMCursor.h` 가 **공개 트리에 없다.** `HCImageRenderCore.h:22` 가 그것을 include 하므로 **`HCSonexSDK.h` 를 비롯한 6개가 깨진다. 즉 SDK 의 주 진입점이 고객사에서 컴파일되지 않는다.**
+>
+> **복사로 고치지 않았다.** `sdk/include/objects/` 의 15개 사본이 `sdk/sdk/ImageRenderer/shared/objects/` 원본과 **이미 전부 갈라져 있다**(md5 상이). 어느 쪽을 공개 계약으로 낼지가 3-F 의 본체이고, 추측으로 한쪽을 고르면 그 결정이 근거 없이 굳는다.
+
+### 3-G — **통합이 무손실이다**
+
+`HCRequestCommands.h` 3벌의 상수가 **175 / 119 / 81** 로 다르다. 그러나 **사본 간 "같은 이름·다른 값" 이 0건**이다. `protocol-sot` 전수 대조에서 무손실 통합의 근거였던 것과 같은 판정이고 같은 방법으로 얻었다.
+
+**따라서 3-G 는 값을 조정하는 일이 아니라 노출 범위를 정하는 일로 좁혀진다** — `include` 벌 175 가 상위집합이고 나머지는 부분집합이다.
+
+> `_BASE`·`_MAX` 같은 범위 표지는 구간 처음/끝 명령과 값이 같은 것이 정상이라 충돌 검사에서 뺐다. 안 빼면 오탐이 난다(실제로 났다).
 
 ---
 
