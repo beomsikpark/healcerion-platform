@@ -1,5 +1,34 @@
 # `sonex-framework` 렌더 경계 리팩토링 — r1 Plan
 
+> ## 실행 현황 `[2026-08-02]`
+>
+> **작업 사본 `client/sonex-framework` 브랜치 `refactor/r1` 에 커밋 39건.** 아래는 실행으로 확인된 것만 적는다.
+>
+> | Phase | 상태 |
+> |---|---|
+> | **0** | **0-A**(Android·iOS ANGLE gn 빌드)·**0-F(F-4)** 를 빼고 완료 |
+> | **1** | **완료** — 남은 것은 1-F(상시)·1-H(실장비 접근 선행) |
+> | **2** | **2-A~2-G 완료.** 남은 것은 2-H(게시 대상 — 인프라 결정 선행) |
+> | **3** | **3-C·3-E·3-F·3-G·3-I 의 실측·판정장치 완료.** 코드 이동은 미시작 |
+> | **4** | **4-A(A-1·A-1a)·4-D 완료, A-2 착수.** A-3(코어에서 EGL 제거)이 남은 본체 |
+> | 5·6·7·8 | 미시작 |
+>
+> **없던 것이 생겼다.**
+>
+> | | 착수 전 | 지금 |
+> |---|---|---|
+> | 빌드 | 어느 플랫폼도 서지 않음 | **Linux SDK 8모듈**(`hc_*` 57심볼) · **Android 2모듈** · 단일 진입점 `make build` |
+> | 테스트 | 실질 1파일(standalone `main`) | **101건**, `ctest` 개별 판정 |
+> | CI | 저장소 31건 전부 0 | 3잡(게이트·Linux 매트릭스·Android) |
+> | 헤드리스 렌더 | 경로 자체가 없음 | surfaceless EGL + FBO, 결정론 확인 |
+> | 패키지 | 없음 | `make package` → 아카이브 + sha256 + 커밋 역추적 |
+> | 게이트 | 없음 | **10종** |
+>
+> **고친 실결함**(전부 케이스로 재현 후 수정): `putFloat` 이 float 을 1바이트로 씀 · 닫힌 포트에 SUCCESS 반환 · `RingBuffer::at` 음수 인덱스 행(hang) · `getFloat/getDouble` 경계 언더플로 · 널 소켓 역참조 · `String::formatted` 인코딩 실패 시 크래시 · `indexOf` 가 `caseSensitive` 무시 · `ImageRenderCore` 의 `fontLoader` 미초기화 · EGL 플랫폼 분기 누락 2곳 · 자립 컴파일 결손 30여 건.
+>
+> **계획을 바꾼 실측**: [Phase 3 §실측](./phase3-layer-boundary.md)(ODR 위반 1→6건 · `HCSonexSDK.h` 가 컴파일되지 않음 · 요청코드 통합이 무손실 · 3-E 표면이 Windows·Android 뿐) · [Phase 4 A-2](./phase4-render-boundary.md)(분기 목록이 세 곳에 흩어져 하나만 고치면 죽는다) · [Phase 0 §1.10](./phase0-build-reproducibility.md)(Android 을 막은 것은 서드파티가 아니라 빌드 스크립트) · [Phase 1 1-B](./phase1-regression-baseline.md)(장치 에뮬레이터를 빼고 코덱·에코로 가름).
+
+
 > **범위**: 지금은 `client/legacy/sonex-framework`(read-only 미러) 기준. **Phase 0-0(저장소 재배치) 이후는 `client/sonex-framework` 작업 사본**이 대상이다(SDK+ADK). **`sonex-app`(Dart) 이관은 [Phase 8](./phase8-app-migration.md)** 로 이 문서 범위 안에 들어온다 — 별도 저장소(`client/legacy/sonex-app`)라 Phase 8 자체의 저장소 재배치(8-0)를 갖는다.
 > **목표**: [rendering-boundary.md](../rendering-boundary.md) 의 목표 경계(§7)를 실제 코드 구조로 만든다.
 > **원칙**: 상위 [plan.md](../plan.md) 의 "검증할 수 없는 것은 고칠 수 없다"를 그대로 따른다. 이 저장소는 **CI 0건·실질 단위테스트 1파일**([../../review/sonex-framework.md §9](../../review/sonex-framework.md))이라 구조를 바꾸기 전에 회귀 판정 기준선부터 세운다 — **빌드·테스트·배포 자동화 보강이 렌더 경계 작업보다 먼저 온다.**
