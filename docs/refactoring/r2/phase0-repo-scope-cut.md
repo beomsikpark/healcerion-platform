@@ -41,7 +41,7 @@ framework/framework.pro:42-43   (동일)
 |---|---:|---|
 | `InitCapabilityTable_*` — **300C·300L·300MC·300PA·300VC·310C·500L·FUJI_L43K 8종** | `Model.cpp` 16곳 · `Model.h` 8곳 | **전부 제거.** 모델 capability 는 SDK 소관이다([plan.md §1.6](./plan.md)) |
 | `app/Sources/Ambulance/` + `framework/Ambulance/` | **27 + 12 = 39파일**(14,906 LOC) | **제거** — 러시아 EMS 전용, 대상 제품과 무관 |
-| `app/Sources/Test/` | 2파일 | **제거** |
+| `app/Sources/Test/` | 2파일 = **`AgingTestController` 552줄** | **보류 — 제거하지 않는다.** 범위 밖 기능이 아니라 **자동화 자산**이다([plan.md §2.5.4](./plan.md)). 재사용 판정은 [Phase 1 E-2](./phase1-render-composition.md) |
 | `HC_CVIE_SUPPORT` | **85곳 / 14파일** | **제거 대상** — CVIE 는 ContextVision **상용**이라 라이선스 조건에 걸린다([plan.md §0.4](./plan.md)). 대체 구현이 이미 출하 코드에 있으나 **화질 등가성이 미검증**이라 실행·판정은 [Phase 5 B](./phase5-measure-controls.md) 소관이다. 이 phase 에서는 **건드리지 않는다** |
 | `ENABLE_IMAGE_ANALYZER`(QCustomPlot GPLv3) | 2곳 / 2파일 | **제거** — 정비용 토글이고 기본 비활성이다([../legacy/moana-vs-sonex.md §1.1](../legacy/moana-vs-sonex.md)). 릴리스에서 빼면 GPL 의무가 발동하지 않는다 |
 | `HC_SONON_500L` | **563곳 / 85파일** | **분류 선행**(§1.2). 일괄 처리 금지 |
@@ -87,7 +87,7 @@ framework/framework.pro:42-43   (동일)
 | # | 작업 |
 |---|---|
 | B-1 | `app/Sources/Ambulance/`(27) + `framework/Ambulance/`(12) 제거 — 14,906 LOC |
-| B-2 | `app/Sources/Test/`(2) 제거 |
+| B-2 | **`app/Sources/Test/` 는 제거하지 않는다** — `AgingTestController`(552줄)가 자동화 자산이다([plan.md §2.5.4](./plan.md)). `DummyPlayer`(275)·`ScanAutoTestController`(267)와 함께 [Phase 1 E-2](./phase1-render-composition.md) 에서 재사용 판정 |
 | B-3 | `ENABLE_IMAGE_ANALYZER` 경로 제거 — 래퍼 `CCustomPlotItem` + QML 인스턴스 2곳(`Desktop/ImageAnalyzerView.qml:70,394`). **QCustomPlot(GPLv3) 의존이 함께 사라진다** |
 | B-4 | 제거 후 `.pro` 의 대응 항목·`INCLUDEPATH` 정리 |
 
@@ -119,6 +119,7 @@ framework/framework.pro:42-43   (동일)
 | 3.1 | **빌드 가능** | 절단 후 `moana` 가 그대로 빌드된다 | 성공. **이 phase 는 동작을 바꾸지 않는다** |
 | 3.2 | 모델 분기 | `grep -c InitCapabilityTable_` | **0건**(현재 24) |
 | 3.3 | Ambulance | `app/Sources/Ambulance`·`framework/Ambulance` | **부재** |
+| 3.3b | **자동화 자산 보존** | `DummyPlayer`·`ScanAutoTestController`·`AgingTestController` | **전부 존재**(제거 금지) |
 | 3.4 | QCustomPlot | `ENABLE_IMAGE_ANALYZER`·`CCustomPlotItem` | **0건** |
 | 3.5 | `HC_SONON_500L` | 잔존 수 | **줄어들되 0 은 아니다** — ①이 남는다. **분류 결과를 문서로 남긴다** |
 | 3.6 | 500P 경로 보존 | `SononDeviceInfo.h`·`BluetoothController.cpp`·QML 3벌의 500P 참조 | **보존**(제거 금지) |

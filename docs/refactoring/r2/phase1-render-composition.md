@@ -91,6 +91,17 @@ r1 Phase 4 §5 가 목표를 이렇게 적었다 — *"모든 UI 프레임워크
 | D-3 | **플랫폼별로 어느 경로가 쓰이는지 표로 남긴다** — 공유 서피스가 안 되는 조합은 [r1 4-E4](../r1/phase4-render-boundary.md) 대로 자동 폴백되므로, **성립 여부가 아니라 어느 쪽인지**를 기록한다 |
 | D-4 | 저하가 크면 [r1](../r1/plan.md) 에 되돌린다 — **표시 컴포넌트에서 우회하지 않는다** |
 
+### Step 1-E. 회귀 판정 자산 재사용 판정
+
+**[plan.md §2.5](./plan.md) 의 설계를 실물로 잇는다.** 이 phase 가 재생 데이터로 판정하므로 그 부품을 여기서 같이 본다.
+
+| # | 작업 |
+|---|---|
+| E-1 | **`DummyPlayer`(275줄)·`ScanAutoTestController`(267줄)** — `app/` 에 있어 살아남는다. SDK 프레임 경로 위에서 그대로 도는지 확인 |
+| E-2 | **`AgingTestController`(552줄)** — [Phase 0 B-2](./phase0-repo-scope-cut.md) 가 보류로 돌린 자산. 500C/P 에 의미가 있는지, 자동 구동 뼈대로 쓸 수 있는지 판정 |
+| E-3 | **재생 경로가 `framework/Record`·`ScanManager` 에 있다** — 걷어낼 대상이므로 ADK `BackupReadWriter` 로 갈아타야 완전해진다([Phase 4](./phase4-data-layer.md)). 이 phase 에서 기존 경로를 임시로 써도 되나 **그 사실을 기록한다** |
+| E-4 | **[r1 Phase 1-B](../r1/phase1-regression-baseline.md) mock 장치 서버 착수 여부 확인** — [plan.md §2.5.3](./plan.md) 의 배선 판정이 여기 걸린다. **선행 가능 항목이라 r1 진행과 무관하게 지금 만들 수 있다** |
+
 ---
 
 ## 3. 검증
