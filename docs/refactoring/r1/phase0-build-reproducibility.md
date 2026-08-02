@@ -1,6 +1,6 @@
 # Phase 0 — 빌드 재현성 (B1)
 
-> **상태**: 진행 중 — **0-0·0-D·0-E·0-F(F-1·F-3·F-5)·0-G·0-H·0-I(I-1·I-2)·0-J·0-K(K-1·K-2·K-4·K-5)·0-L(L-1·L-2) 완료.** 2026-07-31 커밋 `1911035f`·`01505b66`·`62a2ddd7`·`eae9f14d` · 2026-08-02 커밋 `9ccf8f9b`·`d2d0f006`·`f395c0af`·`938181be`·`19d1880f`·`c389bfdb`. 남은 것 = **0-A·0-B·0-C**(서드파티·ANGLE) · **0-F(F-2·F-4·F-6)**(진입점·문서) · 0-K(K-3·K-6·K-7) · 0-L(L-3~L-6) · 0-M
+> **상태**: **0-B·0-C·0-D·0-E·0-F(F-1·F-2·F-3·F-5·F-6)·0-G·0-H·0-I(I-1·I-2)·0-J·0-K(K-1·K-2·K-4·K-5)·0-L(L-1·L-2) 완료.** 2026-08-02 커밋 `9ccf8f9b`·`d2d0f006`·`f395c0af`·`938181be`·`19d1880f`·`c389bfdb`·`614a2337`·`e942bb32`·`6cc350d1`·`db77cf03`. **남은 것 = 0-A**(Android·iOS ANGLE 자체 빌드) · **0-F(F-4)** · 0-K(K-3·K-6·K-7) · 0-L(L-3~L-6) · 0-M
 > **`[관측 2026-08-02]` Android 와 Linux 가 둘 다 실제로 빌드된다** — Android = §1.10(드라이버 결함 4건 수정 후 통과) · Linux = [0-L](#step-0-l-platformlinux-신설--l-1l-2-완료2026-08-02-c389bfdb)(`#include` 8줄 보강 후 통과). 이 phase 의 최대 미확인("SDK 타깃이 실제로 어디서 막히는지 관측된 적이 없다")이 해소됐고, **두 플랫폼 모두 막은 것은 서드파티가 아니라 빌드 스크립트와 헤더 위생이었다.**
 > **범위**: `sonex-framework`(SDK+ADK)가 **깨끗한 체크아웃에서 문서화된 절차만으로** 빌드되게 한다. 코드 계층·API 계약은 건드리지 않는다 — 이 phase 가 바꾸는 것은 **의존물 확보·경로 선언·빌드 진입점·저장소 위생**뿐이다.
 > **선행**: 없음 (0-0 저장소 재배치가 이 phase 의 첫 항목)
@@ -323,7 +323,7 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 
 즉 비싼 구간이 4개가 아니라 **2개**이고, *"Android·Windows 먼저"* 가 아니라 **주 개발 플랫폼인 Linux 를 vcpkg 로 먼저 세우고 그 위에서 gn 절차를 Android 로 확장**하는 순서가 맞는다. [plan.md §0.1](./plan.md) 의 우선순위와도 일치한다.
 
-### Step 0-B. ANGLE 경로 선언 일원화 — 5곳
+### Step 0-B. ANGLE 경로 선언 일원화 — ✅ B-2·B-5 완료(2026-08-02, `6cc350d1`), **선언은 5곳이 아니라 7곳이었다**
 
 | # | 작업 |
 |---|---|
@@ -331,9 +331,21 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | B-2 | **대소문자 통일 — 소문자.** `android.vcxproj` 의 include 12곳이 `third_party\Angle\include\` 다. `readme.txt` 가 *"Use lower cased folder name"* 을 이미 규약으로 적었으므로 **저장소 안에 정답이 있다** |
 | B-3 | 5곳을 정본 1곳 참조로 교체. `.vcxproj` 는 구성 조합마다 반복되므로 **속성 시트(`.props`)로 빼는 것이 실질**이다 |
 | B-4 | **6번째 선언은 0-E 가 지운다** — `Main/macos/build/…/link.txt` 의 절대경로 ANGLE 참조(§1.3) |
-| B-5 | 대소문자 구분 파일시스템에서 검증 — §3.5 |
+| B-5 | 대소문자 구분 파일시스템에서 검증 — §3.5 | ✅ **게이트로 바꿨다** — `check-absolute-paths.sh` 가 `third_party` 하위 첫 경로요소의 대문자를 잡는다. Windows·macOS 는 대소문자를 무시해 어긋나도 드러나지 않고 **Linux 만 깨진다** |
 
-### Step 0-C. 서드파티 의존성 관리 도입
+#### B-실측. `[2026-08-02]` 선언이 5곳이 아니라 7곳이었다
+
+**게이트를 켜자 문서가 세지 않은 2곳이 드러났다** — 이전 실측이 `.vcxproj`·`CMakeLists.txt` 만 훑었기 때문이다.
+
+| 위치 | 선언 | 문제 |
+|---|---|---|
+| `ImageRenderer/android/android.vcxproj` | `third_party\Angle\include\` **8건** | 대소문자 |
+| `scripts/deploy_android_jnilibs.sh:113` | `third_party/Angle/lib/$ABI` | **문서에 없던 선언** · 대소문자 |
+| `sdk/sdk/build_direct_android.sh:125,142,206` | `third_party/OpenCV-android-sdk/...` | **문서에 없던 선언** · 대소문자 · **경로 모양 자체가 다르다** — vcxproj 14개는 `third_party/opencv/opencv-4.9.0-android-sdk/OpenCV-android-sdk/...` 를 쓴다 |
+
+마지막 항목이 이 Step 의 성격을 보여준다 — **대소문자만의 문제가 아니라 같은 의존물을 두 가지 경로 모양으로 가리키고 있었다.**
+
+### Step 0-C. 서드파티 의존성 관리 도입 — ✅ C-1·C-3·C-4·C-6·C-W 완료(2026-08-02, `e942bb32`)
 
 **§1.4 대로 "경로 모으기"가 아니라 "정본 버전 정하기"가 먼저다.**
 
@@ -345,6 +357,21 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | C-4 | **획득 스크립트를 CI 진입점으로** — `make deps`(가칭). 실패 시 어느 의존물이 왜 없는지 이름으로 보고한다 |
 | C-5 | 자체 소스는 `~7MB`(0.3%)다. `adk/library/` 2,600파일을 매니페스트로 옮기면 **클론 비용이 이 phase 의 부수 효과로 줄어든다** — 다만 이력(`.git` 525MB)은 그대로 남으므로 **저장소 크기 축소는 이 phase 의 목표가 아니다** |
 | **C-6** | **FFmpeg 는 LGPL 전용 구성으로 고정한다**(2026-07-30 결정) — vcpkg `ffmpeg` 포트의 **`gpl` feature 를 켜지 않는다**(기본 비활성 = LGPL 2.1+). x264·x265·xvid 등 GPL 전용 코덱 feature 도 함께 배제한다. 현재 번들(`ffmpeg 4.0.2`·`4.1.4`)이 어떤 구성으로 빌드됐는지는 저장소로 알 수 없으므로([gap.md §8](../gap.md)), vcpkg 전환 전에 **바이너리에서 GPL 전용 심볼(libx264 등) 링크 여부를 먼저 확인**한다 — 있으면 그 번들은 배포 후보에서 제외 |
+
+#### C-실행. `[2026-08-02]` 매니페스트가 실제로 해석된다
+
+`vcpkg.json` 을 만들고 **`vcpkg install --dry-run` 으로 해석을 확인**했다. 실증(C-V)이 "포트가 존재한다" 였다면 이것은 "우리 조합이 풀린다" 다.
+
+| 확인 | 결과 |
+|---|---|
+| `x64-linux` 11종 | **전부 해석** |
+| `arm64-android` | 그래프가 풀린다. **단 `angle` 포트에 Android 분기가 없어 빌드 단계는 별개**(0-A A-실측) |
+| **OpenCV 고정** | `overrides` 로 **4.9.0** — `readme.txt` 선언값이고, 저장소가 3.4.5·3.4.6·4.12.0 으로 갈리던 것이 하나가 된다 |
+| **OpenSSL** | 3.6.0 으로 올라간다. 현행 1.1.1d 는 EOL 이라 선택지가 아니다 |
+| **FFmpeg LGPL(C-6)** | 해석 결과가 `[avcodec,avdevice,avfilter,avformat,core,swresample,swscale]` — **`gpl` 미포함.** 정책이 문서가 아니라 매니페스트로 강제된다 |
+| `wxsqlite3`·`sqlite3mc` | **둘 다 포트 없음**(확인). C-W 의 예외가 확정된다 |
+
+**SOUP 인벤토리는 작업 사본의 `docs/THIRD_PARTY.md` 가 정본**이고, 라이선스는 포트에서 실제로 읽은 값이다(4종은 포트 미선언이라 원본 확인 필요로 표기). **CVE 열은 비워 뒀다** — 저장소 안에서 확인할 수 없고, 근거 없는 표는 "확인했다"로 오독된다.
 
 #### C-V. vcpkg 로 고정한다 — 실증 근거
 
@@ -429,11 +456,11 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | # | 작업 | 상태 |
 |---|---|---|
 | F-1 | **모듈 의존 그래프를 선언한다** — `SonexCommon` → 각 SDK/ADK 모듈. `framework.sln` 에서 의존이 선언되지 않아 병렬 빌드가 순서를 지키지 않는 것이 관측된 실패(줄 225·273·291 vs 358)의 원인이다 | ✅ `framework.sln` 에 의존 간선 **12개 추가**. 게이트 = `scripts/check-project-dependencies.py`. 아래 F-1-실측 |
-| F-2 | **단일 진입점 신설** — `make build PLATFORM=<android\|windows\|ios\|macos>`(가칭). 내부적으로 MSBuild·Xcode·CMake·`ndk-build` 를 호출하되 **외부 계약은 하나**다 | 미시작 |
-| F-3 | `build_all_android.sh` 의 **`Android.mk` 인라인 생성**(`cat > Android.mk << 'EOF'`, `:67,115`)을 파일로 분리. 지금은 생성된 `Android.mk` 가 저장소에 없어 빌드 구성이 셸 안에만 있다 | 미시작 |
+| F-2 | **단일 진입점 신설** — 내부적으로 MSBuild·Xcode·CMake·`ndk-build` 를 호출하되 **외부 계약은 하나**다 | ✅ 루트 `Makefile`. `make build PLATFORM=linux\|android` · **`make check`(게이트 4종을 한 줄로 — CI 가 이것을 부른다)** · `make deps TRIPLET=...` · `make clean`. windows·ios·macos 는 **"아직 연결되지 않았다"를 종료코드와 함께 알린다** — 조용히 아무것도 안 하는 것보다 낫다 |
+| F-3 | `build_all_android.sh` 의 **`Android.mk` 인라인 생성**을 파일로 분리 | ✅ heredoc 4개 제거. `common/android` 쪽 2벌은 **이미 저장소에 있었고 생성분과 byte-identical** 이었고, `DeviceManager/android` 쪽 2벌만 없어서 그것을 커밋했다. **죽은 `build_module()` 도 함께 삭제** — 올바른 플래그가 거기 갇혀 있어 결함이 오래 살아남았다(§1.10) |
 | F-4 | 드라이버 스크립트 **15개를 정리** — 겹치는 것(`build_sdk.bat`·`build_windows_sdk.bat`·`rebuild_sdk_full.bat`)을 진입점 옵션으로 흡수 | 미시작 |
 | F-5 | **NuGet 복원을 빌드 전 스텝으로** — 관측된 `NETSDK1004` 2건은 `Framework_Sample_Windows`·`ADK_Sample_Test`(C# 샘플)에서 났다. 진입점이 복원을 먼저 부르면 사라진다 | ✅ solution 을 부르는 msbuild **4곳 전부**에 `-restore` 추가(`build_adk.bat`·`build_sdk.bat`·`build_windows_sdk.bat`·`rebuild_sdk_full.bat`). 단일 `.vcxproj` 만 부르는 2곳은 NuGet 이 없어 대상 아님 |
-| F-6 | **절차 문서화** — B1 의 판정 문구가 *"문서화된 절차만으로"* 다. 현행 `CLAUDE.md` 의 빌드 절에는 의존물 확보 단계가 없다 | 미시작 |
+| F-6 | **절차 문서화** — B1 의 판정 문구가 *"문서화된 절차만으로"* 다 | ✅ 작업 사본에 **`docs/BUILD.md` 신설**(절차 정본). 값은 넣지 않는다 — `toolchain.json`·`vcpkg.json` 이 값의 정본이고 이 문서는 **부르는 순서**만 적는다. `CLAUDE.md` 빌드 절은 요약 + 링크로 줄였다 |
 
 #### F-1-실측. `[2026-08-02]` 두 solution 이 정반대였다
 
@@ -555,8 +582,8 @@ static_assert(OS_WINDOWS + OS_ANDROID + OS_IOS + OS_MACOS + OS_LINUX == 1, ...);
 | 5 | ✅ **0-F(F-1·F-5)** | 관측된 ADK 실패를 실제로 고치는 것은 여기다(§1.2). **단 실판정은 Windows 머신이 필요하다** — 여기서 한 것은 선언과 정적 게이트까지다 |
 | 6 | ✅ **0-K(K-1·K-2·K-4·K-5)** | **툴체인·sysroot 가 서야 그 위에서 의존물을 빌드한다.** 0-A 의 ANGLE 자체 빌드가 이것을 전제한다. **K-5 는 할 일이 없었고**(오판정), K-3 은 힐세리온 결정, K-6·K-7 은 Linux 빌드(0-G·0-L)와 CI 인프라 선행 |
 | 7 | ✅ **0-G · 0-L(L-1·L-2)** | **Linux 분기와 구현체.** 주 개발 플랫폼이므로([plan.md §0.1](./plan.md)) 이후 단계가 딛고 설 바닥이다. 0-G 는 `HCCommon.h` 사본 통합 뒤에만 안전하다(§1.7). **§1.10 이 이 순서를 뒷받침한다** — Android 가 서드파티 없이 모듈 단위로 도는 것이 확인됐으므로, 같은 방식으로 Linux 를 세우는 것이 0-A·0-C 보다 앞선다 |
-| 8 | **0-C · 0-A · 0-B** ← **다음** | **순서가 바뀐다**(2026-08-02). vcpkg `angle` 포트가 Linux·Windows·macOS 를 덮으므로(0-A A-실측) **의존물 관리를 먼저 들여오고**, gn 자체 빌드는 그것으로 안 되는 Android·iOS 에만 쓴다 |
-| 9 | **0-F(나머지)** | 진입점·문서 마무리 |
+| 8 | ✅ **0-C · 0-B** / **0-A 만 남음** ← **다음** | **순서가 바뀌었다**(2026-08-02). vcpkg `angle` 포트가 Linux·Windows·macOS 를 덮으므로(0-A A-실측) 의존물 관리를 먼저 들였다. **남은 0-A 는 Android·iOS 자체 빌드뿐**이고, 그것이 이 phase 에서 유일하게 남은 큰 항목이다 |
+| 9 | ✅ **0-F(F-2·F-6)** · 남은 것은 **F-4**(드라이버 15개 정리) | 진입점·문서 마무리 |
 
 > **6번이 8번 앞에 오는 이유** — ANGLE 을 어느 NDK·어느 SDK sysroot 로 빌드하느냐가 산출물을 결정한다. 툴체인이 안 정해진 상태에서 빌드하면 **재현 불가능한 바이너리를 또 하나 만드는 것**이고, 그것이 지금 상태다.
 >
