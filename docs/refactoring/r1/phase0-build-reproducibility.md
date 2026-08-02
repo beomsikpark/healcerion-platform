@@ -1,7 +1,7 @@
 # Phase 0 — 빌드 재현성 (B1)
 
-> **상태**: 진행 중 — Step 0-0·0-D·0-E·0-H·0-I(I-1·I-2) 완료(2026-07-31, 커밋 `1911035f`·`01505b66`·`62a2ddd7`·`eae9f14d`) · **0-J 해소·0-F(F-1·F-5)·0-K(K-1·K-2·K-4·K-5) 완료(2026-08-02, 미커밋)**. 나머지(0-A·0-B·0-C·0-F(F-2·F-3·F-4·F-6)·0-G·0-K(K-3·K-6·K-7)·0-L)는 미시작
-> **`[관측 2026-08-02]` Android 빌드가 Linux 개발 PC 에서 처음으로 통과했다** — §1.10. 이 phase 의 최대 미확인("SDK 타깃이 실제로 어디서 막히는지 관측된 적이 없다")이 해소됐고, 막힌 곳은 서드파티도 절대경로도 아니었다.
+> **상태**: 진행 중 — **0-0·0-D·0-E·0-F(F-1·F-3·F-5)·0-G·0-H·0-I(I-1·I-2)·0-J·0-K(K-1·K-2·K-4·K-5)·0-L(L-1·L-2) 완료.** 2026-07-31 커밋 `1911035f`·`01505b66`·`62a2ddd7`·`eae9f14d` · 2026-08-02 커밋 `9ccf8f9b`·`d2d0f006`·`f395c0af`·`938181be`·`19d1880f`·`c389bfdb`. 남은 것 = **0-A·0-B·0-C**(서드파티·ANGLE) · **0-F(F-2·F-4·F-6)**(진입점·문서) · 0-K(K-3·K-6·K-7) · 0-L(L-3~L-6) · 0-M
+> **`[관측 2026-08-02]` Android 와 Linux 가 둘 다 실제로 빌드된다** — Android = §1.10(드라이버 결함 4건 수정 후 통과) · Linux = [0-L](#step-0-l-platformlinux-신설--l-1l-2-완료2026-08-02-c389bfdb)(`#include` 8줄 보강 후 통과). 이 phase 의 최대 미확인("SDK 타깃이 실제로 어디서 막히는지 관측된 적이 없다")이 해소됐고, **두 플랫폼 모두 막은 것은 서드파티가 아니라 빌드 스크립트와 헤더 위생이었다.**
 > **범위**: `sonex-framework`(SDK+ADK)가 **깨끗한 체크아웃에서 문서화된 절차만으로** 빌드되게 한다. 코드 계층·API 계약은 건드리지 않는다 — 이 phase 가 바꾸는 것은 **의존물 확보·경로 선언·빌드 진입점·저장소 위생**뿐이다.
 > **선행**: 없음 (0-0 저장소 재배치가 이 phase 의 첫 항목)
 > **후행**: [Phase 1](./phase1-regression-baseline.md)
@@ -483,19 +483,35 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 
 **어느 쪽이 맞는지는 [0-K](#step-0-k-플랫폼-툴체인sysroot-고정) 의 미결 항목 "Android ABI 확장 여부"가 정한다** — 현재 `APP_ABI := arm64-v8a` 단일이라 x64 갈래는 빌드된 적이 없다. 추측으로 고치지 않고 **warning 으로 드러낸 채 남긴다.**
 
-### Step 0-G. `OS_LINUX` 1급 분기 신설 + `HCCommon.h` 정본화
+### Step 0-G. `OS_LINUX` 1급 분기 신설 + `HCCommon.h` 정본화 — ✅ 완료(2026-08-02, `19d1880f`)
 
 **§1.7 대로 사본 통합이 선행이다. 분기를 먼저 늘리면 4벌에 각각 늘리게 된다.**
 
-| # | 작업 |
+| # | 작업 | 상태 |
+|---|---|---|
+| G-1 | **`HCCommon.h` 4벌 → 1벌.** 정본은 `sdk/include/`(macOS 갈래 보유) | ✅ **"4벌" 이 아니라 "실체 2 + 전달 2" 였다**(`[정정]`). `common/shared`·`SDK_Sample_Android` 사본을 전달 헤더로 바꿨다. **`Android_SampleApp` 의 377바이트 사본은 남긴다** — `ExportLibs` 를 정의하는 **샘플 전용 옛 헤더**이고 SDK 코드가 쓰지 않는다. 같은 이름이라고 함께 합치면 그 샘플이 깨진다 |
+| G-2 | **macOS 갈래의 외부 의존 해소** — `#elif defined(OS_MACOS) && OS_MACOS` 는 `Main/macos/CMakeLists.txt:160` 의 `-DOS_MACOS=1` 이 있어야만 성립한다 | ✅ `TargetConditionals.h` 로 `__APPLE__` 안에서 iOS/macOS 를 가른다. **헤더 안에서 닫힌다** |
+| G-3 | **`#else` + `#error` 추가** — 미정의 플랫폼이 조용히 전부 거짓으로 평가되는 결함([gap.md §5.3](../gap.md))을 컴파일 에러로 바꾼다 | ✅ G-2 뒤에 넣었다. **컴파일로 확인** — 플랫폼 매크로를 전부 지우면 `#error` 로 정지한다 |
+| G-4 | **`OS_LINUX` 1급 분기 추가** — Linux 는 **주 개발 플랫폼**이다([plan.md §0.1](./plan.md)). 이 분기 위에서 CI·[Phase 5](./plan.md) Python wrapper·[Phase 6](./phase6-samples-support.md) Qt6 샘플이 함께 선다 | ✅ 구현체는 [0-L](#step-0-l-platformslinux-신설). **`__ANDROID__` 가 `__linux__` 도 정의하므로 Android 분기를 먼저 둔다** — 순서를 뒤집으면 Android 가 Linux 로 판정된다 |
+| G-5 | **`#else` 에 `#error`** — 분기를 5개로 늘려도 6번째 플랫폼이 같은 함정에 빠질 수 있다 | ✅ G-3 과 같은 항목이었다(중복 번호) |
+| G-7 | `OS_MACOS` 사용처가 통합 후에도 같게 평가되는지 확인 — 특히 `HCImageRenderCore.cpp`(ANGLE 백엔드 선택)와 `HCImageFilter.cpp`(CVIE `#if !OS_MACOS` 게이트) | ✅ **사용처 11파일**(`[정정]`, 이전 판 12). macOS 에서 `-DOS_MACOS=1` → `true`, 비-macOS 에서 `false` 로 이전과 동일하다. **달라지는 경우는 하나뿐** — 비-Apple 플랫폼에 `-DOS_MACOS=1` 을 주입하던 상황이며, 그것을 없애는 것이 G-2 의 목적이다 |
+| G-6 | **Linux 타깃은 이 단계에서 렌더 서피스를 만들지 않는다** — headless(오프스크린) 컨텍스트는 [Phase 1-C·Phase 4-D](./plan.md) 의 **신규 구현**이다. 플랫폼(`linux`)과 서피스 모드(`headless`)는 다른 축이다([plan.md §0.1.1](./plan.md)) | ✅ 0-L 의 CMake 타깃은 `SonexCommon`·`DeviceManager` 만 만든다. GL 을 부르는 모듈은 들어 있지 않다 |
+
+#### G-검증. `[컴파일 확인 2026-08-02]`
+
+**분기를 문서로 주장하지 않고 컴파일러가 판정하게 했다.**
+
+```cpp
+static_assert(OS_WINDOWS + OS_ANDROID + OS_IOS + OS_MACOS + OS_LINUX == 1, ...);
+```
+
+| 조건 | 결과 |
 |---|---|
-| G-1 | **`HCCommon.h` 4벌 → 1벌.** 정본은 `sdk/include/`(macOS 갈래 보유). 나머지 3벌은 정본을 include 하도록 바꾸거나 빌드 시 복사한다 |
-| G-2 | **macOS 갈래의 외부 의존 해소** — `#elif defined(OS_MACOS) && OS_MACOS` 는 `Main/macos/CMakeLists.txt:160` 의 `-DOS_MACOS=1` 이 있어야만 성립한다. `__APPLE__ && !TARGET_OS_IPHONE` 같이 **헤더 안에서 닫히게** 한다 |
-| G-3 | **`#else` + `#error` 추가** — 미정의 플랫폼이 조용히 전부 거짓으로 평가되는 결함([gap.md §5.3](../gap.md))을 컴파일 에러로 바꾼다. **G-1·G-2 뒤에 해야 한다** — 지금 넣으면 macOS 가 즉시 에러가 난다 |
-| G-4 | **`OS_LINUX` 1급 분기 추가** — Linux 는 **주 개발 플랫폼**이다([plan.md §0.1](./plan.md)). "headless 용 가드"가 아니라 정식 분기이며, 이 분기 위에서 CI·[Phase 5](./plan.md) Python wrapper·[Phase 6](./phase6-samples-support.md) Qt6 샘플이 함께 선다. 구현체는 [0-L](#step-0-l-platformslinux-신설) |
-| G-5 | **`#else` 에 `#error`** — 분기를 4개로 늘려도 5번째 플랫폼이 같은 함정에 빠질 수 있다. 미정의 플랫폼이 조용히 전 분기 거짓이 되는 구조 자체를 막는다 |
-| G-5 | `OS_MACOS` 사용처 **자체 소스 12파일**이 통합 후에도 같게 평가되는지 확인 — 특히 `HCImageRenderCore.cpp:782`(ANGLE 백엔드 선택)와 `HCImageFilter.cpp`(CVIE `#if !OS_MACOS` 게이트) |
-| G-6 | **Linux 타깃은 이 단계에서 렌더 서피스를 만들지 않는다** — headless(오프스크린) 컨텍스트는 [Phase 1-C·Phase 4-D](./plan.md) 의 **신규 구현**이다. 여기서는 **컴파일·링크가 되는 타깃**까지만 만든다. 플랫폼(`linux`)과 서피스 모드(`headless`)는 다른 축이다([plan.md §0.1.1](./plan.md)) |
+| 호스트 Linux · `PLATFORM=1`(Android) · `=2`(iOS) · `=3`(Windows) | **4개 조합 전부 통과** — 정확히 하나만 참 |
+| 플랫폼 매크로 전부 제거 | **`#error` 로 정지**(G-3 이 실제로 동작한다) |
+| `-DOS_ANDROID=1` 주입 + `-Wall` | **경고 0** — 선행 `#undef` 가 재정의를 막는다 |
+| 전달 헤더 경유(`-I sdk/common/shared`) | 통과 |
+| Android ndk-build 재빌드 | `exit=0` · **`OS_ANDROID macro redefined` 경고 23건 → 0건** |
 
 ### Step 0-H. 병합 충돌 마커 제거 — ✅ 완료(2026-07-31, `1911035f`)
 
@@ -538,15 +554,15 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | 4 | ✅ **0-D** | 절대경로가 풀려야 다른 머신에서 **시도**라도 된다(§1.5) |
 | 5 | ✅ **0-F(F-1·F-5)** | 관측된 ADK 실패를 실제로 고치는 것은 여기다(§1.2). **단 실판정은 Windows 머신이 필요하다** — 여기서 한 것은 선언과 정적 게이트까지다 |
 | 6 | ✅ **0-K(K-1·K-2·K-4·K-5)** | **툴체인·sysroot 가 서야 그 위에서 의존물을 빌드한다.** 0-A 의 ANGLE 자체 빌드가 이것을 전제한다. **K-5 는 할 일이 없었고**(오판정), K-3 은 힐세리온 결정, K-6·K-7 은 Linux 빌드(0-G·0-L)와 CI 인프라 선행 |
-| 7 | **0-G · 0-L** ← **다음** | **Linux 분기와 구현체.** 주 개발 플랫폼이므로([plan.md §0.1](./plan.md)) 이후 단계가 딛고 설 바닥이다. 0-G 는 `HCCommon.h` 사본 통합 뒤에만 안전하다(§1.7). **§1.10 이 이 순서를 뒷받침한다** — Android 가 서드파티 없이 모듈 단위로 도는 것이 확인됐으므로, 같은 방식으로 Linux 를 세우는 것이 0-A·0-C 보다 앞선다 |
-| 8 | **0-A · 0-C · 0-B** | ANGLE 자체 빌드 → 의존물 관리 도입 → 경로 일원화. **0-A 는 Linux·Android 부터**(A-4) |
+| 7 | ✅ **0-G · 0-L(L-1·L-2)** | **Linux 분기와 구현체.** 주 개발 플랫폼이므로([plan.md §0.1](./plan.md)) 이후 단계가 딛고 설 바닥이다. 0-G 는 `HCCommon.h` 사본 통합 뒤에만 안전하다(§1.7). **§1.10 이 이 순서를 뒷받침한다** — Android 가 서드파티 없이 모듈 단위로 도는 것이 확인됐으므로, 같은 방식으로 Linux 를 세우는 것이 0-A·0-C 보다 앞선다 |
+| 8 | **0-C · 0-A · 0-B** ← **다음** | **순서가 바뀐다**(2026-08-02). vcpkg `angle` 포트가 Linux·Windows·macOS 를 덮으므로(0-A A-실측) **의존물 관리를 먼저 들여오고**, gn 자체 빌드는 그것으로 안 되는 Android·iOS 에만 쓴다 |
 | 9 | **0-F(나머지)** | 진입점·문서 마무리 |
 
 > **6번이 8번 앞에 오는 이유** — ANGLE 을 어느 NDK·어느 SDK sysroot 로 빌드하느냐가 산출물을 결정한다. 툴체인이 안 정해진 상태에서 빌드하면 **재현 불가능한 바이너리를 또 하나 만드는 것**이고, 그것이 지금 상태다.
 >
 > **7번이 8번 앞에 오는 이유** — Linux 분기가 서야 **ANGLE Linux 빌드가 붙을 곳이 생긴다.** 그리고 ANGLE 4플랫폼 중 Linux 가 가장 쉬우므로(Metal·D3D 백엔드 불필요) **자체 빌드 절차를 여기서 먼저 검증**하고 나머지로 넓히는 것이 안전하다.
 
-### Step 0-L. `platforms/linux` 신설
+### Step 0-L. `platform/linux` 신설 — ✅ L-1·L-2 완료(2026-08-02, `c389bfdb`), L-3~L-6 미시작
 
 **Linux 는 주 개발 PC 다**([plan.md §0.1](./plan.md)). 기존 문서들이 *"제품 지원 대상이 아니다"* 로 적은 것은 2023년 계획서 기준이며, 이 전제 아래에서는 **범위가 바뀐 것**이지 판정이 틀렸던 것이 아니다.
 
@@ -568,14 +584,31 @@ git -C client/legacy/sonex-framework log --oneline f336e25b..e17280b2
 | **렌더 서피스** | EGL 이 네이티브. 현재 `GLContext` 구현은 `HCiOSGLContext` 하나뿐이고 그마저 빌드 제외 | **오히려 유리** — [Phase 4-A](./phase4-render-boundary.md) 렌더 HAL 의 **첫 구현체로 삼기 좋다**. surfaceless 컨텍스트가 [1-C](./phase1-regression-baseline.md) 헤드리스 골든의 가장 깨끗한 경로다 |
 | **분기 감사** | `OS_WINDOWS` 111파일 · `OS_ANDROID` 71 · `OS_IOS` 41 | **실제 작업량은 여기다** — Linux 가 Android 경로를 타면 되는 곳과 갈라야 하는 곳을 가른다 |
 
-| # | 작업 |
+| # | 작업 | 상태 |
+|---|---|---|
+| L-1 | 디렉토리 골격 | ✅ **골격이 아니라 빌드되는 타깃을 만들었다** — `sdk/linux/CMakeLists.txt`. 범위는 **서드파티 의존이 0인 두 모듈**(`SonexCommon`·`DeviceManager`). 모듈마다 빈 `linux/` 디렉토리를 만드는 대신, 실제로 링크되는 진입점 하나를 먼저 세웠다 |
+| L-2 | **소켓** — 3-J 의 공통 POSIX 추출 결과를 Linux 에 연결. 3-J 가 아직이면 `HCCompSocketAndroid.cpp` 를 기준으로 최소 구현 | ✅ **사본을 만들지 않았다.** `HCCompSocketAndroid.{h,cpp}` 를 `posix/HCCompSocketPosix.{h,cpp}` 로 옮겨 **Android·Linux 가 함께 쓴다**. `Rx/TxWorker` 가드를 `OS_ANDROID \|\| OS_LINUX` 로 넓혔다. 4번째 사본을 만들었으면 3-J 가 지울 대상이 하나 늘었을 뿐이다 |
+| L-3 | **오디오** — ALSA/PulseAudio 중 택1. 배포 대상 배포판 결정이 선행(0-K K-6) | 미시작 — `toolchain.json` 에 `pending` |
+| L-4 | **렌더 서피스** — EGL 컨텍스트 생성. **surfaceless 를 먼저** 만든다(1-C 가 이것을 쓴다) | 미시작 — [Phase 4-A·4-D](./phase4-render-boundary.md) 와 한 벌 |
+| L-5 | **`OS_ANDROID` 71파일 분기 감사** — Linux 도 참인 것 / Android 전용인 것을 가르고, 전자는 `OS_POSIX` 같은 상위 술어 도입 검토 | 미시작 — **다만 L-2 가 그 첫 사례다.** 소켓은 "Linux 도 참" 이었고 디렉토리 이름만 Android 였다 |
+| L-6 | **서드파티 Linux 조달** — OpenCV·DCMTK·FFmpeg·OpenSSL·freetype. 0-C 매니페스트에 Linux 열 추가 | 미시작 — 0-C 와 한 벌. **현재 Linux 타깃이 서드파티를 안 쓰므로 블로커가 아니다** |
+
+#### L-실측. `[2026-08-02]` Linux 가 얼마나 가까웠나 — 결손은 `#include` 8줄이었다
+
+**착수 전 예상은 "소켓은 공짜, 오디오가 신규, 분기 감사가 실작업량" 이었다. 소켓 판정은 맞았고, 실제 장벽은 다른 데 있었다.**
+
+| 단계 | 실측 |
 |---|---|
-| L-1 | `sdk/sdk/*/linux/` · `sdk/adk/*/linux/` 디렉토리 골격 |
-| L-2 | **소켓** — 3-J 의 공통 POSIX 추출 결과를 Linux 에 연결. 3-J 가 아직이면 `HCCompSocketAndroid.cpp` 를 기준으로 최소 구현 |
-| L-3 | **오디오** — ALSA/PulseAudio 중 택1. 배포 대상 배포판 결정이 선행(0-K K-6) |
-| L-4 | **렌더 서피스** — EGL 컨텍스트 생성. **surfaceless 를 먼저** 만든다(1-C 가 이것을 쓴다) |
-| L-5 | **`OS_ANDROID` 71파일 분기 감사** — Linux 도 참인 것 / Android 전용인 것을 가르고, 전자는 `OS_POSIX` 같은 상위 술어 도입 검토 |
-| L-6 | **서드파티 Linux 조달** — OpenCV·DCMTK·FFmpeg·OpenSSL·freetype. 0-C 매니페스트에 Linux 열 추가 |
+| `sdk/common/shared` 15개 소스 컴파일 | **9 통과 / 6 실패** — 실패 전부 표준 헤더 누락(`<cstring>`·`<cmath>`·`<memory>`) |
+| 헤더 자립성 | `HCImageData.h`·`HCAudioData.h` 가 `memcpy` 를 include 없이 쓴다. **`sdk/include/` 공개 헤더와 `common/shared/` 사본 양쪽 모두** |
+| `DeviceManager` 13개 소스 | 위를 고친 뒤 **전부 통과**. `HCPacketData.h` 에 `<cstdint>` 하나 더 |
+| **합계 결손** | **파일 8개 · `#include` 8줄** |
+
+**즉 Linux 이식 비용의 대부분은 이식이 아니라 위생이었다.** 다른 플랫폼 툴체인이 전이적으로 끌어와 가려 두던 것이 드러난 것이고, 성격은 [0-M](#step-0-m-자립-컴파일-결손-정정--판정-6b-를-구현-파일까지)과 같다.
+
+**산출물**: `libSonexCommon.so`(265KB) · `libDeviceManager.so`(610KB), 둘 다 **x86-64 ELF 실물**이고 `DeviceManager` 가 `SonexCommon` 을 정상 링크한다.
+
+> **`-Wall -Wextra` 가 경고 182건을 드러낸다** — `-Wunused-variable` 147 · `-Wtype-limits` 14 · `-Wsign-compare` 10 · `-Wswitch` 6 · **`-Wdelete-incomplete` 2** · **`-Wnonnull` 1** · 기타 2. 뒤의 셋은 정의상 결함이다: `HCVariantMap.cpp:14,16` 이 **`void*` 를 delete** 하고(소멸자가 돌지 않는다), `HCTxWorker.cpp:102` 는 **`this` 가 null** 이다. 경고 게이트를 [Phase 1-E](./phase1-regression-baseline.md) 에 올리자는 판단([code-defects-sdk.md §7.1](./code-defects-sdk.md))이 실측으로 뒷받침된다.
 
 > **부수 효과가 크다** — Linux 가 서면 [Phase 5](./phase5-language-wrappers.md) Python 코어의 호스트가 정해지고, [Phase 6-B](./phase6-samples-support.md) Qt6 샘플이 *"core 가 Linux 를 지원하지 않아 Windows·macOS 로 시작"* 하던 제약에서 풀린다.
 
