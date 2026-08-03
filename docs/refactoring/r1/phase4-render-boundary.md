@@ -282,7 +282,26 @@ fopen_s(&_diagF, "c:\\Users\\<이름>\\work\\sonex-app\\log\\press.log", "a");
 | C-6 | **앱 선언 3종을 되살리지 않는다** — `hc_ReadLastFramebufferBgra` · `hc_RequestCaptureNextFrame` · `hc_GrabFrontBufferBgraNow` 는 프레임워크에 정의 0건이다. **같은 일을 하는 이름이 셋인 것 자체가 계약 부재의 증상**이므로 정본 1개로 흡수하고 앱 선언은 폐기한다 |
 | C-7 | **반환 계약 확정** — 픽셀 포맷(RGBA/BGRA) · 원점(상단/하단) · 스트라이드 · 버퍼 소유. 현행 cine 경로는 `orthoMat` 의 t/b swap 으로 GL 단계에서 flip 해 Flutter 규약에 맞춘다(`:2721-2753`). **이 암묵 규약을 헤더에 명시**하지 않으면 언어별 wrapper 가 각자 flip 한다 |
 
-### Step 4-C2. 측정 기하 반환 API 신규 구현
+### Step 4-C2. 측정 기하 반환 API — ✅ **신규 구현하지 않기로 확정**(2026-08-03, `d5e27644`)
+
+#### 4-C2 판정 — **없는 것은 심볼이지 기능이 아니다** `[2026-08-03]`
+
+아래 표에 **가운데 칸이 빠져 있었다.** "있는 것(C++ 직렬화)" 과 "없는 것(전용 심볼)" 만 적고, **그 둘을 이미 잇고 있는 요청 코드 경로**를 세지 않았다.
+
+```
+hc_SendRequest(REQUEST_EXPORT_MEASUREMENTS, "{\"streamIndex\":0}")
+  → SonexSDK::parseExportMeasurements   (HCSonexSDK.cpp:1306)
+  → ImageRenderer::exportMeasurements
+  → 결과 콜백으로 measures JSON
+```
+
+**그래서 전용 C ABI 를 만들지 않는다.** 같은 일을 하는 경로가 둘이 되면 한쪽만 고치는 날이 온다 — r1 에서 이 형태로만 결함을 여섯 번 봤다(EGL 분기 3곳 · 모듈 로더 14곳 · SonexSDK 로더 12곳 · FreeType 목록 2곳 · 헤더 사본 122벌 · 바인딩 27벌).
+
+대신 **결과 콜백 경로를 헤더에 적었다.** `hc_SendRequest` 가 결과를 반환하지 않고 콜백으로 준다는 것을 소비자가 알 방법이 없었고, **그래서 앱이 `hc_GetMeasureObjectsData` 같은 없는 심볼을 선언하게 됐다** — §1.2 가 적은 *"선언은 존재의 증거가 아니다"* 의 반대편이다.
+
+**판정 = `test/render/test_measure_export.cpp`.** 전용 심볼 없이 측정 기하가 돌아오는 것을 실행으로 보인다. **이 케이스가 빨개지면 판단이 뒤집힌다.**
+
+#### 원래 실측
 
 `[실측 2026-07-30]` **C++ 직렬화는 이미 있고 C ABI 만 없다.**
 
