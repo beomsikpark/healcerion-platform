@@ -1,6 +1,6 @@
 # Phase 5 — 언어별 wrapper 정본화
 
-> **상태**: 미시작
+> **상태**: 진행 중 — **5-A·5-C·5-D(C++/Qt6)·5-E 완료**(2026-08-03). `wrapper/cpp` 에 `SonexScanWidget` 이 서고, 바인딩 정합을 게이트가 **시그니처까지** 판정한다
 > **⚑ 범위 축소(2026-08-02)**: **이번 실행 범위는 `C++`/Qt6 표시 컴포넌트 1벌**이다. C#·Python·Flutter·JNI·ObjC++ **5종은 연기**한다 — 출시 대상이 500C·500P 로 좁혀지고 UI 가 [r2](../r2/plan.md)(Qt) 하나로 정해졌기 때문이다. **폐기가 아니다**([../goal.md §1 ⚑·§5.2](../goal.md)). 아래 27벌 실측·정본화 방법론은 **재개 시점에 그대로 쓰인다.**
 > **범위**: `sonex-framework` 작업 사본의 `wrapper/`. **바인딩을 새로 발명하지 않는다 — 27벌 14,363 LOC 를 정본 1벌씩으로 수렴시키고 그 정합을 CI 가 판정하게 한다.** 산출물은 언어별 **표시 컴포넌트**이지 심볼 목록이 아니다([../rendering-boundary.md §7.2](../rendering-boundary.md)).
 > **선행**: [Phase 4](./phase4-render-boundary.md) — 순서를 뒤집으면 지금의 서피스 결합 4갈래가 언어 수만큼 곱해진다
@@ -162,6 +162,35 @@ flowchart LR
 | A-4 | 각 벌의 출처(저장소·경로·커밋 SHA·MD5)를 기계 판독 가능한 매니페스트로 |
 
 > **A-3 이 되돌릴 수 있게 만든다.** 원본을 먼저 옮기면 "정본이 원본과 같은가"를 물을 대조 대상이 사라진다.
+
+#### 5-B·5-E 결과 — **시그니처 대조가 결함 둘을 즉시 찾았다** `[2026-08-03]`
+
+E-3 이 지시한 것 — *"이름만 맞고 인자 개수가 다르면 런타임에 스택이 깨진다. 이름 일치는 최소 조건이지 충분 조건이 아니다."*
+
+| 심볼 | 헤더 | C# 바인딩 |
+|---|---|---|
+| `hc_IsConnected` | `(int streamIndex)` | `()` |
+| `hc_GetScannerInfo` | `(int streamIndex)` | `()` |
+
+이름이 맞으니 링크는 되고, 호출하면 `streamIndex` 자리에 쓰레기가 들어간다. 둘 다 헤더에 맞췄다.
+
+**축을 넷으로 넓혔다**(B-2) — C#(`LibraryImport`/`DllImport`) · ObjC++(`extern "C"` 안의 손수 선언) · JNI(C++ 직접 호출) · Dart(`lookup`). **언어 하나만 보면 그 언어 밖의 표류는 영원히 안 보인다** — 실제로 5-C 의 오철자 2건이 Dart 축만 보던 게이트를 통과해 살아남았다.
+
+> **게이트가 내 주석을 선언으로 읽고 있었다.** 역검증이 조용히 통과해 파고들었더니, C# 파서가 `[LibraryImport]` **다음 한 줄**을 선언으로 보는데 그 사이에 주석이 끼어 **주석 안의 시그니처를 읽었다.** 주석을 지우고 읽게 고치자 역검증이 통했고 **그 김에 `hc_GetScannerInfo` 결함이 하나 더 드러났다.**
+>
+> 헤더 파서도 고쳤다 — `[^;]*?` + `re.S` 가 여러 선언에 걸쳐 매칭돼 `hc_PrepareRenderer` 를 3개가 아니라 11개 인자로 셌다.
+
+**B-6 표**는 `./scripts/check-bindings.py --report` 로 낸다.
+
+```
+binding                            bound  absent  misspelled  arity
+.../cpp/jni.cpp                       16      16           0      0
+.../ADK_Sample_Test/NativeMethods     12      12           0      0
+.../SDK_Sample_Windows/NativeMet…     11       0           0      0
+.../SDK_Sample_iOS/SonexSDKBridge     14       0           0      0
+```
+
+absent 28건은 전부 ADK 바인딩이다 — ADK 가 아직 Linux 진입점에 없어서이며 결함이 아니다.
 
 ### Step 5-B. 전수 대조 — 공개 ABI 기준
 
